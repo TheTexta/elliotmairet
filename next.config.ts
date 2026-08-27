@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "api.dextery.dev",
+        pathname: "/storage/v1/render/image/public/elliotmairet/**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;
