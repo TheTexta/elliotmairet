@@ -4,7 +4,7 @@ import Link from "next/link";
 import { galleryPhotographs } from "./photos";
 
 const galleryStorageBaseUrl =
-  "https://api.dextery.dev/storage/v1/render/image/public/elliotmairet";
+  "https://api.dextery.dev/storage/v1/object/public/elliotmairet";
 const paletteApiUrl =
   "https://api.dextery.dev/rest/v1/photo_palette_colours?select=storage_path,rank,hex&order=storage_path.asc,rank.asc";
 const publicPaletteApiKey = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3NDU1MzcwMCwiZXhwIjo0OTMwMjI3MzAwLCJyb2xlIjoiYW5vbiJ9.HVtr0mMAc2VYP7Ap8z4Q0QCyUp1IJLwGAIjyKWaBYDY";
@@ -16,12 +16,7 @@ type PaletteColour = {
 };
 
 function photographUrl(filename: string) {
-  return (
-    galleryStorageBaseUrl +
-    "/" +
-    encodeURIComponent(filename) +
-    "?width=1200&quality=74"
-  );
+  return galleryStorageBaseUrl + "/" + encodeURIComponent(filename);
 }
 
 function photographDate(filename: string) {
@@ -107,9 +102,9 @@ export default async function GalleryPage() {
                   className="block w-full h-auto"
                   height={photograph.height}
                   priority={index < 4}
+                  quality={74}
                   sizes="(max-width: 639px) calc(100vw - 20px), (max-width: 767px) calc(50vw - 20px), (max-width: 1023px) calc(33vw - 20px), (max-width: 1279px) calc(25vw - 20px), (max-width: 1535px) calc(20vw - 20px), calc(16.6vw - 20px)"
                   src={photographUrl(photograph.filename)}
-                  unoptimized
                   width={photograph.width}
                 />
                 {palette.length === 5 ? (

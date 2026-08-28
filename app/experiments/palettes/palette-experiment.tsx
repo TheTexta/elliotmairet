@@ -17,7 +17,7 @@ type AnalysisResult = {
 };
 
 const storageBaseUrl =
-  "https://api.dextery.dev/storage/v1/render/image/public/elliotmairet";
+  "https://api.dextery.dev/storage/v1/object/public/elliotmairet";
 
 const testImages = [
   {
@@ -75,12 +75,14 @@ const methods: Array<{
 ];
 
 function imageUrl(filename: string) {
-  return (
-    storageBaseUrl +
-    "/" +
-    encodeURIComponent(filename) +
-    "?width=640&quality=82"
-  );
+  return storageBaseUrl + "/" + encodeURIComponent(filename);
+}
+
+function analysisImageUrl(filename: string) {
+  return imageUrl(filename).replace(
+    "/object/public/",
+    "/render/image/public/",
+  ) + "?width=640&quality=82";
 }
 
 function rgbToHex([red, green, blue]: Rgb) {
@@ -247,7 +249,7 @@ export function PaletteExperiment() {
 
     async function analyseImage(filename: string) {
       try {
-        const pixels = await readPixels(imageUrl(filename));
+        const pixels = await readPixels(analysisImageUrl(filename));
         const palettes: PaletteResult = {
           histogram: quantizedHistogram(pixels),
           medianCut: medianCut(pixels),
@@ -347,9 +349,9 @@ export function PaletteExperiment() {
                   className="block w-full h-full object-cover"
                   height={image.height}
                   priority
+                  quality={82}
                   sizes="(max-width: 760px) calc(100vw - 32px), 34vw"
                   src={imageUrl(image.filename)}
-                  unoptimized
                   width={image.width}
                 />
                 <span className="absolute right-2 bottom-2 px-[0.3rem] py-[0.2rem] bg-[#efeee9] text-[0.6875rem] tracking-[-0.02em]">

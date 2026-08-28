@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 const storageBaseUrl =
-  "https://api.dextery.dev/storage/v1/render/image/public/elliotmairet";
+  "https://api.dextery.dev/storage/v1/object/public/elliotmairet";
 
 const photographs = [
   { filename: "20260623-DSCF5971.jpg", width: 4364, height: 6546 },
@@ -31,7 +31,7 @@ const photographs = [
 ] as const;
 
 function photographUrl(filename: string) {
-  return `${storageBaseUrl}/${encodeURIComponent(filename)}?width=1600&quality=78`;
+  return `${storageBaseUrl}/${encodeURIComponent(filename)}`;
 }
 
 function yearFromFilename(filename: string) {
@@ -111,9 +111,9 @@ export default function Home() {
                   className="block w-full h-auto"
                   height={photograph.height}
                   priority={index === 0}
+                  quality={78}
                   sizes="(max-width: 720px) calc(100vw - 32px), (max-width: 960px) 66vw, 50vw"
                   src={photographUrl(photograph.filename)}
-                  unoptimized
                   width={photograph.width}
                 />
               </figure>
