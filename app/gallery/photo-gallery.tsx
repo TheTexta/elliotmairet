@@ -1,0 +1,89 @@
+import Image from "next/image";
+import Link from "next/link";
+
+export type PhotoGalleryItem = {
+  filename: string;
+  width: number;
+  height: number;
+  year: string;
+  imageUrl: string;
+  palette?: string[];
+  closestHex?: string;
+  difference?: number;
+};
+
+export function PhotoGallery({
+  ariaLabel,
+  photographs,
+}: {
+  ariaLabel: string;
+  photographs: PhotoGalleryItem[];
+}) {
+  return (
+    <section
+      className="columns-1 gap-4 sm:columns-2 md:columns-3"
+      aria-label={ariaLabel}
+    >
+      {photographs.map((photograph, index) => {
+        const archiveLabel = String(index + 1).padStart(3, "0");
+
+        return (
+          <article
+            className="group mb-4 break-inside-avoid text-[#e2e1e1]"
+            key={photograph.filename}
+          >
+            <Link
+              className="block no-underline focus-visible:outline focus-visible:outline-white"
+              href={`/gallery/${encodeURIComponent(photograph.filename)}`}
+            >
+              <figure className="relative m-0 min-h-15 bg-black">
+                <Image
+                  alt={
+                    photograph.difference === undefined
+                      ? `Archive photograph ${archiveLabel}, ${photograph.year}`
+                      : `Photograph with a colour difference of ${photograph.difference.toFixed(1)}`
+                  }
+                  className="block h-auto w-full"
+                  height={photograph.height}
+                  priority={index < 4}
+                  quality={74}
+                  sizes="(max-width: 639px) calc(100vw - 20px), (max-width: 767px) calc(50vw - 20px), (max-width: 1023px) calc(33vw - 20px), (max-width: 1279px) calc(25vw - 20px), (max-width: 1535px) calc(20vw - 20px), calc(16.6vw - 20px)"
+                  src={photograph.imageUrl}
+                  width={photograph.width}
+                />
+                {photograph.palette?.length === 5 ? (
+                  <div
+                    className="pointer-events-none absolute top-2 right-2 z-10 flex -translate-y-1 overflow-hidden border border-white/70 opacity-0 shadow-[0_1px_6px_rgba(0,0,0,0.35)] transition-[opacity,transform] duration-160 ease-in-out group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100"
+                    aria-hidden="true"
+                  >
+                    {photograph.palette.map((hex, paletteIndex) => (
+                      <span
+                        className="h-3.5 w-3.5"
+                        key={`${hex}-${paletteIndex}`}
+                        style={{ backgroundColor: hex }}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+                {photograph.closestHex ? (
+                  <span
+                    aria-label={`Closest palette colour ${photograph.closestHex}`}
+                    className="absolute top-2 right-2 block size-3.5"
+                    style={{ backgroundColor: photograph.closestHex }}
+                  />
+                ) : null}
+                {photograph.difference !== undefined ? (
+                  <div className="pointer-events-none absolute right-0 bottom-0 left-0 z-10 translate-y-1 text-white leading-[1.35] opacity-0 transition-[opacity,transform] duration-160 ease-in-out group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
+                    <span className="block min-w-0 overflow-hidden p-1.25 text-ellipsis whitespace-nowrap">
+                      {photograph.filename}
+                    </span>
+                  </div>
+                ) : null}
+              </figure>
+            </Link>
+          </article>
+        );
+      })}
+    </section>
+  );
+}

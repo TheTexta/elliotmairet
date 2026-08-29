@@ -11,11 +11,12 @@ import { galleryPhotographs } from "@/app/gallery/photos";
 const similarityThreshold = 20;
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: RouteContext<"/api/gallery/colour/[hex]">,
 ) {
   const { hex: hexParameter } = await params;
   const hexParameters = hexParameter.split(",");
+  const excludedFilename = new URL(request.url).searchParams.get("exclude");
 
   if (
     hexParameters.length < 1 ||
@@ -41,6 +42,7 @@ export async function GET(
   }
 
   const matches = galleryPhotographs
+    .filter((photograph) => photograph.filename !== excludedFilename)
     .flatMap((photograph) => {
       const colours = palettes.get(photograph.filename) ?? [];
       const closestMatch = selectedColours
