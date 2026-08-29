@@ -22,7 +22,7 @@ export function PhotoGallery({
 }) {
   return (
     <section
-      className="animate-gallery-fade-in columns-1 gap-4 motion-reduce:animate-none sm:columns-2 md:columns-3"
+      className="animate-gallery-fade-in columns-2 gap-4 motion-reduce:animate-none md:columns-3"
       aria-label={ariaLabel}
     >
       {photographs.map((photograph, index) => {
@@ -59,7 +59,7 @@ export function PhotoGallery({
                 />
                 {photograph.palette?.length === 5 ? (
                   <div
-                    className="pointer-events-none absolute top-2 right-2 z-10 flex -translate-y-1 overflow-hidden border border-white/70 opacity-0 shadow-[0_1px_6px_rgba(0,0,0,0.35)] transition-[opacity,transform] duration-160 ease-in-out group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100"
+                    className="pointer-events-none absolute top-2 right-2 z-10 hidden -translate-y-1 overflow-hidden border border-white/70 opacity-0 shadow-[0_1px_6px_rgba(0,0,0,0.35)] transition-[opacity,transform] duration-160 ease-in-out group-hover:translate-y-0 group-hover:opacity-100 sm:flex"
                     aria-hidden="true"
                   >
                     {photograph.palette.map((hex, paletteIndex) => (

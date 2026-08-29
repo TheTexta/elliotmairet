@@ -100,13 +100,13 @@ export function SimilarColourGallery({
     <>
       <nav
         aria-label="Photograph colour palette"
-        className="grid w-full grid-cols-5 py-4"
+        className="grid w-full grid-cols-5 pb-4 h-[8vh]"
       >
         {palette.map((hex, index) => (
           <button
             aria-label={`Show photographs similar to ${hex}`}
             aria-pressed={selectedHex === hex}
-            className="group relative block aspect-[3/1] cursor-pointer border-0 bg-white p-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#050505]"
+            className="group relative block cursor-pointer border-0 bg-white p-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#050505]"
             key={`${hex}-${index}`}
             onClick={() => setSelectedHex(hex)}
             title={`Find similar colours to ${hex}`}

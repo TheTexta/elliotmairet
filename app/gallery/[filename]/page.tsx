@@ -6,6 +6,7 @@ import { ContentFrame } from "../content-frame";
 import { FadingImage } from "../fading-image";
 import { IndexNavigation } from "../index-navigation";
 import { galleryPhotographs } from "../photos";
+import { ScrollToTop } from "../scroll-to-top";
 import { SimilarColourGallery } from "./similar-colour-gallery";
 
 export async function generateStaticParams() {
@@ -55,18 +56,15 @@ export default async function PhotographPage({
       exit="photo-view-fade-out"
       key={photograph.filename}
     >
-      <main className="min-h-svh bg-white">
-        <IndexNavigation contactHref="/#contact" />
+      <main className="min-h-svh ">
+        <ScrollToTop routeKey={photograph.filename} />
+        <IndexNavigation/>
         <ContentFrame>
           <section>
-            <figure className="m-0 max-h-[80svh] bg-white pt-25">
+            <figure className="m-0  h-[80vh] bg-white mt-[8vh] mb-[4vh] flex content-center items-center justify-center">
               <FadingImage
                 alt={`Photograph from ${photograph.year}`}
-                className={
-                  photograph.height > photograph.width
-                    ? "mx-auto block h-[calc(80svh-5rem)] w-auto max-w-full"
-                    : "block max-h-full max-w-full"
-                }
+                className={"block h-full w-auto object-contain"}
                 height={photograph.height}
                 priority
                 quality={78}
@@ -75,7 +73,7 @@ export default async function PhotographPage({
                 width={photograph.width}
               />
             </figure>
-            <div className="mt-25" />
+            <div className="" />
             {palette.length === 5 ? (
               <SimilarColourGallery
                 currentFilename={photograph.filename}

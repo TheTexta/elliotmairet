@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Elliot Mairet — Photographs",
-  description: "Selected photographs by Elliot Mairet.",
+  title: "Elliot Mairet",
+  description: "Photographs by Elliot Mairet",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

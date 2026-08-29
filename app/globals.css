@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+html {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+html::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
 @theme {
   --animate-gallery-fade-in: gallery-fade-in 300ms linear both;
 

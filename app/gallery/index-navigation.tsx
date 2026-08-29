@@ -1,9 +1,9 @@
 import Link from "next/link";
 
-export function IndexNavigation({ contactHref }: { contactHref: string }) {
+export function IndexNavigation() {
   return (
     <nav
-      className="fixed top-2.5 left-2.5 z-20 flex flex-col items-start gap-1 text-[0.8125rem] font-normal tracking-[-0.035em] text-[#050505]"
+      className="fixed top-2 left-4 z-20 flex flex-col items-start gap-1 text-1"
       aria-label="Index navigation"
     >
       <Link

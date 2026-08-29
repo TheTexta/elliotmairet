@@ -17,11 +17,11 @@ export async function GalleryView() {
       default="none"
       exit={{ "gallery-to-photo": "gallery-view-fade-out", default: "none" }}
     >
-      <main className="min-h-[100svh] bg-white text-[#e2e1e1] text-[0.8125rem] font-normal tracking-[-0.035em]">
-        <IndexNavigation contactHref="#contact" />
+      <main className="min-h-svh bg-white">
+        <IndexNavigation/>
 
         <ContentFrame>
-          <div className="py-4">
+          <div className="pt-8">
             <PhotoGallery
               ariaLabel="Complete photograph archive"
               photographs={newestPhotographs.map((photograph) => ({
