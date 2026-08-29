@@ -1,5 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
+
+import { FadingImage } from "./fading-image";
 
 export type PhotoGalleryItem = {
   filename: string;
@@ -21,7 +22,7 @@ export function PhotoGallery({
 }) {
   return (
     <section
-      className="columns-1 gap-4 sm:columns-2 md:columns-3"
+      className="animate-gallery-fade-in columns-1 gap-4 motion-reduce:animate-none sm:columns-2 md:columns-3"
       aria-label={ariaLabel}
     >
       {photographs.map((photograph, index) => {
@@ -35,9 +36,14 @@ export function PhotoGallery({
             <Link
               className="block no-underline focus-visible:outline focus-visible:outline-white"
               href={`/gallery/${encodeURIComponent(photograph.filename)}`}
+              transitionTypes={
+                photograph.difference === undefined
+                  ? ["gallery-to-photo"]
+                  : undefined
+              }
             >
-              <figure className="relative m-0 min-h-15 bg-black">
-                <Image
+              <figure className="relative m-0 min-h-15 bg-white">
+                <FadingImage
                   alt={
                     photograph.difference === undefined
                       ? `Archive photograph ${archiveLabel}, ${photograph.year}`
@@ -65,20 +71,14 @@ export function PhotoGallery({
                     ))}
                   </div>
                 ) : null}
+                {/* Enable when visually testing similarity result colours.
                 {photograph.closestHex ? (
                   <span
                     aria-label={`Closest palette colour ${photograph.closestHex}`}
                     className="absolute top-2 right-2 block size-3.5"
                     style={{ backgroundColor: photograph.closestHex }}
                   />
-                ) : null}
-                {photograph.difference !== undefined ? (
-                  <div className="pointer-events-none absolute right-0 bottom-0 left-0 z-10 translate-y-1 text-white leading-[1.35] opacity-0 transition-[opacity,transform] duration-160 ease-in-out group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
-                    <span className="block min-w-0 overflow-hidden p-1.25 text-ellipsis whitespace-nowrap">
-                      {photograph.filename}
-                    </span>
-                  </div>
-                ) : null}
+                ) : null} */}
               </figure>
             </Link>
           </article>

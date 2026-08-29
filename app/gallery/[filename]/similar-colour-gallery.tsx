@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { PhotoGallery } from "../photo-gallery";
 
@@ -20,6 +20,22 @@ type MatchResponse = {
   matches: ColourMatch[];
 };
 
+const galleryFadeOutDurationMs = 100;
+const galleryFadeInDurationMs = 300;
+
+function waitForGalleryFadeOut(signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    const finish = () => {
+      window.clearTimeout(timeoutId);
+      signal.removeEventListener("abort", finish);
+      resolve();
+    };
+
+    const timeoutId = window.setTimeout(finish, galleryFadeOutDurationMs);
+    signal.addEventListener("abort", finish, { once: true });
+  });
+}
+
 export function SimilarColourGallery({
   currentFilename,
   palette,
@@ -29,7 +45,10 @@ export function SimilarColourGallery({
 }) {
   const [selectedHex, setSelectedHex] = useState<string>();
   const [response, setResponse] = useState<MatchResponse>();
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const responseRef = useRef<MatchResponse | undefined>(undefined);
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "fading-out" | "error"
+  >("idle");
 
   useEffect(() => {
     const hexes = selectedHex ? [selectedHex] : palette;
@@ -49,7 +68,19 @@ export function SimilarColourGallery({
           throw new Error(`Colour search failed with ${result.status}.`);
         }
 
-        setResponse((await result.json()) as MatchResponse);
+        const nextResponse = (await result.json()) as MatchResponse;
+
+        if (responseRef.current) {
+          setStatus("fading-out");
+          await waitForGalleryFadeOut(controller.signal);
+
+          if (controller.signal.aborted) {
+            return;
+          }
+        }
+
+        responseRef.current = nextResponse;
+        setResponse(nextResponse);
         setStatus("idle");
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -92,8 +123,21 @@ export function SimilarColourGallery({
         ))}
       </nav>
 
-      <section aria-live="polite">
-        {status === "idle" && response ? (
+      <section
+        aria-busy={status === "loading" || status === "fading-out"}
+        aria-live="polite"
+        className={`transition-opacity ease-linear motion-reduce:transition-none ${
+          status === "fading-out" ? "opacity-0" : "opacity-100"
+        }`}
+        style={{
+          transitionDuration: `${
+            status === "fading-out"
+              ? galleryFadeOutDurationMs
+              : galleryFadeInDurationMs
+          }ms`,
+        }}
+      >
+        {response ? (
           <PhotoGallery
             ariaLabel="Photographs ordered by colour similarity"
             photographs={response.matches}

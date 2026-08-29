@@ -81,9 +81,9 @@ export async function archivePalettes() {
 }
 
 export function deltaE76(first: PaletteColour, second: PaletteColour) {
-  return Math.hypot(
-    first.lab_l - second.lab_l,
-    first.lab_a - second.lab_a,
-    first.lab_b - second.lab_b,
-  );
+  const lightnessDelta = first.lab_l - second.lab_l;
+  const greenRedDelta = first.lab_a - second.lab_a;
+  const blueYellowDelta = first.lab_b - second.lab_b;
+
+  return Math.hypot(lightnessDelta, greenRedDelta, blueYellowDelta);
 }

@@ -8,7 +8,96 @@ import {
 } from "@/app/gallery/archive";
 import { galleryPhotographs } from "@/app/gallery/photos";
 
-const similarityThreshold = 20;
+const singleColourSimilarityThreshold = 20;
+const fiveColourSimilarityThreshold = 20;
+const fiveDimensionalVectorSize = 5;
+const monochromePaletteChromaThreshold = 1;
+
+function paletteChroma(colours: PaletteColour[]) {
+  const meanSquaredChroma =
+    colours.reduce(
+      (sum, colour) => sum + colour.lab_a ** 2 + colour.lab_b ** 2,
+      0,
+    ) / colours.length;
+
+  return Math.sqrt(meanSquaredChroma);
+}
+
+function palettesShareColourMode(
+  sourceColours: PaletteColour[],
+  candidateColours: PaletteColour[],
+) {
+  const sourceIsMonochrome =
+    paletteChroma(sourceColours) <= monochromePaletteChromaThreshold;
+  const candidateIsMonochrome =
+    paletteChroma(candidateColours) <= monochromePaletteChromaThreshold;
+
+  return sourceIsMonochrome === candidateIsMonochrome;
+}
+
+function closestPaletteMatch(
+  selectedColours: PaletteColour[],
+  candidateColours: PaletteColour[],
+) {
+  if (
+    selectedColours.length === 0 ||
+    candidateColours.length < selectedColours.length
+  ) {
+    return;
+  }
+
+  let closestMatch:
+    | { closestColour: PaletteColour; difference: number }
+    | undefined;
+  const differences: number[] = [];
+  const matchedColours: PaletteColour[] = [];
+  const usedCandidateIndexes = new Set<number>();
+
+  function matchColour(selectedIndex: number) {
+    if (selectedIndex === selectedColours.length) {
+      const difference =
+        Math.hypot(...differences) / Math.sqrt(differences.length);
+
+      if (!closestMatch || difference < closestMatch.difference) {
+        const closestIndex = differences.reduce(
+          (bestIndex, componentDifference, index) =>
+            componentDifference < differences[bestIndex] ? index : bestIndex,
+          0,
+        );
+
+        closestMatch = {
+          closestColour: matchedColours[closestIndex],
+          difference,
+        };
+      }
+
+      return;
+    }
+
+    candidateColours.forEach((candidateColour, candidateIndex) => {
+      if (usedCandidateIndexes.has(candidateIndex)) {
+        return;
+      }
+
+      usedCandidateIndexes.add(candidateIndex);
+      const colourDelta = deltaE76(
+        selectedColours[selectedIndex],
+        candidateColour,
+      );
+
+      differences.push(colourDelta);
+      matchedColours.push(candidateColour);
+      matchColour(selectedIndex + 1);
+      matchedColours.pop();
+      differences.pop();
+      usedCandidateIndexes.delete(candidateIndex);
+    });
+  }
+
+  matchColour(0);
+
+  return closestMatch;
+}
 
 export async function GET(
   request: Request,
@@ -41,22 +130,27 @@ export async function GET(
     notFound();
   }
 
+  const similarityThreshold =
+    selectedColours.length === fiveDimensionalVectorSize
+      ? fiveColourSimilarityThreshold
+      : singleColourSimilarityThreshold;
+  const sourceColours =
+    (excludedFilename ? palettes.get(excludedFilename) : undefined) ??
+    selectedColours;
+
   const matches = galleryPhotographs
     .filter((photograph) => photograph.filename !== excludedFilename)
     .flatMap((photograph) => {
       const colours = palettes.get(photograph.filename) ?? [];
-      const closestMatch = selectedColours
-        .flatMap((selectedColour) =>
-          colours.map((closestColour) => ({
-            closestColour,
-            difference: deltaE76(selectedColour, closestColour),
-          })),
-        )
-        .reduce<{ closestColour: PaletteColour; difference: number } | undefined>(
-          (closest, match) =>
-            !closest || match.difference < closest.difference ? match : closest,
-        undefined,
-      );
+
+      if (
+        colours.length === 0 ||
+        !palettesShareColourMode(sourceColours, colours)
+      ) {
+        return [];
+      }
+
+      const closestMatch = closestPaletteMatch(selectedColours, colours);
 
       if (!closestMatch) {
         return [];

@@ -1,11 +1,53 @@
 @import "tailwindcss";
 
 @theme {
-  --animate-palette-loading: palette-loading 1.1s linear infinite;
+  --animate-gallery-fade-in: gallery-fade-in 300ms linear both;
 
-  @keyframes palette-loading {
-    to {
-      background-position: -220% 0;
+  @keyframes gallery-fade-in {
+    from {
+      opacity: 0;
     }
+
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+::view-transition-old(.photo-view-fade-out) {
+  animation: photo-view-fade-out 100ms linear both;
+}
+
+::view-transition-old(.gallery-view-fade-out) {
+  animation: gallery-view-fade-out 100ms linear both;
+}
+
+::view-transition-new(.photo-view-fade-in) {
+  animation: photo-view-fade-in 300ms linear both;
+}
+
+@keyframes photo-view-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes gallery-view-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes photo-view-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.photo-view-fade-out),
+  ::view-transition-old(.gallery-view-fade-out),
+  ::view-transition-new(.photo-view-fade-in) {
+    animation: none;
   }
 }
