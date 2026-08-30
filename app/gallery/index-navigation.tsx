@@ -3,7 +3,7 @@ import Link from "next/link";
 export function IndexNavigation() {
   return (
     <nav
-      className="fixed top-2 left-4 z-20 flex flex-col items-start gap-1 text-1"
+      className="fixed top-2 left-4 z-20 flex flex-col items-start gap-1 text-sm"
       aria-label="Index navigation"
     >
       <Link
@@ -12,27 +12,12 @@ export function IndexNavigation() {
       >
         Elliot Mairet
       </Link>
-      
-      <div className="flex flex-col gap-1 mt-auto mb-0 bottom-2.5 fixed">
-      <span
-        className="no-underline"
-      >
-        Contact:
-      </span>
-
-      <a
+      <Link
         className="no-underline hover:underline focus-visible:underline"
-        href="mailto:elliot.mairet@gmail.com"
+        href="#about"
       >
-        elliot.mairet@gmail.com
-      </a>
-      <a
-        className="no-underline hover:underline focus-visible:underline"
-        href="https://www.instagram.com/elliotmairet/"
-      >
-        Instagram
-      </a>
-      </div>
+        About
+      </Link>
     </nav>
   );
 }
