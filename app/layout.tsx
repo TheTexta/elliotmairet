@@ -20,9 +20,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <footer
           id="about"
-          className="grid grid-cols-2 items-start gap-4 px-4 py-8 font-normal  sm:px-[calc(100vw/6)]"
+          className="grid grid-cols-1 items-start gap-4 px-4 py-8 font-normal sm:grid-cols-2 sm:px-[calc(100vw/6)]"
         >
-          <div className="flex flex-col items-start text-left">
+          <div className="flex flex-col items-start text-left py-8 sm:py-4">
             <a
               className="no-underline hover:underline focus-visible:underline"
               href="mailto:elliot.mairet@gmail.com"
@@ -36,7 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               Instagram
             </a>
           </div>
-          <div className="flex flex-col items-end text-right">
+          <div className="flex flex-col items-start text-left py-8 sm:py-4 sm:items-end sm:text-right">
             <p>
               Elliot Mairet is a Montreal based photographer from Victoria BC.
             </p>
