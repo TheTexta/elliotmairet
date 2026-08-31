@@ -16,9 +16,10 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Copy `.env.example` to `.env.local` and set the Supabase project URL and
-publishable key. `SUPABASE_SERVICE_ROLE_KEY` is only needed by the palette
-backfill script and must never be exposed to browser code.
+The app defaults to the production Supabase URL and public anon key. To use a
+different instance, copy `.env.example` to `.env.local` and override those
+values. `SUPABASE_SERVICE_ROLE_KEY` is only needed by the palette backfill
+script and must never be exposed to browser code.
 
 ## Photograph catalogue migration
 
