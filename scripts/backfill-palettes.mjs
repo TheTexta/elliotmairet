@@ -1,6 +1,5 @@
 import sharp from "sharp";
 
-import { galleryPhotographs } from "../app/gallery/photos.ts";
 import {
   extractKMeansPalette,
   K_MEANS_ALGORITHM,
@@ -46,8 +45,9 @@ function parseLimit() {
   return value;
 }
 
-function renderUrl(supabaseUrl, filename) {
-  return `${supabaseUrl}/storage/v1/render/image/public/${BUCKET}/${encodeURIComponent(filename)}?width=${RENDER_WIDTH}&quality=${RENDER_QUALITY}`;
+function renderUrl(supabaseUrl, storagePath) {
+  const encodedPath = storagePath.split("/").map(encodeURIComponent).join("/");
+  return `${supabaseUrl}/storage/v1/render/image/public/${BUCKET}/${encodedPath}?width=${RENDER_WIDTH}&quality=${RENDER_QUALITY}`;
 }
 
 async function request(config, path, init = {}) {
@@ -69,13 +69,21 @@ async function request(config, path, init = {}) {
   return response;
 }
 
-async function existingPaths(config) {
+async function photographs(config) {
   const response = await request(
     config,
-    `photo_palettes?select=storage_path&algorithm=eq.${K_MEANS_ALGORITHM}&limit=1000`,
+    "photographs?select=id,storage_path,filename,image_width,image_height&order=captured_at.desc.nullslast,filename.desc&limit=1000",
+  );
+  return response.json();
+}
+
+async function existingPhotographIds(config) {
+  const response = await request(
+    config,
+    `photo_palette_analyses?select=photograph_id&algorithm=eq.${encodeURIComponent(K_MEANS_ALGORITHM)}&limit=1000`,
   );
   const rows = await response.json();
-  return new Set(rows.map((row) => row.storage_path));
+  return new Set(rows.map((row) => row.photograph_id));
 }
 
 async function imagePixels(url) {
@@ -107,16 +115,14 @@ async function imagePixels(url) {
 }
 
 async function analysePhoto(config, photo) {
-  const pixels = await imagePixels(renderUrl(config.supabaseUrl, photo.filename));
+  const pixels = await imagePixels(
+    renderUrl(config.supabaseUrl, photo.storage_path),
+  );
   const clusters = extractKMeansPalette(pixels, PALETTE_SIZE);
-  const storagePath = photo.filename;
 
   return {
-    palette: {
-      storage_path: storagePath,
-      filename: photo.filename,
-      image_width: photo.width,
-      image_height: photo.height,
+    analysis: {
+      photograph_id: photo.id,
       algorithm: K_MEANS_ALGORITHM,
       algorithm_iterations: K_MEANS_ITERATIONS,
       sample_longest_side: SAMPLE_LONGEST_SIDE,
@@ -126,7 +132,6 @@ async function analysePhoto(config, photo) {
     colours: clusters.map(({ rgb, weight }, index) => {
       const [labL, labA, labB] = rgbToLab(rgb);
       return {
-        storage_path: storagePath,
         rank: index + 1,
         red: rgb[0],
         green: rgb[1],
@@ -142,21 +147,15 @@ async function analysePhoto(config, photo) {
 }
 
 async function persist(config, result) {
-  await request(config, "photo_palettes?on_conflict=storage_path", {
+  await request(config, "rpc/replace_photo_palette_analysis", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates,return=minimal",
     },
-    body: JSON.stringify(result.palette),
-  });
-  await request(config, "photo_palette_colours?on_conflict=storage_path,rank", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates,return=minimal",
-    },
-    body: JSON.stringify(result.colours),
+    body: JSON.stringify({
+      ...result.analysis,
+      colours: result.colours,
+    }),
   });
 }
 
@@ -193,9 +192,12 @@ async function main() {
   const dryRun = process.argv.includes("--dry-run");
   const force = process.argv.includes("--force");
   const limit = parseLimit();
-  const archive = limit ? galleryPhotographs.slice(0, limit) : galleryPhotographs;
-  const alreadyAnalysed = force || dryRun ? new Set() : await existingPaths(config);
-  const pending = archive.filter((photo) => !alreadyAnalysed.has(photo.filename));
+  const catalogue = await photographs(config);
+  const archive = limit ? catalogue.slice(0, limit) : catalogue;
+  const alreadyAnalysed = force
+    ? new Set()
+    : await existingPhotographIds(config);
+  const pending = archive.filter((photo) => !alreadyAnalysed.has(photo.id));
 
   console.log(
     `${dryRun ? "Analysing" : "Backfilling"} ${pending.length} of ${archive.length} requested photographs (${alreadyAnalysed.size} already stored).`,

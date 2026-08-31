@@ -1,16 +1,14 @@
 import { photographUrl } from "@/app/gallery/archive";
-import { galleryPhotographs } from "@/app/gallery/photos";
+import { getPhotographByFilename } from "@/lib/photographs/queries";
 
 async function downloadResponse(filename: string, method: "GET" | "HEAD") {
-  const photograph = galleryPhotographs.find(
-    (candidate) => candidate.filename === filename,
-  );
+  const photograph = await getPhotographByFilename(filename);
 
   if (!photograph) {
     return new Response(null, { status: 404 });
   }
 
-  const source = await fetch(photographUrl(photograph.filename), {
+  const source = await fetch(photographUrl(photograph.storagePath), {
     cache: "no-store",
     method,
   });

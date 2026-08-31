@@ -1,12 +1,11 @@
 import { notFound } from "next/navigation";
 
 import {
-  archivePaletteColours,
   deltaE76,
   photographUrl,
   type PaletteColour,
 } from "@/app/gallery/archive";
-import { galleryPhotographs } from "@/app/gallery/photos";
+import { getPhotographsWithPalettes } from "@/lib/photographs/queries";
 
 const singleColourSimilarityThreshold = 20;
 const fiveColourSimilarityThreshold = 20;
@@ -116,7 +115,13 @@ export async function GET(
   }
 
   const selectedHexes = hexParameters.map((hex) => `#${hex.toLowerCase()}`);
-  const palettes = await archivePaletteColours();
+  const photographs = await getPhotographsWithPalettes();
+  const palettes = new Map(
+    photographs.map((photograph) => [
+      photograph.storagePath,
+      photograph.palette,
+    ]),
+  );
   const paletteColours = [...palettes.values()].flat();
   const selectedColours = selectedHexes.flatMap((selectedHex) => {
     const colour = paletteColours.find(
@@ -134,14 +139,17 @@ export async function GET(
     selectedColours.length === fiveDimensionalVectorSize
       ? fiveColourSimilarityThreshold
       : singleColourSimilarityThreshold;
-  const sourceColours =
-    (excludedFilename ? palettes.get(excludedFilename) : undefined) ??
-    selectedColours;
+  const excludedPhotograph = photographs.find(
+    ({ filename }) => filename === excludedFilename,
+  );
+  const sourceColours = excludedPhotograph
+    ? palettes.get(excludedPhotograph.storagePath) ?? selectedColours
+    : selectedColours;
 
-  const matches = galleryPhotographs
+  const matches = photographs
     .filter((photograph) => photograph.filename !== excludedFilename)
     .flatMap((photograph) => {
-      const colours = palettes.get(photograph.filename) ?? [];
+      const colours = palettes.get(photograph.storagePath) ?? [];
 
       if (
         colours.length === 0 ||
@@ -160,7 +168,7 @@ export async function GET(
         ? [
             {
               ...photograph,
-              imageUrl: photographUrl(photograph.filename),
+              imageUrl: photographUrl(photograph.storagePath),
               closestHex: closestMatch.closestColour.hex,
               difference: closestMatch.difference,
             },

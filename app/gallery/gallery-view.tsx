@@ -1,16 +1,14 @@
-import { archivePalettes, photographUrl } from "./archive";
+import { photographUrl } from "./archive";
 import { ViewTransition } from "react";
+
+import { getPhotographsWithPalettes } from "@/lib/photographs/queries";
 
 import { ContentFrame } from "./content-frame";
 import { IndexNavigation } from "./index-navigation";
 import { PhotoGallery } from "./photo-gallery";
-import { galleryPhotographs } from "./photos";
 
 export async function GalleryView() {
-  const palettes = await archivePalettes();
-  const newestPhotographs = [...galleryPhotographs].sort((first, second) =>
-    second.filename.localeCompare(first.filename),
-  );
+  const photographs = await getPhotographsWithPalettes();
 
   return (
     <ViewTransition
@@ -24,10 +22,10 @@ export async function GalleryView() {
           <div className="pt-8">
             <PhotoGallery
               ariaLabel="Complete photograph archive"
-              photographs={newestPhotographs.map((photograph) => ({
+              photographs={photographs.map((photograph) => ({
                 ...photograph,
-                imageUrl: photographUrl(photograph.filename),
-                palette: palettes.get(photograph.filename) ?? [],
+                imageUrl: photographUrl(photograph.storagePath),
+                palette: photograph.palette.map(({ hex }) => hex),
               }))}
             />
           </div>
