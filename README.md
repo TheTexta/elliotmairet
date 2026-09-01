@@ -41,9 +41,8 @@ npm run palettes:backfill
 
 ## Photograph administration
 
-The admin interface is available at `/admin/login`. Create the single
-email/password user in Supabase Auth, then allowlist that user after applying
-the migrations:
+The admin interface is available at `/admin/login`. Create each email/password
+user in Supabase Auth, then allowlist the user after applying the migrations:
 
 ```sql
 insert into private.admin_users (user_id)
@@ -52,8 +51,8 @@ from auth.users
 where email = 'admin@example.com';
 ```
 
-The table enforces a single row, and all photograph and Storage mutations
-recheck that allowlist through RLS. The browser uses only the publishable key;
+The table accepts multiple authorized users, and all photograph and Storage
+mutations recheck that allowlist through RLS. The browser uses only the publishable key;
 the service-role key remains reserved for the palette backfill script.
 
 Storage contains the image files, while `public.photographs` defines the public
