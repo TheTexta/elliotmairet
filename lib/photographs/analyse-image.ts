@@ -1,3 +1,4 @@
+import readExif from "exif-reader";
 import sharp from "sharp";
 
 import {
@@ -11,6 +12,25 @@ import {
 const paletteSize = 5;
 const sampleLongestSide = 96;
 
+function capturedDate(exifBuffer: Buffer | undefined) {
+  if (!exifBuffer) {
+    return null;
+  }
+
+  try {
+    const exif = readExif(exifBuffer);
+    const value = exif.Photo?.DateTimeOriginal
+      ?? exif.Photo?.DateTimeDigitized
+      ?? exif.Image?.DateTime;
+
+    return value instanceof Date && !Number.isNaN(value.valueOf())
+      ? value.toISOString().slice(0, 10)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function imageMetadata(buffer: Buffer) {
   const metadata = await sharp(buffer, { limitInputPixels: 80_000_000 }).metadata();
   const orientationSwapsDimensions = metadata.orientation
@@ -23,7 +43,12 @@ export async function imageMetadata(buffer: Buffer) {
     throw new Error("The selected file does not contain valid image dimensions.");
   }
 
-  return { format: metadata.format, height, width };
+  return {
+    capturedAt: capturedDate(metadata.exif),
+    format: metadata.format,
+    height,
+    width,
+  };
 }
 
 export async function analyseImage(buffer: Buffer, photographId: string) {

@@ -60,9 +60,11 @@ function filename(value: unknown) {
   return result;
 }
 
-function capturedDate(value: unknown, filename: string) {
+function capturedDate(value: unknown, filename: string, metadataDate?: string | null) {
   const fromFilename = filename.match(/^(\d{4})(\d{2})(\d{2})-/);
-  const result = text(value, 10) ?? (fromFilename ? `${fromFilename[1]}-${fromFilename[2]}-${fromFilename[3]}` : null);
+  const result = text(value, 10)
+    ?? metadataDate
+    ?? (fromFilename ? `${fromFilename[1]}-${fromFilename[2]}-${fromFilename[3]}` : null);
 
   if (result) {
     const parsed = new Date(`${result}T00:00:00Z`);
@@ -190,12 +192,6 @@ export async function POST(request: Request) {
   const storagePath = pathMatch[0];
 
   try {
-    const metadata = {
-      captured_at: capturedDate(body.capturedAt, originalFilename),
-      title: text(body.title, 200),
-      alt_text: text(body.altText, 500),
-      sort_order: sortOrder(body.sortOrder),
-    };
     const { data: storedFile, error: downloadError } = await session.supabase.storage
       .from(bucket)
       .download(storagePath);
@@ -205,19 +201,25 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await storedFile.arrayBuffer());
-    const dimensions = await imageMetadata(buffer);
+    const image = await imageMetadata(buffer);
 
-    if (dimensions.format !== format.sharpFormat) {
+    if (image.format !== format.sharpFormat) {
       throw new Error("The uploaded file type does not match its contents.");
     }
 
+    const metadata = {
+      captured_at: capturedDate(body.capturedAt, originalFilename, image.capturedAt),
+      title: text(body.title, 200),
+      alt_text: text(body.altText, 500),
+      sort_order: sortOrder(body.sortOrder),
+    };
     const analysis = await analyseImage(buffer, photographId);
     const { error: publishError } = await session.supabase.rpc("publish_photograph", {
       p_photograph_id: photographId,
       p_storage_path: storagePath,
       p_filename: originalFilename,
-      p_image_width: dimensions.width,
-      p_image_height: dimensions.height,
+      p_image_width: image.width,
+      p_image_height: image.height,
       p_captured_at: metadata.captured_at,
       p_title: metadata.title,
       p_alt_text: metadata.alt_text,
