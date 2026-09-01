@@ -126,7 +126,7 @@ export function SimilarColourGallery({
       <section
         aria-busy={status === "loading" || status === "fading-out"}
         aria-live="polite"
-        className={`transition-opacity ease-linear motion-reduce:transition-none ${
+        className={`transition-opacity ease-out motion-reduce:transition-none ${
           status === "fading-out" ? "opacity-0" : "opacity-100"
         }`}
         style={{

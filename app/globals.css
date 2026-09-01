@@ -28,11 +28,19 @@ html::-webkit-scrollbar {
 }
 
 ::view-transition-old(.gallery-view-fade-out) {
-  animation: gallery-view-fade-out 100ms linear both;
+  animation: gallery-view-fade-out 100ms ease-out both;
 }
 
 ::view-transition-new(.photo-view-fade-in) {
   animation: photo-view-fade-in 300ms linear both;
+}
+
+::view-transition-new(.view-fade-in-delayed) {
+  animation: photo-view-fade-in 300ms linear 100ms both;
+}
+
+.animate-gallery-fade-in.suppress-gallery-fade {
+  animation: none;
 }
 
 @keyframes photo-view-fade-out {
@@ -56,7 +64,8 @@ html::-webkit-scrollbar {
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(.photo-view-fade-out),
   ::view-transition-old(.gallery-view-fade-out),
-  ::view-transition-new(.photo-view-fade-in) {
+  ::view-transition-new(.photo-view-fade-in),
+  ::view-transition-new(.view-fade-in-delayed) {
     animation: none;
   }
 }

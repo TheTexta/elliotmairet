@@ -19,7 +19,7 @@ export function FadingImage({
     <Image
       {...props}
       alt={alt}
-      className={`${className ?? ""} transition-opacity ease-linear motion-reduce:transition-none ${
+      className={`${className ?? ""} transition-opacity ease-out motion-reduce:transition-none ${
         isLoaded ? "opacity-100" : "opacity-0"
       }`}
       onError={(event) => {

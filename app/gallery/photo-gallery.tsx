@@ -1,6 +1,5 @@
-import Link from "next/link";
-
 import { FadingImage } from "./fading-image";
+import { TransitionLink } from "./transition-link";
 
 export type PhotoGalleryItem = {
   filename: string;
@@ -33,13 +32,14 @@ export function PhotoGallery({
             className="group mb-4 break-inside-avoid text-[#e2e1e1]"
             key={photograph.filename}
           >
-            <Link
+            <TransitionLink
               className="block no-underline focus-visible:outline focus-visible:outline-white"
               href={`/gallery/${encodeURIComponent(photograph.filename)}`}
-              transitionTypes={
+              resetScroll={photograph.difference !== undefined}
+              transitionType={
                 photograph.difference === undefined
-                  ? ["gallery-to-photo"]
-                  : undefined
+                  ? "gallery-to-photo"
+                  : "photo-to-photo"
               }
             >
               <figure className="relative m-0 min-h-15 bg-white">
@@ -59,7 +59,7 @@ export function PhotoGallery({
                 />
                 {photograph.palette?.length === 5 ? (
                   <div
-                    className="pointer-events-none absolute top-2 right-2 z-10 hidden -translate-y-1 overflow-hidden border border-white/70 opacity-0 shadow-[0_1px_6px_rgba(0,0,0,0.35)] transition-[opacity,transform] duration-160 ease-in-out group-hover:translate-y-0 group-hover:opacity-100 sm:flex"
+                    className="pointer-events-none absolute top-2 right-2 z-10 hidden overflow-hidden border border-white/70 opacity-0 shadow-[0_1px_6px_rgba(0,0,0,0.35)] transition-opacity duration-100 ease-out group-hover:opacity-100 sm:flex"
                     aria-hidden="true"
                   >
                     {photograph.palette.map((hex, paletteIndex) => (
@@ -80,7 +80,7 @@ export function PhotoGallery({
                   />
                 ) : null} */}
               </figure>
-            </Link>
+            </TransitionLink>
           </article>
         );
       })}

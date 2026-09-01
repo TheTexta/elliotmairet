@@ -6,6 +6,7 @@ import { getPhotographsWithPalettes } from "@/lib/photographs/queries";
 import { ContentFrame } from "./content-frame";
 import { IndexNavigation } from "./index-navigation";
 import { PhotoGallery } from "./photo-gallery";
+import { ScrollToTop } from "./scroll-to-top";
 
 export async function GalleryView() {
   const photographs = await getPhotographsWithPalettes();
@@ -13,9 +14,11 @@ export async function GalleryView() {
   return (
     <ViewTransition
       default="none"
+      enter={{ "photo-to-gallery": "view-fade-in-delayed", default: "none" }}
       exit={{ "gallery-to-photo": "gallery-view-fade-out", default: "none" }}
     >
       <main className="min-h-svh bg-white">
+        <ScrollToTop routeKey="gallery" transitionType="photo-to-gallery" />
         <IndexNavigation/>
 
         <ContentFrame>

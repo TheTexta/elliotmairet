@@ -49,13 +49,24 @@ export default async function PhotographPage({
   return (
     <ViewTransition
       default="none"
-      enter={{ "gallery-to-photo": "photo-view-fade-in", default: "none" }}
-      exit="photo-view-fade-out"
+      enter={{
+        "gallery-to-photo": "photo-view-fade-in",
+        "photo-to-photo": "view-fade-in-delayed",
+        default: "none",
+      }}
+      exit={{
+        "photo-to-gallery": "photo-view-fade-out",
+        "photo-to-photo": "photo-view-fade-out",
+        default: "none",
+      }}
       key={photograph.filename}
     >
       <main className="min-h-svh ">
-        <ScrollToTop routeKey={photograph.filename} />
-        <IndexNavigation/>
+        <ScrollToTop
+          routeKey={photograph.filename}
+          transitionType="photo-to-photo"
+        />
+        <IndexNavigation fromPhoto />
         <ContentFrame>
           <section>
             <figure className="m-0  h-[80vh] bg-white mt-[8vh] mb-[4vh] flex content-center items-center justify-center">
