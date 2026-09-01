@@ -88,9 +88,16 @@ function EditForm({ photograph }: { photograph: PhotographWithPalette }) {
           Alt text
           <input className={inputClassName} defaultValue={photograph.altText ?? ""} maxLength={500} name="altText" />
         </label>
-        <label className="flex flex-col gap-2 text-[8px] uppercase text-neutral-500">
+        <label className="flex flex-col gap-2 text-[8px] uppercase text-neutral-400">
           Sort order
-          <input className={inputClassName} defaultValue={photograph.sortOrder ?? ""} name="sortOrder" step="1" type="number" />
+          <input
+            className={`${inputClassName} cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400`}
+            defaultValue={photograph.sortOrder ?? ""}
+            disabled
+            step="1"
+            type="number"
+          />
+          <input defaultValue={photograph.sortOrder ?? ""} name="sortOrder" type="hidden" />
         </label>
         <div className="flex items-end justify-end">
           <button className="flex h-9 items-center gap-2 bg-black px-4 text-[8px] uppercase text-white" type="submit">
@@ -172,7 +179,7 @@ export default async function AdminPhotosPage() {
             <p className="text-[9px] font-medium uppercase text-neutral-600">Public archive</p>
             <p className="mt-1 text-[10px]">Every row shown here is immediately public.</p>
           </div>
-          <p className="text-[8px] uppercase text-neutral-500">JPG · PNG · WEBP / 25 MB max</p>
+          <p className="text-[8px] uppercase text-neutral-500">JPG · PNG · WEBP / 200 MB max</p>
         </div>
 
         <div className="border border-neutral-300 bg-white">

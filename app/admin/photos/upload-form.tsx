@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const bucket = "elliotmairet";
-const maximumFileSize = 25 * 1024 * 1024;
+const maximumFileSize = 200 * 1024 * 1024;
 const inputClassName =
   "h-10 w-full border border-neutral-300 bg-white px-3 text-base text-black outline-none focus:border-black";
 
@@ -26,7 +26,7 @@ export function UploadForm() {
     }
 
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > maximumFileSize) {
-      setState({ error: "Use a JPG, PNG, or WEBP image no larger than 25 MB." });
+      setState({ error: "Use a JPG, PNG, or WEBP image no larger than 200 MB." });
       return;
     }
 
@@ -128,9 +128,14 @@ export function UploadForm() {
           Alt text
           <input className={inputClassName} maxLength={500} name="altText" />
         </label>
-        <label className="flex flex-col gap-2 text-[9px] uppercase text-neutral-500">
+        <label className="flex flex-col gap-2 text-[9px] uppercase text-neutral-400">
           Sort order
-          <input className={inputClassName} name="sortOrder" step="1" type="number" />
+          <input
+            className={`${inputClassName} cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400`}
+            disabled
+            step="1"
+            type="number"
+          />
         </label>
         <div className="flex items-end justify-end sm:col-span-2">
           <button

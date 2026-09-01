@@ -7,7 +7,7 @@ import { analyseImage, imageMetadata } from "@/lib/photographs/analyse-image";
 import { getAdminSession } from "@/lib/supabase/admin";
 
 const bucket = "elliotmairet";
-const maximumFileSize = 25 * 1024 * 1024;
+const maximumFileSize = 200 * 1024 * 1024;
 const signedUploadCleanupDelay = 125 * 60 * 1000;
 const formats = {
   "image/jpeg": { extension: "jpg", sharpFormat: "jpeg" },
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
     const format = body.contentType ? formats[body.contentType as keyof typeof formats] : undefined;
 
     if (!format || !Number.isSafeInteger(body.size) || !body.size || body.size < 1 || body.size > maximumFileSize) {
-      return responseError("Use a JPG, PNG, or WEBP image no larger than 25 MB.");
+      return responseError("Use a JPG, PNG, or WEBP image no larger than 200 MB.");
     }
 
     try {
