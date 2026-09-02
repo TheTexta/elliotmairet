@@ -10,6 +10,7 @@ type ColourMatch = {
   height: number;
   year: string;
   imageUrl: string;
+  palette: string[];
   closestHex: string;
   difference: number;
 };
@@ -140,6 +141,7 @@ export function SimilarColourGallery({
         {response ? (
           <PhotoGallery
             ariaLabel="Photographs ordered by colour similarity"
+            layout="grid"
             photographs={response.matches}
           />
         ) : null}

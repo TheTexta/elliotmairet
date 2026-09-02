@@ -6,6 +6,7 @@ import {
   type PaletteColour,
 } from "@/app/gallery/archive";
 import { getPhotographsWithPalettes } from "@/lib/photographs/queries";
+import { selectSimilarMatches } from "@/lib/photographs/select-similar-matches";
 
 const singleColourSimilarityThreshold = 20;
 const fiveColourSimilarityThreshold = 20;
@@ -146,7 +147,7 @@ export async function GET(
     ? palettes.get(excludedPhotograph.storagePath) ?? selectedColours
     : selectedColours;
 
-  const matches = photographs
+  const candidates = photographs
     .filter((photograph) => photograph.filename !== excludedFilename)
     .flatMap((photograph) => {
       const colours = palettes.get(photograph.storagePath) ?? [];
@@ -164,21 +165,23 @@ export async function GET(
         return [];
       }
 
-      return closestMatch.difference <= similarityThreshold
-        ? [
-            {
-              ...photograph,
-              imageUrl: photographUrl(photograph.storagePath),
-              closestHex: closestMatch.closestColour.hex,
-              difference: closestMatch.difference,
-            },
-          ]
-        : [];
-    })
-    .sort((first, second) => first.difference - second.difference);
+      return [
+        {
+          ...photograph,
+          imageUrl: photographUrl(photograph.storagePath),
+          palette: colours.map(({ hex }) => hex),
+          closestHex: closestMatch.closestColour.hex,
+          difference: closestMatch.difference,
+        },
+      ];
+    });
+  const { matches, threshold } = selectSimilarMatches(
+    candidates,
+    similarityThreshold,
+  );
 
   return Response.json(
-    { selectedHexes, threshold: similarityThreshold, matches },
+    { selectedHexes, threshold, matches },
     { headers: { "Cache-Control": "public, s-maxage=3600" } },
   );
 }
