@@ -25,7 +25,6 @@ export async function GalleryView() {
           <div className="pt-8">
             <PhotoGallery
               ariaLabel="Complete photograph archive"
-              layout="grid"
               photographs={photographs.map((photograph) => ({
                 ...photograph,
                 imageUrl: photographUrl(photograph.storagePath),

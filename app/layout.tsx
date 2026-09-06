@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next"
 
+import { getFooterText } from "@/lib/site-content/queries";
+
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -13,7 +15,9 @@ export const metadata: Metadata = {
   description: "Photographs by Elliot Mairet",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const footerText = await getFooterText();
+
   return (
     <html lang="en" className="scroll-smooth">
       <body
@@ -38,12 +42,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               Instagram
             </a>
           </div>
-          <div className="flex flex-col items-start text-left py-8 sm:py-4 sm:items-end sm:text-right">
-            <p>
-              Elliot Mairet is a Montreal based photographer from Victoria BC.
-            </p>
-            <p>Above all else he is grateful for you</p>
-          </div>
+          {footerText ? (
+            <div className="flex flex-col items-start py-8 text-left sm:items-end sm:py-4 sm:text-right">
+              <p className="whitespace-pre-wrap">{footerText}</p>
+            </div>
+          ) : null}
         </footer>
       </body>
     </html>

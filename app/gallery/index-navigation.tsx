@@ -25,12 +25,6 @@ export function IndexNavigation({ fromPhoto = false }: { fromPhoto?: boolean }) 
           Elliot Mairet
         </Link>
       )}
-      <a
-        className="no-underline hover:underline focus-visible:underline"
-        href="#about"
-      >
-        About
-      </a>
     </nav>
   );
 }

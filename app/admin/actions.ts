@@ -100,6 +100,41 @@ export async function signOutAction() {
   redirect("/admin/login");
 }
 
+export async function updateFooterTextAction(
+  _previousState: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  const value = formData.get("footerText");
+
+  if (typeof value !== "string") {
+    return { error: "Footer text is required." };
+  }
+
+  const footerText = value.replace(/\r\n?/g, "\n");
+
+  if (footerText.length > 2000) {
+    return { error: "Footer text must be 2,000 characters or fewer." };
+  }
+
+  const { supabase } = await requireAdmin();
+  const { data, error } = await supabase
+    .from("site_content")
+    .update({
+      footer_text: footerText,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("singleton", true)
+    .select("singleton")
+    .maybeSingle();
+
+  if (error || !data) {
+    return { error: "The footer text could not be updated." };
+  }
+
+  revalidatePath("/", "layout");
+  return { message: "Footer text updated." };
+}
+
 export async function updatePhotographAction(id: string, formData: FormData) {
   if (!uuidPattern.test(id)) {
     throw new Error("Invalid photograph identifier.");

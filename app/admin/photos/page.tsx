@@ -1,6 +1,7 @@
-import { AlertTriangle, LogOut, Pencil, RotateCcw, Save } from "lucide-react";
+import { AlertTriangle, FileText, LogOut, Pencil, RotateCcw, Save } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 
 import { photographUrl } from "@/app/gallery/archive";
 import { getPhotographsWithPalettes } from "@/lib/photographs/queries";
@@ -132,6 +133,10 @@ export default async function AdminPhotosPage() {
           <span className="text-[9px] uppercase text-neutral-500">{photographs.length} images</span>
         </div>
         <div className="flex items-center gap-1 sm:gap-3">
+          <Link className="flex h-10 items-center gap-2 px-2 text-[9px] uppercase" href="/admin/content">
+            <FileText aria-hidden="true" size={15} strokeWidth={1.8} />
+            <span className="hidden sm:inline">Content</span>
+          </Link>
           <form action={signOutAction}>
             <button aria-label="Sign out" className="flex h-10 items-center gap-2 px-2 text-[9px] uppercase" type="submit">
               <LogOut aria-hidden="true" size={15} strokeWidth={1.8} />
