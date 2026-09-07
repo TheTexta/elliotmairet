@@ -22,7 +22,7 @@ export async function GalleryView() {
         <IndexNavigation/>
 
         <ContentFrame>
-          <div className="pt-8">
+          <div className="pt-8 sm:pt-4">
             <PhotoGallery
               ariaLabel="Complete photograph archive"
               photographs={photographs.map((photograph) => ({
