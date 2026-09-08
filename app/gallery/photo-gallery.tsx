@@ -21,14 +21,17 @@ export function PhotoGallery({
   layout?: "grid" | "masonry";
   photographs: PhotoGalleryItem[];
 }) {
+  // Work around WebKit retaining item margins across CSS column breaks.
+  // https://bugs.webkit.org/show_bug.cgi?id=104944
+  const masonryItemClassName =
+    layout === "masonry" ? "mb-4 inline-block w-full align-top" : "";
+
   function renderPhotograph(photograph: PhotoGalleryItem, index: number) {
     const archiveLabel = String(index + 1).padStart(3, "0");
 
     return (
       <article
-        className={`group break-inside-avoid text-[#e2e1e1] ${
-          layout === "masonry" ? "mb-4" : ""
-        }`}
+        className={`group break-inside-avoid text-[#e2e1e1] ${masonryItemClassName}`}
         key={photograph.filename}
         style={layout === "grid" ? { order: index } : undefined}
       >
