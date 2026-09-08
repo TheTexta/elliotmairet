@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const bucket = "elliotmairet";
-const maximumFileSize = 200 * 1024 * 1024;
 const inputClassName =
   "h-10 w-full border border-neutral-300 bg-white px-3 text-base text-black outline-none focus:border-black";
 
@@ -25,8 +24,8 @@ export function UploadForm() {
       return;
     }
 
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > maximumFileSize) {
-      setState({ error: "Use a JPG, PNG, or WEBP image no larger than 200 MB." });
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setState({ error: "Use a JPG, PNG, or WEBP image." });
       return;
     }
 

@@ -184,7 +184,7 @@ export default async function AdminPhotosPage() {
             <p className="text-[9px] font-medium uppercase text-neutral-600">Public archive</p>
             <p className="mt-1 text-[10px]">Every row shown here is immediately public.</p>
           </div>
-          <p className="text-[8px] uppercase text-neutral-500">JPG · PNG · WEBP / 200 MB max</p>
+          <p className="text-[8px] uppercase text-neutral-500">JPG · PNG · WEBP</p>
         </div>
 
         <div className="border border-neutral-300 bg-white">
