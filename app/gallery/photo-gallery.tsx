@@ -1,4 +1,5 @@
 import { FadingImage } from "./fading-image";
+import { galleryImageSizes } from "./image-sizes";
 import { TransitionLink } from "./transition-link";
 
 export type PhotoGalleryItem = {
@@ -56,7 +57,7 @@ export function PhotoGallery({
               height={photograph.height}
               priority={index < 4}
               quality={74}
-              sizes="(max-width: 639px) calc(100vw - 20px), (max-width: 767px) calc(50vw - 20px), (max-width: 1023px) calc(33vw - 20px), (max-width: 1279px) calc(25vw - 20px), (max-width: 1535px) calc(20vw - 20px), calc(16.6vw - 20px)"
+              sizes={galleryImageSizes}
               src={photograph.imageUrl}
               width={photograph.width}
             />

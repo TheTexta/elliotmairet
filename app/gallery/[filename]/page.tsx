@@ -8,10 +8,11 @@ import {
 
 import { photographUrl } from "../archive";
 import { ContentFrame } from "../content-frame";
-import { FadingImage } from "../fading-image";
+import { galleryImageSizes, heroImageSizes } from "../image-sizes";
 import { IndexNavigation } from "../index-navigation";
 import { ScrollToTop } from "../scroll-to-top";
 import { SimilarColourGallery } from "./similar-colour-gallery";
+import { TransitionReadyImage } from "./transition-ready-image";
 
 function decodeRouteFilename(filename: string) {
   let decodedFilename = filename;
@@ -45,6 +46,10 @@ export default async function PhotographPage({
   }
 
   const palette = await getPhotographPalette(photograph.id);
+  const imageAlt =
+    photograph.altText ??
+    photograph.title ??
+    `Photograph from ${photograph.year}`;
 
   return (
     <ViewTransition
@@ -70,17 +75,16 @@ export default async function PhotographPage({
         <ContentFrame>
           <section>
             <figure className="m-0  h-[80vh] bg-white mt-[8vh] mb-[4vh] flex content-center items-center justify-center">
-              <FadingImage
-                alt={
-                  photograph.altText ??
-                  photograph.title ??
-                  `Photograph from ${photograph.year}`
-                }
-                className={"block h-full w-auto object-contain"}
+              <TransitionReadyImage
+                alt={imageAlt}
+                className="block h-full w-auto object-contain"
+                fetchPriority="high"
                 height={photograph.height}
-                priority
+                loading="eager"
+                preloadImage
+                previewSizes={galleryImageSizes}
                 quality={78}
-                sizes="(max-width: 1600px) calc(100vw - 20px), 1580px"
+                sizes={heroImageSizes}
                 src={photographUrl(photograph.storagePath)}
                 width={photograph.width}
               />

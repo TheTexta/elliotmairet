@@ -12,14 +12,22 @@ export async function GalleryView() {
   const photographs = await getPhotographsWithPalettes();
 
   return (
-    <ViewTransition
-      default="none"
-      enter={{ "photo-to-gallery": "view-fade-in-delayed", default: "none" }}
-      exit={{ "gallery-to-photo": "gallery-view-fade-out", default: "none" }}
-    >
+    <>
+      <ViewTransition
+        default="none"
+        exit={{
+          "gallery-to-photo": "gallery-transition-trigger",
+          default: "none",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          className="pointer-events-none fixed top-0 left-0 size-px bg-white"
+        />
+      </ViewTransition>
       <main className="min-h-svh bg-white">
         <ScrollToTop routeKey="gallery" transitionType="photo-to-gallery" />
-        <IndexNavigation/>
+        <IndexNavigation />
 
         <ContentFrame>
           <div className="pt-8 sm:pt-4">
@@ -34,6 +42,6 @@ export async function GalleryView() {
           </div>
         </ContentFrame>
       </main>
-    </ViewTransition>
+    </>
   );
 }

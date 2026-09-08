@@ -27,8 +27,23 @@ html::-webkit-scrollbar {
   animation: photo-view-fade-out 100ms linear both;
 }
 
-::view-transition-old(.gallery-view-fade-out) {
+html:active-view-transition-type(gallery-to-photo)::view-transition-old(root) {
   animation: gallery-view-fade-out 100ms ease-out both;
+}
+
+html:active-view-transition-type(gallery-to-photo)::view-transition-new(root),
+::view-transition-old(.gallery-transition-trigger) {
+  animation: none;
+  opacity: 0;
+}
+
+html:active-view-transition-type(photo-to-gallery)::view-transition-old(root) {
+  animation: none;
+  opacity: 0;
+}
+
+html:active-view-transition-type(photo-to-gallery)::view-transition-new(root) {
+  animation: photo-view-fade-in 300ms linear 100ms both;
 }
 
 ::view-transition-new(.photo-view-fade-in) {
@@ -63,7 +78,8 @@ html::-webkit-scrollbar {
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(.photo-view-fade-out),
-  ::view-transition-old(.gallery-view-fade-out),
+  html:active-view-transition-type(gallery-to-photo)::view-transition-old(root),
+  html:active-view-transition-type(photo-to-gallery)::view-transition-new(root),
   ::view-transition-new(.photo-view-fade-in),
   ::view-transition-new(.view-fade-in-delayed) {
     animation: none;
