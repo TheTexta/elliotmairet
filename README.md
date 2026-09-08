@@ -16,10 +16,9 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-The app defaults to the production Supabase URL and public anon key. To use a
-different instance, copy `.env.example` to `.env.local` and override those
-values. `SUPABASE_SERVICE_ROLE_KEY` is only needed by the palette backfill
-script and must never be exposed to browser code.
+The app defaults to the production Supabase URL and public publishable key. To
+use a different instance, copy `.env.example` to `.env.local` and override
+those values.
 
 ## Photograph catalogue migration
 
@@ -29,15 +28,9 @@ backfill migration copies the existing palette parent rows into the new
 photograph model and aborts if photograph counts, palette-colour counts, or
 foreign-key relationships do not match.
 
-The legacy `supabase/palette-schema.sql`, `photo_palettes`, and
-`photo_palette_colours` structures are retained for rollback and verification.
-Do not drop them until the migrated gallery has been verified in production.
-
-To generate palettes for catalogue rows without the current analysis:
-
-```bash
-npm run palettes:backfill
-```
+The migration chain removes the legacy palette tables after validating the
+active photograph and palette relationships, then promotes the active palette
+colour table to its final semantic name.
 
 ## Photograph administration
 
@@ -52,8 +45,8 @@ where email = 'admin@example.com';
 ```
 
 The table accepts multiple authorized users, and all photograph and Storage
-mutations recheck that allowlist through RLS. The browser uses only the publishable key;
-the service-role key remains reserved for the palette backfill script.
+mutations recheck that allowlist through RLS. The browser uses only the
+publishable key.
 
 Storage contains the image files, while `public.photographs` defines the public
 site. Uploading creates the Storage object before the row and compensates if

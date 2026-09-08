@@ -15,7 +15,13 @@ export default function supabaseImageLoader({
   width,
   quality,
 }: ImageLoaderProps) {
-  const url = new URL(src);
+  let url: URL;
+
+  try {
+    url = new URL(src);
+  } catch {
+    return src;
+  }
 
   if (
     url.origin !== storageOrigin ||

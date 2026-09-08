@@ -1,1 +1,0 @@
-export { GalleryView as default } from "./gallery/gallery-view";

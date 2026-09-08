@@ -1,4 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+
+import { cacheTags } from "@/lib/cache-tags";
+import { createPublicClient } from "@/lib/supabase/public";
 
 import type {
   Photograph,
@@ -65,14 +68,15 @@ function paletteColourFromRow(row: PaletteColourRow): PhotographPaletteColour {
   };
 }
 
-export async function getPhotographs(): Promise<Photograph[]> {
-  const supabase = await createClient();
+async function readPhotographs(): Promise<Photograph[]> {
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("photographs")
     .select(photographColumns)
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("captured_at", { ascending: false, nullsFirst: false })
-    .order("filename", { ascending: false });
+    .order("filename", { ascending: false })
+    .order("id", { ascending: true });
 
   if (error) {
     throw error;
@@ -81,10 +85,15 @@ export async function getPhotographs(): Promise<Photograph[]> {
   return (data as PhotographRow[]).map(photographFromRow);
 }
 
-export async function getPhotographByFilename(
+export const getPhotographs = unstable_cache(readPhotographs, ["photographs", "catalogue"], {
+  revalidate: 86400,
+  tags: [cacheTags.photographCatalogue, cacheTags.colourSimilarity],
+});
+
+async function readPhotographByFilename(
   filename: string,
 ): Promise<Photograph | null> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("photographs")
     .select(photographColumns)
@@ -98,10 +107,16 @@ export async function getPhotographByFilename(
   return data ? photographFromRow(data as PhotographRow) : null;
 }
 
-export async function getPhotographById(
+export const getPhotographByFilename = unstable_cache(
+  readPhotographByFilename,
+  ["photographs", "by-filename"],
+  { revalidate: 86400, tags: [cacheTags.photographDetails] },
+);
+
+async function readPhotographById(
   id: string,
 ): Promise<Photograph | null> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("photographs")
     .select(photographColumns)
@@ -115,22 +130,32 @@ export async function getPhotographById(
   return data ? photographFromRow(data as PhotographRow) : null;
 }
 
-export async function getPhotographPalette(
+export const getPhotographById = unstable_cache(
+  readPhotographById,
+  ["photographs", "by-id"],
+  { revalidate: 86400, tags: [cacheTags.photographDetails] },
+);
+
+async function readPhotographPalette(
   photographId: string,
 ): Promise<PhotographPaletteColour[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
-    .from("photo_palette_colours_new")
+    .from("photo_palette_colours")
     .select("photograph_id, rank, hex, lab_l, lab_a, lab_b")
     .eq("photograph_id", photographId)
     .order("rank", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   return (data as PaletteColourRow[]).map(paletteColourFromRow);
 }
+
+export const getPhotographPalette = unstable_cache(
+  readPhotographPalette,
+  ["photographs", "palette"],
+  { revalidate: 86400, tags: [cacheTags.palettes, cacheTags.colourSimilarity] },
+);
 
 export async function getPhotographsWithPalettes(): Promise<
   PhotographWithPalette[]
@@ -153,17 +178,21 @@ export async function getPhotographsWithPalettes(): Promise<
   }));
 }
 
-async function getAllPaletteColours(): Promise<PhotographPaletteColour[]> {
-  const supabase = await createClient();
+async function readAllPaletteColours(): Promise<PhotographPaletteColour[]> {
+  const supabase = createPublicClient();
   const { data, error } = await supabase
-    .from("photo_palette_colours_new")
+    .from("photo_palette_colours")
     .select("photograph_id, rank, hex, lab_l, lab_a, lab_b")
     .order("photograph_id", { ascending: true })
     .order("rank", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   return (data as PaletteColourRow[]).map(paletteColourFromRow);
 }
+
+const getAllPaletteColours = unstable_cache(
+  readAllPaletteColours,
+  ["photographs", "all-palette-colours"],
+  { revalidate: 86400, tags: [cacheTags.palettes, cacheTags.colourSimilarity] },
+);

@@ -1,1 +1,0 @@
-ok going to use K means. anylise the k mean for every photo and build a data base stored on the coolify instance. this will allow for us to build a graph that matches a colour to photos that have one of the 5 compatible colours in its types.

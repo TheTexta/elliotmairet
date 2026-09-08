@@ -1,15 +1,13 @@
-import { createClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 
-import { supabasePublicConfiguration } from "@/lib/supabase/config";
+import { cacheTags } from "@/lib/cache-tags";
+import { createPublicClient } from "@/lib/supabase/public";
 
 export const defaultFooterText =
   "Elliot Mairet is a Montreal based photographer from Victoria BC.\n\nAbove all else he is grateful for you";
 
-export async function getFooterText() {
-  const { publishableKey, url } = supabasePublicConfiguration();
-  const supabase = createClient(url, publishableKey, {
-    auth: { persistSession: false },
-  });
+export const getFooterText = unstable_cache(async () => {
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("site_content")
     .select("footer_text")
@@ -23,5 +21,8 @@ export async function getFooterText() {
     return defaultFooterText;
   }
 
-  return data.footer_text as string;
-}
+  return data.footer_text;
+}, ["site-content", "footer"], {
+  revalidate: 86400,
+  tags: [cacheTags.siteContent],
+});

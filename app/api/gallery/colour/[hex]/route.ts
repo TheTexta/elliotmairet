@@ -1,103 +1,17 @@
 import { notFound } from "next/navigation";
 
 import {
-  deltaE76,
-  photographUrl,
-  type PaletteColour,
-} from "@/app/gallery/archive";
+  closestPaletteMatch,
+  palettesShareColourMode,
+} from "@/lib/photographs/colour";
 import { getPhotographsWithPalettes } from "@/lib/photographs/queries";
+import { paginateOrderedItems } from "@/lib/photographs/pagination";
 import { selectSimilarMatches } from "@/lib/photographs/select-similar-matches";
+import { photographUrl } from "@/lib/photographs/storage";
 
 const singleColourSimilarityThreshold = 20;
 const fiveColourSimilarityThreshold = 20;
 const fiveDimensionalVectorSize = 5;
-const monochromePaletteChromaThreshold = 1;
-
-function paletteChroma(colours: PaletteColour[]) {
-  const meanSquaredChroma =
-    colours.reduce(
-      (sum, colour) => sum + colour.lab_a ** 2 + colour.lab_b ** 2,
-      0,
-    ) / colours.length;
-
-  return Math.sqrt(meanSquaredChroma);
-}
-
-function palettesShareColourMode(
-  sourceColours: PaletteColour[],
-  candidateColours: PaletteColour[],
-) {
-  const sourceIsMonochrome =
-    paletteChroma(sourceColours) <= monochromePaletteChromaThreshold;
-  const candidateIsMonochrome =
-    paletteChroma(candidateColours) <= monochromePaletteChromaThreshold;
-
-  return sourceIsMonochrome === candidateIsMonochrome;
-}
-
-function closestPaletteMatch(
-  selectedColours: PaletteColour[],
-  candidateColours: PaletteColour[],
-) {
-  if (
-    selectedColours.length === 0 ||
-    candidateColours.length < selectedColours.length
-  ) {
-    return;
-  }
-
-  let closestMatch:
-    | { closestColour: PaletteColour; difference: number }
-    | undefined;
-  const differences: number[] = [];
-  const matchedColours: PaletteColour[] = [];
-  const usedCandidateIndexes = new Set<number>();
-
-  function matchColour(selectedIndex: number) {
-    if (selectedIndex === selectedColours.length) {
-      const difference =
-        Math.hypot(...differences) / Math.sqrt(differences.length);
-
-      if (!closestMatch || difference < closestMatch.difference) {
-        const closestIndex = differences.reduce(
-          (bestIndex, componentDifference, index) =>
-            componentDifference < differences[bestIndex] ? index : bestIndex,
-          0,
-        );
-
-        closestMatch = {
-          closestColour: matchedColours[closestIndex],
-          difference,
-        };
-      }
-
-      return;
-    }
-
-    candidateColours.forEach((candidateColour, candidateIndex) => {
-      if (usedCandidateIndexes.has(candidateIndex)) {
-        return;
-      }
-
-      usedCandidateIndexes.add(candidateIndex);
-      const colourDelta = deltaE76(
-        selectedColours[selectedIndex],
-        candidateColour,
-      );
-
-      differences.push(colourDelta);
-      matchedColours.push(candidateColour);
-      matchColour(selectedIndex + 1);
-      matchedColours.pop();
-      differences.pop();
-      usedCandidateIndexes.delete(candidateIndex);
-    });
-  }
-
-  matchColour(0);
-
-  return closestMatch;
-}
 
 export async function GET(
   request: Request,
@@ -106,6 +20,7 @@ export async function GET(
   const { hex: hexParameter } = await params;
   const hexParameters = hexParameter.split(",");
   const excludedFilename = new URL(request.url).searchParams.get("exclude");
+  const cursor = new URL(request.url).searchParams.get("cursor");
 
   if (
     hexParameters.length < 1 ||
@@ -179,9 +94,14 @@ export async function GET(
     candidates,
     similarityThreshold,
   );
+  const page = paginateOrderedItems(matches, cursor);
+
+  if (!page) {
+    return Response.json({ error: "Invalid colour-result cursor." }, { status: 400 });
+  }
 
   return Response.json(
-    { selectedHexes, threshold, matches },
-    { headers: { "Cache-Control": "public, s-maxage=3600" } },
+    { selectedHexes, threshold, matches: page.items, nextCursor: page.nextCursor },
+    { headers: { "Cache-Control": "private, no-store" } },
   );
 }

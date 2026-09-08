@@ -8,10 +8,10 @@ import {
   rgbToHex,
   rgbToLab,
 } from "@/lib/palette/k-means.js";
+import { MAXIMUM_INPUT_PIXELS } from "@/lib/photographs/config";
 
 const paletteSize = 5;
 const sampleLongestSide = 96;
-const maximumInputPixels = 120_000_000;
 
 function capturedDate(exifBuffer: Buffer | undefined) {
   if (!exifBuffer) {
@@ -33,7 +33,7 @@ function capturedDate(exifBuffer: Buffer | undefined) {
 }
 
 export async function imageMetadata(buffer: Buffer) {
-  const metadata = await sharp(buffer, { limitInputPixels: maximumInputPixels }).metadata();
+  const metadata = await sharp(buffer, { limitInputPixels: MAXIMUM_INPUT_PIXELS }).metadata();
   const orientationSwapsDimensions = metadata.orientation
     ? metadata.orientation >= 5 && metadata.orientation <= 8
     : false;
@@ -53,7 +53,7 @@ export async function imageMetadata(buffer: Buffer) {
 }
 
 export async function analyseImage(buffer: Buffer, photographId: string) {
-  const { data, info } = await sharp(buffer, { limitInputPixels: maximumInputPixels })
+  const { data, info } = await sharp(buffer, { limitInputPixels: MAXIMUM_INPUT_PIXELS })
     .rotate()
     .resize({
       width: sampleLongestSide,

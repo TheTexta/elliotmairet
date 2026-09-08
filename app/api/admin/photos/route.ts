@@ -1,18 +1,17 @@
 import { randomUUID } from "node:crypto";
 
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
+import { invalidatePhotographsAndPalettes } from "@/lib/cache-invalidation";
 import { analyseImage, imageMetadata } from "@/lib/photographs/analyse-image";
+import {
+  PHOTOGRAPH_BUCKET,
+  PHOTOGRAPH_UPLOAD_FORMATS,
+  uploadSizeError,
+} from "@/lib/photographs/config";
 import { getAdminSession } from "@/lib/supabase/admin";
 
-const bucket = "elliotmairet";
 const signedUploadCleanupDelay = 125 * 60 * 1000;
-const formats = {
-  "image/jpeg": { extension: "jpg", sharpFormat: "jpeg" },
-  "image/png": { extension: "png", sharpFormat: "png" },
-  "image/webp": { extension: "webp", sharpFormat: "webp" },
-} as const;
 const uploadPathPattern = /^uploads\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.(jpg|png|webp)$/i;
 
 type PrepareRequest = {
@@ -112,10 +111,18 @@ export async function POST(request: Request) {
   }
 
   if (body.phase === "prepare") {
-    const format = body.contentType ? formats[body.contentType as keyof typeof formats] : undefined;
+    const sizeError = uploadSizeError(body.size);
 
-    if (!format || !Number.isSafeInteger(body.size) || !body.size || body.size < 1) {
-      return responseError("Use a non-empty JPG, PNG, or WEBP image.");
+    if (sizeError) {
+      return responseError(sizeError);
+    }
+
+    const format = body.contentType
+      ? PHOTOGRAPH_UPLOAD_FORMATS[body.contentType as keyof typeof PHOTOGRAPH_UPLOAD_FORMATS]
+      : undefined;
+
+    if (!format) {
+      return responseError("Use a JPG, PNG, or WEBP image.");
     }
 
     try {
@@ -143,7 +150,7 @@ export async function POST(request: Request) {
     }
 
     const { data, error } = await session.supabase.storage
-      .from(bucket)
+      .from(PHOTOGRAPH_BUCKET)
       .createSignedUploadUrl(storagePath, { upsert: false });
 
     if (error) {
@@ -174,7 +181,9 @@ export async function POST(request: Request) {
   }
 
   const pathMatch = body.storagePath?.match(uploadPathPattern);
-  const format = body.contentType ? formats[body.contentType as keyof typeof formats] : undefined;
+  const format = body.contentType
+    ? PHOTOGRAPH_UPLOAD_FORMATS[body.contentType as keyof typeof PHOTOGRAPH_UPLOAD_FORMATS]
+    : undefined;
   let originalFilename: string;
 
   try {
@@ -192,11 +201,17 @@ export async function POST(request: Request) {
 
   try {
     const { data: storedFile, error: downloadError } = await session.supabase.storage
-      .from(bucket)
+      .from(PHOTOGRAPH_BUCKET)
       .download(storagePath);
 
     if (downloadError || !storedFile) {
       throw new Error("The uploaded image could not be read.");
+    }
+
+    const storedSizeError = uploadSizeError(storedFile.size);
+
+    if (storedSizeError) {
+      throw new Error(storedSizeError);
     }
 
     const buffer = Buffer.from(await storedFile.arrayBuffer());
@@ -239,10 +254,7 @@ export async function POST(request: Request) {
       throw new Error("The photograph could not be added. Its filename may already exist.");
     }
 
-    revalidatePath("/");
-    revalidatePath("/gallery");
-    revalidatePath("/admin/photos");
-    revalidatePath(`/gallery/${encodeURIComponent(originalFilename)}`);
+    invalidatePhotographsAndPalettes();
 
     return NextResponse.json({ message: "Photograph published." });
   } catch (error) {
