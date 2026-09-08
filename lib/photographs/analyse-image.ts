@@ -11,6 +11,7 @@ import {
 
 const paletteSize = 5;
 const sampleLongestSide = 96;
+const maximumInputPixels = 120_000_000;
 
 function capturedDate(exifBuffer: Buffer | undefined) {
   if (!exifBuffer) {
@@ -32,7 +33,7 @@ function capturedDate(exifBuffer: Buffer | undefined) {
 }
 
 export async function imageMetadata(buffer: Buffer) {
-  const metadata = await sharp(buffer, { limitInputPixels: 80_000_000 }).metadata();
+  const metadata = await sharp(buffer, { limitInputPixels: maximumInputPixels }).metadata();
   const orientationSwapsDimensions = metadata.orientation
     ? metadata.orientation >= 5 && metadata.orientation <= 8
     : false;
@@ -52,7 +53,7 @@ export async function imageMetadata(buffer: Buffer) {
 }
 
 export async function analyseImage(buffer: Buffer, photographId: string) {
-  const { data, info } = await sharp(buffer, { limitInputPixels: 80_000_000 })
+  const { data, info } = await sharp(buffer, { limitInputPixels: maximumInputPixels })
     .rotate()
     .resize({
       width: sampleLongestSide,
