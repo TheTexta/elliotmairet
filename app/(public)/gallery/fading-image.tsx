@@ -3,6 +3,7 @@
 import Image, { type ImageProps } from "next/image";
 import { useState } from "react";
 
+
 const photoFadeInDurationMs = 300;
 
 export function FadingImage({
