@@ -1,5 +1,4 @@
 import { getFooterText } from "@/lib/site-content/queries";
-import { Analytics } from "@vercel/analytics/next"
 
 
 export default async function PublicLayout({ children }: LayoutProps<"/">) {

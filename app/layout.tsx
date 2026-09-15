@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/next";
 
 import "./globals.css";
 
@@ -20,6 +20,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         className={`${montserrat.className} min-w-[320px] m-0 bg-white text-black text-sm uppercase  [-webkit-tap-highlight-color:transparent]`}
       >
         {children}
+        <Analytics />
       </body>
     </html>
   );
