@@ -19,6 +19,7 @@
     "@vercel/speed-insights": "^2.0.0",
     "exif-reader": "2.0.3",
     "lucide-react": "1.38.0",
+    "motion": "^13.4.0",
     "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",

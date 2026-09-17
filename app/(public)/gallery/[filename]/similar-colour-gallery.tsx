@@ -1,8 +1,13 @@
 "use client";
 
+import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { PhotoGallery } from "../photo-gallery";
+import {
+  announcePaletteSelectionState,
+  paletteResetEventName,
+} from "./palette-reset-event";
 
 type ColourMatch = {
   filename: string;
@@ -49,6 +54,7 @@ export function SimilarColourGallery({
   const [response, setResponse] = useState<MatchResponse>();
   const responseRef = useRef<MatchResponse | undefined>(undefined);
   const loadTriggerRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
   const [status, setStatus] = useState<
     "idle" | "loading" | "fading-out" | "error"
   >("idle");
@@ -92,6 +98,19 @@ export function SimilarColourGallery({
     observer.observe(trigger);
     return () => observer.disconnect();
   }, [loadMore, response?.nextCursor, status]);
+
+  useEffect(() => {
+    function handlePaletteReset() {
+      setSelectedHex(undefined);
+    }
+
+    window.addEventListener(paletteResetEventName, handlePaletteReset);
+    return () => window.removeEventListener(paletteResetEventName, handlePaletteReset);
+  }, []);
+
+  useEffect(() => {
+    announcePaletteSelectionState(Boolean(selectedHex));
+  }, [selectedHex]);
 
   useEffect(() => {
     const hexes = selectedHex ? [selectedHex] : palette;
@@ -146,23 +165,26 @@ export function SimilarColourGallery({
         className="grid w-full grid-cols-5 pb-4 h-[8vh]"
       >
         {palette.map((hex, index) => (
-          <button
+          <motion.button
             aria-label={`Show photographs similar to ${hex}`}
             aria-pressed={selectedHex === hex}
-            className="group relative block cursor-pointer border-0 bg-white p-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#050505]"
+            animate={{
+              opacity: 1,
+              scale: selectedHex ? (selectedHex === hex ? 1 : 0.25) : 0.5,
+            }}
+            className="block cursor-pointer border-0 p-0 transition-transform duration-300 ease-out motion-reduce:transition-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#050505]"
+            initial={{ opacity: 0, scale: 0 }}
             key={`${hex}-${index}`}
             onClick={() => setSelectedHex(hex)}
+            style={{ backgroundColor: hex }}
             title={`Find similar colours to ${hex}`}
+            transition={{
+              delay: 0,
+              duration: reduceMotion ? 0 : 0.36,
+              ease: [0.22, 1, 0.36, 1],
+            }}
             type="button"
-          >
-            <span
-              aria-hidden="true"
-              className={`absolute inset-0 transition-transform duration-300 ease-out motion-reduce:transition-none ${
-                selectedHex ? (selectedHex === hex ? "scale-100" : "scale-25") : "scale-50"
-              }`}
-              style={{ backgroundColor: hex }}
-            />
-          </button>
+          />
         ))}
       </nav>
 

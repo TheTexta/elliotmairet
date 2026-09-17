@@ -3,7 +3,7 @@ import Link from "next/link";
 import { TransitionLink } from "./transition-link";
 
 const indexLinkClassName =
-  "no-underline hover:underline focus-visible:underline";
+  "animated-index-link no-underline";
 
 export function IndexNavigation({ fromPhoto = false }: { fromPhoto?: boolean }) {
   return (

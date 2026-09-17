@@ -19,10 +19,10 @@ import {
 } from "@/lib/seo";
 
 import { ContentFrame } from "../content-frame";
-import { FadingImage } from "../fading-image";
 import { heroImageSizes } from "../image-sizes";
 import { IndexNavigation } from "../index-navigation";
 import { ScrollToTop } from "../scroll-to-top";
+import { FullPhotographImage } from "./full-photograph-image";
 import { SimilarColourGallery } from "./similar-colour-gallery";
 
 function decodeRouteFilename(filename: string) {
@@ -135,9 +135,9 @@ export default async function PhotographPage({
         <ContentFrame>
           <section>
             <figure className="m-0  h-[80vh] bg-white mt-[8vh] mb-[4vh] flex content-center items-center justify-center">
-              <FadingImage
+              <FullPhotographImage
                 alt={imageAlt}
-                className="block h-full w-auto object-contain"
+                className="block h-auto max-h-full w-auto max-w-full object-contain"
                 fetchPriority="high"
                 height={photograph.height}
                 loading="eager"

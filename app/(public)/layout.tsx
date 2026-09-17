@@ -13,16 +13,22 @@ export default async function PublicLayout({ children }: LayoutProps<"/">) {
       >
         <div className="flex flex-col items-start py-8 text-left sm:py-4">
           <a
-            className="no-underline hover:underline focus-visible:underline"
+            className="animated-index-link no-underline"
             href="mailto:elliot.mairet@gmail.com"
           >
             elliot.mairet@gmail.com
           </a>
           <a
-            className="no-underline hover:underline focus-visible:underline"
+            className="animated-index-link no-underline"
             href="https://www.instagram.com/elliotmairet/"
           >
             Instagram
+          </a>
+          <a
+            className="animated-index-link mt-[1lh] no-underline"
+            href="https://dextery.dev"
+          >
+            Developed by Dexter
           </a>
         </div>
         {footerText ? (
