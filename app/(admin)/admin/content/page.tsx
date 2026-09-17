@@ -2,7 +2,7 @@ import { Images, LogOut } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { getFooterText } from "@/lib/site-content/queries";
+import { getSiteContent } from "@/lib/site-content/queries";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 import { signOutAction } from "../actions";
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default async function AdminContentPage() {
   await requireAdmin();
-  const footerText = await getFooterText();
+  const siteContent = await getSiteContent();
 
   return (
     <main className="min-h-svh bg-neutral-100 text-black normal-case">
@@ -38,7 +38,7 @@ export default async function AdminContentPage() {
       </header>
 
       <section className="px-4 py-8 sm:px-12 sm:py-12">
-        <ContentForm initialText={footerText} />
+        <ContentForm initialContent={siteContent} />
       </section>
     </main>
   );

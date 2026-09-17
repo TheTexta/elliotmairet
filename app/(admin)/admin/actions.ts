@@ -94,7 +94,7 @@ export async function signOutAction() {
   redirect("/admin/login");
 }
 
-export async function updateFooterTextAction(
+export async function updateSiteContentAction(
   _previousState: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
@@ -110,11 +110,23 @@ export async function updateFooterTextAction(
     return { error: "Footer text must be 2,000 characters or fewer." };
   }
 
+  let seoTitle: string | null;
+  let seoDescription: string | null;
+
+  try {
+    seoTitle = optionalText(formData, "seoTitle", 120);
+    seoDescription = optionalText(formData, "seoDescription", 320);
+  } catch {
+    return { error: "The SEO fields are too long." };
+  }
+
   const { supabase } = await requireAdmin();
   const { data, error } = await supabase
     .from("site_content")
     .update({
       footer_text: footerText,
+      seo_description: seoDescription,
+      seo_title: seoTitle,
       updated_at: new Date().toISOString(),
     })
     .eq("singleton", true)
@@ -126,7 +138,7 @@ export async function updateFooterTextAction(
   }
 
   invalidateSiteContent();
-  return { message: "Footer text updated." };
+  return { message: "Site content updated." };
 }
 
 export async function updatePhotographAction(id: string, formData: FormData) {

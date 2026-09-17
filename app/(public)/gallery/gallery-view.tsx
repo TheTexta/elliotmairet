@@ -2,6 +2,8 @@ import { ViewTransition } from "react";
 
 import { getPhotographsWithPalettes } from "@/lib/photographs/queries";
 import { photographUrl } from "@/lib/photographs/storage";
+import { getSiteContent } from "@/lib/site-content/queries";
+import { websiteJsonLd } from "@/lib/seo";
 
 import { ContentFrame } from "./content-frame";
 import { IndexNavigation } from "./index-navigation";
@@ -9,10 +11,19 @@ import { PhotoGallery } from "./photo-gallery";
 import { ScrollToTop } from "./scroll-to-top";
 
 export async function GalleryView() {
-  const photographs = await getPhotographsWithPalettes();
+  const [photographs, siteContent] = await Promise.all([
+    getPhotographsWithPalettes(),
+    getSiteContent(),
+  ]);
 
   return (
     <>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(websiteJsonLd(siteContent.seoDescription)),
+        }}
+        type="application/ld+json"
+      />
       <ViewTransition
         default="none"
         exit={{

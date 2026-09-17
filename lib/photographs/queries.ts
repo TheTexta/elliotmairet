@@ -16,6 +16,7 @@ const photographColumns = `
   image_width,
   image_height,
   captured_at,
+  updated_at,
   title,
   alt_text,
   sort_order
@@ -28,6 +29,7 @@ type PhotographRow = {
   image_width: number;
   image_height: number;
   captured_at: string | null;
+  updated_at: string;
   title: string | null;
   alt_text: string | null;
   sort_order: number | null;
@@ -50,6 +52,7 @@ function photographFromRow(row: PhotographRow): Photograph {
     width: row.image_width,
     height: row.image_height,
     capturedAt: row.captured_at,
+    updatedAt: row.updated_at,
     title: row.title,
     altText: row.alt_text,
     sortOrder: row.sort_order,

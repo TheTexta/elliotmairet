@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ViewTransition } from "react";
 
@@ -6,6 +7,16 @@ import {
   getPhotographPalette,
 } from "@/lib/photographs/queries";
 import { photographUrl } from "@/lib/photographs/storage";
+import {
+  absoluteUrl,
+  photographDescription,
+  photographDisplayTitle,
+  photographImageAlt,
+  photographJsonLd,
+  photographPath,
+  photographSocialImage,
+  siteName,
+} from "@/lib/seo";
 
 import { ContentFrame } from "../content-frame";
 import { FadingImage } from "../fading-image";
@@ -34,6 +45,51 @@ function decodeRouteFilename(filename: string) {
   return decodedFilename;
 }
 
+export async function generateMetadata({
+  params,
+}: PageProps<"/gallery/[filename]">): Promise<Metadata> {
+  const { filename } = await params;
+  const decodedFilename = decodeRouteFilename(filename);
+  const photograph = await getPhotographByFilename(decodedFilename);
+
+  if (!photograph) {
+    return {
+      robots: {
+        follow: false,
+        index: false,
+      },
+      title: "Photograph not found",
+    };
+  }
+
+  const canonicalPath = photographPath(photograph.filename);
+  const description = photographDescription(photograph);
+  const socialImage = [photographSocialImage(photograph)];
+  const title = photographDisplayTitle(photograph);
+
+  return {
+    alternates: {
+      canonical: canonicalPath,
+    },
+    description,
+    openGraph: {
+      description,
+      images: socialImage,
+      siteName,
+      title: `${title} | ${siteName}`,
+      type: "article",
+      url: absoluteUrl(canonicalPath),
+    },
+    title,
+    twitter: {
+      card: "summary_large_image",
+      description,
+      images: socialImage,
+      title: `${title} | ${siteName}`,
+    },
+  };
+}
+
 export default async function PhotographPage({
   params,
 }: PageProps<"/gallery/[filename]">) {
@@ -46,10 +102,8 @@ export default async function PhotographPage({
   }
 
   const palette = await getPhotographPalette(photograph.id);
-  const imageAlt =
-    photograph.altText ??
-    photograph.title ??
-    `Photograph from ${photograph.year}`;
+  const imageAlt = photographImageAlt(photograph);
+  const imageUrl = photographUrl(photograph.storagePath);
 
   return (
     <ViewTransition
@@ -67,6 +121,12 @@ export default async function PhotographPage({
       key={photograph.filename}
     >
       <main className="min-h-svh ">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(photographJsonLd(photograph)),
+          }}
+          type="application/ld+json"
+        />
         <ScrollToTop
           routeKey={photograph.filename}
           transitionTypes={["gallery-to-photo", "photo-to-photo"]}
@@ -83,7 +143,7 @@ export default async function PhotographPage({
                 loading="eager"
                 quality={82}
                 sizes={heroImageSizes}
-                src={photographUrl(photograph.storagePath)}
+                src={imageUrl}
                 width={photograph.width}
               />
             </figure>

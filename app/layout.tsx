@@ -3,6 +3,8 @@ import { Montserrat } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
+import { defaultSeoDescription, defaultSeoTitle } from "@/lib/site-content/queries";
+import { siteMetadataBase, siteName } from "@/lib/seo";
 
 import "./globals.css";
 
@@ -11,8 +13,29 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Elliot Mairet",
-  description: "Photographs by Elliot Mairet",
+  applicationName: siteName,
+  authors: [{ name: siteName }],
+  creator: siteName,
+  description: defaultSeoDescription,
+  metadataBase: siteMetadataBase,
+  openGraph: {
+    description: defaultSeoDescription,
+    locale: "en_CA",
+    siteName,
+    title: defaultSeoTitle,
+    type: "website",
+    url: "/",
+  },
+  publisher: siteName,
+  title: {
+    default: defaultSeoTitle,
+    template: `%s | ${siteName}`,
+  },
+  twitter: {
+    card: "summary_large_image",
+    description: defaultSeoDescription,
+    title: defaultSeoTitle,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

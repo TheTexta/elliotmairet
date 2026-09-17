@@ -5,6 +5,7 @@ export type Photograph = {
   width: number;
   height: number;
   capturedAt: string | null;
+  updatedAt: string;
   title: string | null;
   altText: string | null;
   sortOrder: number | null;
