@@ -7,9 +7,11 @@
   },
   "scripts": {
     "dev": "next dev",
+    "features:backfill:oklab": "node --env-file-if-exists=.env.local scripts/backfill-oklab-features.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:palette": "node --test lib/palette/oklab-k-medoids.test.mjs",
     "test:similarity": "node --experimental-strip-types --test lib/photographs/select-similar-matches.test.mjs"
   },
   "dependencies": {

@@ -16,9 +16,10 @@ export type PhotographPaletteColour = {
   photographId: string;
   rank: number;
   hex: string;
-  lab_l: number;
-  lab_a: number;
-  lab_b: number;
+  lightness: number;
+  axisA: number;
+  axisB: number;
+  featureSpace: "cielab" | "oklab";
 };
 
 export type PhotographWithPalette = Photograph & {

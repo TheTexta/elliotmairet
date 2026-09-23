@@ -9,9 +9,10 @@ import { paginateOrderedItems } from "@/lib/photographs/pagination";
 import { selectSimilarMatches } from "@/lib/photographs/select-similar-matches";
 import { photographUrl } from "@/lib/photographs/storage";
 
-const singleColourSimilarityThreshold = 20;
-const fiveColourSimilarityThreshold = 20;
-const fiveDimensionalVectorSize = 5;
+const cielabSimilarityThreshold = 20;
+const oklabSimilarityThreshold = 0.1;
+const cielabMonochromeThreshold = 1;
+const oklabMonochromeThreshold = 0.01;
 
 export async function GET(
   request: Request,
@@ -38,7 +39,15 @@ export async function GET(
       photograph.palette,
     ]),
   );
-  const paletteColours = [...palettes.values()].flat();
+  const excludedPhotograph = photographs.find(
+    ({ filename }) => filename === excludedFilename,
+  );
+  const sourcePalette = excludedPhotograph
+    ? palettes.get(excludedPhotograph.storagePath) ?? []
+    : [];
+  const paletteColours = sourcePalette.length
+    ? sourcePalette
+    : [...palettes.values()].flat();
   const selectedColours = selectedHexes.flatMap((selectedHex) => {
     const colour = paletteColours.find(
       ({ hex }) => hex.toLowerCase() === selectedHex,
@@ -47,17 +56,21 @@ export async function GET(
     return colour ? [colour] : [];
   });
 
-  if (selectedColours.length !== selectedHexes.length) {
+  if (
+    selectedColours.length !== selectedHexes.length ||
+    selectedColours.some(
+      ({ featureSpace }) => featureSpace !== selectedColours[0].featureSpace,
+    )
+  ) {
     notFound();
   }
 
-  const similarityThreshold =
-    selectedColours.length === fiveDimensionalVectorSize
-      ? fiveColourSimilarityThreshold
-      : singleColourSimilarityThreshold;
-  const excludedPhotograph = photographs.find(
-    ({ filename }) => filename === excludedFilename,
-  );
+  const similarityThreshold = selectedColours[0].featureSpace === "oklab"
+    ? oklabSimilarityThreshold
+    : cielabSimilarityThreshold;
+  const monochromeThreshold = selectedColours[0].featureSpace === "oklab"
+    ? oklabMonochromeThreshold
+    : cielabMonochromeThreshold;
   const sourceColours = excludedPhotograph
     ? palettes.get(excludedPhotograph.storagePath) ?? selectedColours
     : selectedColours;
@@ -69,7 +82,8 @@ export async function GET(
 
       if (
         colours.length === 0 ||
-        !palettesShareColourMode(sourceColours, colours)
+        colours[0].featureSpace !== selectedColours[0].featureSpace ||
+        !palettesShareColourMode(sourceColours, colours, monochromeThreshold)
       ) {
         return [];
       }

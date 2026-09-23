@@ -44,6 +44,15 @@ type PaletteColourRow = {
   lab_b: number;
 };
 
+type OklabFeatureRow = {
+  photograph_id: string;
+  rank: number;
+  hex: string;
+  oklab_l: number;
+  oklab_a: number;
+  oklab_b: number;
+};
+
 function photographFromRow(row: PhotographRow): Photograph {
   return {
     id: row.id,
@@ -65,9 +74,22 @@ function paletteColourFromRow(row: PaletteColourRow): PhotographPaletteColour {
     photographId: row.photograph_id,
     rank: row.rank,
     hex: row.hex,
-    lab_l: row.lab_l,
-    lab_a: row.lab_a,
-    lab_b: row.lab_b,
+    lightness: row.lab_l,
+    axisA: row.lab_a,
+    axisB: row.lab_b,
+    featureSpace: "cielab",
+  };
+}
+
+function oklabFeatureFromRow(row: OklabFeatureRow): PhotographPaletteColour {
+  return {
+    photographId: row.photograph_id,
+    rank: row.rank,
+    hex: row.hex,
+    lightness: row.oklab_l,
+    axisA: row.oklab_a,
+    axisB: row.oklab_b,
+    featureSpace: "oklab",
   };
 }
 
@@ -143,15 +165,26 @@ async function readPhotographPalette(
   photographId: string,
 ): Promise<PhotographPaletteColour[]> {
   const supabase = createPublicClient();
-  const { data, error } = await supabase
-    .from("photo_palette_colours")
-    .select("photograph_id, rank, hex, lab_l, lab_a, lab_b")
-    .eq("photograph_id", photographId)
-    .order("rank", { ascending: true });
+  const [oklabResult, paletteResult] = await Promise.all([
+    supabase
+      .from("photo_oklab_features")
+      .select("photograph_id, rank, hex, oklab_l, oklab_a, oklab_b")
+      .eq("photograph_id", photographId)
+      .order("rank", { ascending: true }),
+    supabase
+      .from("photo_palette_colours")
+      .select("photograph_id, rank, hex, lab_l, lab_a, lab_b")
+      .eq("photograph_id", photographId)
+      .order("rank", { ascending: true }),
+  ]);
 
-  if (error) throw error;
+  if (oklabResult.error) throw oklabResult.error;
+  if (paletteResult.error) throw paletteResult.error;
 
-  return (data as PaletteColourRow[]).map(paletteColourFromRow);
+  const oklabFeatures = (oklabResult.data as OklabFeatureRow[]).map(oklabFeatureFromRow);
+  return oklabFeatures.length
+    ? oklabFeatures
+    : (paletteResult.data as PaletteColourRow[]).map(paletteColourFromRow);
 }
 
 export const getPhotographPalette = unstable_cache(
@@ -163,11 +196,13 @@ export const getPhotographPalette = unstable_cache(
 export async function getPhotographsWithPalettes(): Promise<
   PhotographWithPalette[]
 > {
-  const [photographs, paletteRows] = await Promise.all([
+  const [photographs, paletteRows, oklabRows] = await Promise.all([
     getPhotographs(),
     getAllPaletteColours(),
+    getAllOklabFeatures(),
   ]);
   const palettes = new Map<string, PhotographPaletteColour[]>();
+  const oklabFeatures = new Map<string, PhotographPaletteColour[]>();
 
   for (const colour of paletteRows) {
     const palette = palettes.get(colour.photographId) ?? [];
@@ -175,9 +210,15 @@ export async function getPhotographsWithPalettes(): Promise<
     palettes.set(colour.photographId, palette);
   }
 
+  for (const feature of oklabRows) {
+    const features = oklabFeatures.get(feature.photographId) ?? [];
+    features.push(feature);
+    oklabFeatures.set(feature.photographId, features);
+  }
+
   return photographs.map((photograph) => ({
     ...photograph,
-    palette: palettes.get(photograph.id) ?? [],
+    palette: oklabFeatures.get(photograph.id) ?? palettes.get(photograph.id) ?? [],
   }));
 }
 
@@ -197,5 +238,24 @@ async function readAllPaletteColours(): Promise<PhotographPaletteColour[]> {
 const getAllPaletteColours = unstable_cache(
   readAllPaletteColours,
   ["photographs", "all-palette-colours"],
+  { revalidate: 86400, tags: [cacheTags.palettes, cacheTags.colourSimilarity] },
+);
+
+async function readAllOklabFeatures(): Promise<PhotographPaletteColour[]> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("photo_oklab_features")
+    .select("photograph_id, rank, hex, oklab_l, oklab_a, oklab_b")
+    .order("photograph_id", { ascending: true })
+    .order("rank", { ascending: true });
+
+  if (error) throw error;
+
+  return (data as OklabFeatureRow[]).map(oklabFeatureFromRow);
+}
+
+const getAllOklabFeatures = unstable_cache(
+  readAllOklabFeatures,
+  ["photographs", "all-oklab-features"],
   { revalidate: 86400, tags: [cacheTags.palettes, cacheTags.colourSimilarity] },
 );

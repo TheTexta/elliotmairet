@@ -228,7 +228,8 @@ export async function POST(request: Request) {
       sort_order: sortOrder(body.sortOrder),
     };
     const analysis = await analyseImage(buffer, photographId);
-    const { error: publishError } = await session.supabase.rpc("publish_photograph", {
+    const oklab = analysis.oklab_features;
+    const { error: publishError } = await session.supabase.rpc("publish_photograph_with_oklab", {
       p_photograph_id: photographId,
       p_storage_path: storagePath,
       p_filename: originalFilename,
@@ -244,6 +245,12 @@ export async function POST(request: Request) {
       p_palette_size: analysis.palette_size,
       p_analyzed_at: analysis.analyzed_at,
       p_colours: analysis.colours,
+      p_oklab_algorithm: oklab.algorithm,
+      p_oklab_algorithm_iterations: oklab.algorithm_iterations,
+      p_oklab_sample_longest_side: oklab.sample_longest_side,
+      p_oklab_feature_count: oklab.feature_count,
+      p_oklab_analyzed_at: oklab.analyzed_at,
+      p_oklab_features: oklab.features,
     });
 
     if (publishError) {

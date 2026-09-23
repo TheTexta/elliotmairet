@@ -8,6 +8,11 @@ import {
   rgbToHex,
   rgbToLab,
 } from "@/lib/palette/k-means.js";
+import {
+  extractOklabKMedoids,
+  OKLAB_K_MEDOIDS_ALGORITHM,
+  OKLAB_K_MEDOIDS_ITERATIONS,
+} from "@/lib/palette/oklab-k-medoids.js";
 import { MAXIMUM_INPUT_PIXELS } from "@/lib/photographs/config";
 
 const paletteSize = 5;
@@ -89,6 +94,20 @@ export async function analyseImage(buffer: Buffer, photographId: string) {
       };
     },
   );
+  const oklabFeatures = extractOklabKMedoids(pixels, paletteSize).map(
+    ({ rgb, oklab, weight }, index) => ({
+      rank: index + 1,
+      red: rgb[0],
+      green: rgb[1],
+      blue: rgb[2],
+      hex: rgbToHex(rgb),
+      oklab_l: oklab[0],
+      oklab_a: oklab[1],
+      oklab_b: oklab[2],
+      weight: Number(weight.toFixed(6)),
+    }),
+  );
+  const analyzedAt = new Date().toISOString();
 
   return {
     photograph_id: photographId,
@@ -96,7 +115,16 @@ export async function analyseImage(buffer: Buffer, photographId: string) {
     algorithm_iterations: K_MEANS_ITERATIONS,
     sample_longest_side: sampleLongestSide,
     palette_size: paletteSize,
-    analyzed_at: new Date().toISOString(),
+    analyzed_at: analyzedAt,
     colours,
+    oklab_features: {
+      photograph_id: photographId,
+      algorithm: OKLAB_K_MEDOIDS_ALGORITHM,
+      algorithm_iterations: OKLAB_K_MEDOIDS_ITERATIONS,
+      sample_longest_side: sampleLongestSide,
+      feature_count: oklabFeatures.length,
+      analyzed_at: analyzedAt,
+      features: oklabFeatures,
+    },
   };
 }
