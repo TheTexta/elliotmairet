@@ -32,7 +32,7 @@ export default async function AdminPhotosPage() {
     <main className="min-h-svh bg-neutral-100 text-black normal-case">
       <AdminPhotographsHeader count={photographs.length} />
       <section className="px-4 py-6 sm:px-12 sm:py-8">
-        <CleanupNotice jobs={cleanupJobs} />
+        <CleanupNotice jobs={cleanupJobs} loadError={Boolean(cleanupResult.error)} />
 
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>

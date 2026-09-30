@@ -1,6 +1,9 @@
 import type { PhotographPaletteColour } from "./types";
 
-export type PaletteColour = PhotographPaletteColour;
+export type PaletteColour = Pick<
+  PhotographPaletteColour,
+  "hex" | "lightness" | "axisA" | "axisB" | "featureSpace"
+>;
 
 export function deltaE76(first: PaletteColour, second: PaletteColour) {
   const lightnessDelta = first.lightness - second.lightness;

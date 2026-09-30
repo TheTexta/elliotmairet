@@ -4,9 +4,7 @@ import { getPhotographs } from "@/lib/photographs/queries";
 import { getSiteContent } from "@/lib/site-content/queries";
 import { absoluteUrl, photographSocialImage, siteName } from "@/lib/seo";
 
-// Keep builds independent of the deployment-time database migration state.
-// The underlying catalogue queries remain explicitly cached and tag-invalidated.
-export const dynamic = "force-dynamic";
+export const revalidate = 86400;
 
 export async function generateMetadata(): Promise<Metadata> {
 	const [siteContent, photographs] = await Promise.all([

@@ -6,8 +6,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 export const defaultFooterText =
   "Elliot Mairet is a Montreal based photographer from Victoria BC.\n\nAbove all else he is grateful for you";
 export const defaultSeoTitle = "Elliot Mairet";
-export const defaultSeoDescription =
-  "Photographs by Elliot Mairet, a Montreal based photographer from Victoria BC.";
+export const defaultSeoDescription = defaultFooterText;
 
 export type SiteContent = {
   footerText: string;
@@ -17,7 +16,6 @@ export type SiteContent = {
 
 type SiteContentRow = {
   footer_text: string;
-  seo_description: string | null;
   seo_title: string | null;
 };
 
@@ -31,7 +29,7 @@ export const getSiteContent = unstable_cache(async (): Promise<SiteContent> => {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("site_content")
-    .select("footer_text, seo_title, seo_description")
+    .select("footer_text, seo_title")
     .eq("singleton", true)
     .maybeSingle();
 
@@ -46,7 +44,7 @@ export const getSiteContent = unstable_cache(async (): Promise<SiteContent> => {
 
   return {
     footerText: row.footer_text,
-    seoDescription: row.seo_description?.trim() || defaultSeoDescription,
+    seoDescription: row.footer_text,
     seoTitle: row.seo_title?.trim() || defaultSeoTitle,
   };
 }, ["site-content", "footer"], {

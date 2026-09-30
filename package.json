@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:palette": "node --test lib/palette/oklab-k-medoids.test.mjs",
-    "test:similarity": "node --experimental-strip-types --test lib/photographs/select-similar-matches.test.mjs"
+    "test:similarity": "node --experimental-strip-types --test lib/photographs/select-similar-matches.test.mjs lib/photographs/find-colour-matches.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.5",

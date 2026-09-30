@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
@@ -111,11 +112,9 @@ export async function updateSiteContentAction(
   }
 
   let seoTitle: string | null;
-  let seoDescription: string | null;
 
   try {
     seoTitle = optionalText(formData, "seoTitle", 120);
-    seoDescription = optionalText(formData, "seoDescription", 320);
   } catch {
     return { error: "The SEO fields are too long." };
   }
@@ -125,7 +124,6 @@ export async function updateSiteContentAction(
     .from("site_content")
     .update({
       footer_text: footerText,
-      seo_description: seoDescription,
       seo_title: seoTitle,
       updated_at: new Date().toISOString(),
     })
@@ -230,9 +228,14 @@ export async function deletePhotographAction(id: string) {
   invalidatePhotographsAndPalettes();
 }
 
-export async function retryStorageCleanupAction(storagePath: string) {
+export async function retryStorageCleanupAction(
+  storagePath: string,
+  // useActionState supplies the previous state before the form data.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _previousState: AdminActionState,
+): Promise<AdminActionState> {
   if (typeof storagePath !== "string") {
-    throw new Error("Invalid storage path.");
+    return { error: "This file could not be identified. Refresh the page and try again." };
   }
 
   const { supabase } = await requireAdmin();
@@ -242,17 +245,25 @@ export async function retryStorageCleanupAction(storagePath: string) {
   );
 
   if (readinessError) {
-    throw new Error("The cleanup job could not be checked.");
+    console.error("admin_storage_cleanup_check_failed", {
+      storagePath,
+      message: readinessError.message,
+    });
+    return { error: "We couldn't check this file. Please try again." };
   }
 
   if (!cleanupReady) {
-    throw new Error("Storage cleanup is not ready or the photograph is still public.");
+    return { error: "This file isn't ready to remove. Refresh the page to see its current status." };
   }
 
   const { error: cleanupError } = await supabase.storage.from(PHOTOGRAPH_BUCKET).remove([storagePath]);
 
   if (cleanupError) {
-    throw new Error("Storage cleanup failed again.");
+    console.error("admin_storage_cleanup_retry_failed", {
+      storagePath,
+      message: cleanupError.message,
+    });
+    return { error: "We couldn't remove this file. Please try again later." };
   }
 
   const { error: resolveError } = await supabase.rpc("resolve_storage_cleanup_job", {
@@ -260,8 +271,14 @@ export async function retryStorageCleanupAction(storagePath: string) {
   });
 
   if (resolveError) {
-    throw new Error("The cleanup job could not be resolved.");
+    console.error("admin_storage_cleanup_resolution_failed", {
+      storagePath,
+      message: resolveError.message,
+    });
+    return { error: "The file was removed, but its notice could not be cleared. Please try again." };
   }
 
   invalidatePhotographsAndPalettes();
+  revalidatePath("/admin/photos");
+  return { message: "Unused file removed." };
 }

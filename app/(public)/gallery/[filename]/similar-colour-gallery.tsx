@@ -1,7 +1,13 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import {
+  findColourMatches,
+  type ColourMatch,
+  type ColourSearchPhotograph,
+} from "@/lib/photographs/find-colour-matches";
 
 import { PhotoGallery } from "../photo-gallery";
 import {
@@ -9,24 +15,7 @@ import {
   paletteResetEventName,
 } from "./palette-reset-event";
 
-type ColourMatch = {
-  filename: string;
-  width: number;
-  height: number;
-  year: string;
-  imageUrl: string;
-  palette: string[];
-  closestHex: string;
-  difference: number;
-};
-
-type MatchResponse = {
-  selectedHexes: string[];
-  threshold: number;
-  matches: ColourMatch[];
-  nextCursor: string | null;
-};
-
+const colourResultPageSize = 36;
 const galleryFadeOutDurationMs = 100;
 const galleryFadeInDurationMs = 300;
 
@@ -43,6 +32,24 @@ function waitForGalleryFadeOut(signal: AbortSignal) {
   });
 }
 
+let palettesRequest: Promise<ColourSearchPhotograph[]> | undefined;
+
+// Shared across photo navigations so the catalogue palette JSON is fetched once.
+function loadPalettes() {
+  palettesRequest ??= fetch("/api/gallery/palettes").then((result) => {
+    if (!result.ok) {
+      throw new Error(`Palette request failed with ${result.status}.`);
+    }
+
+    return result.json() as Promise<ColourSearchPhotograph[]>;
+  });
+  palettesRequest.catch(() => {
+    palettesRequest = undefined;
+  });
+
+  return palettesRequest;
+}
+
 export function SimilarColourGallery({
   currentFilename,
   palette,
@@ -51,45 +58,27 @@ export function SimilarColourGallery({
   palette: string[];
 }) {
   const [selectedHex, setSelectedHex] = useState<string>();
-  const [response, setResponse] = useState<MatchResponse>();
-  const responseRef = useRef<MatchResponse | undefined>(undefined);
+  const [matches, setMatches] = useState<ColourMatch[]>();
+  const [visibleCount, setVisibleCount] = useState(colourResultPageSize);
+  const matchesRef = useRef<ColourMatch[] | undefined>(undefined);
   const loadTriggerRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
   const [status, setStatus] = useState<
     "idle" | "loading" | "fading-out" | "error"
   >("idle");
-
-  const loadMore = useCallback(async function loadMore() {
-    if (!response?.nextCursor || status === "loading" || status === "fading-out") return;
-    setStatus("loading");
-    try {
-      const hexes = selectedHex ? [selectedHex] : palette;
-      const colourPath = hexes.map((hex) => hex.slice(1)).join(",");
-      const result = await fetch(
-        `/api/gallery/colour/${colourPath}?exclude=${encodeURIComponent(currentFilename)}&cursor=${encodeURIComponent(response.nextCursor)}`,
-      );
-      if (!result.ok) throw new Error(`Colour search failed with ${result.status}.`);
-      const page = (await result.json()) as MatchResponse;
-      const combined = { ...page, matches: [...response.matches, ...page.matches] };
-      responseRef.current = combined;
-      setResponse(combined);
-      setStatus("idle");
-    } catch {
-      setStatus("error");
-    }
-  }, [currentFilename, palette, response, selectedHex, status]);
+  const hasMore = Boolean(matches && visibleCount < matches.length);
 
   useEffect(() => {
     const trigger = loadTriggerRef.current;
 
-    if (!trigger || !response?.nextCursor || status !== "idle") {
+    if (!trigger || !hasMore || status !== "idle") {
       return;
     }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          void loadMore();
+          setVisibleCount((count) => count + colourResultPageSize);
         }
       },
       { rootMargin: "1000px 0px" },
@@ -97,7 +86,7 @@ export function SimilarColourGallery({
 
     observer.observe(trigger);
     return () => observer.disconnect();
-  }, [loadMore, response?.nextCursor, status]);
+  }, [hasMore, status, visibleCount]);
 
   useEffect(() => {
     function handlePaletteReset() {
@@ -114,25 +103,25 @@ export function SimilarColourGallery({
 
   useEffect(() => {
     const hexes = selectedHex ? [selectedHex] : palette;
-    const colourPath = hexes.map((hex) => hex.slice(1)).join(",");
     const controller = new AbortController();
 
     async function loadMatches() {
       setStatus("loading");
 
       try {
-        const result = await fetch(
-          `/api/gallery/colour/${colourPath}?exclude=${encodeURIComponent(currentFilename)}`,
-          { signal: controller.signal },
-        );
+        const photographs = await loadPalettes();
 
-        if (!result.ok) {
-          throw new Error(`Colour search failed with ${result.status}.`);
+        if (controller.signal.aborted) {
+          return;
         }
 
-        const nextResponse = (await result.json()) as MatchResponse;
+        const result = findColourMatches(photographs, hexes, currentFilename);
 
-        if (responseRef.current) {
+        if (!result) {
+          throw new Error("Colour search could not match the selected palette.");
+        }
+
+        if (matchesRef.current) {
           setStatus("fading-out");
           await waitForGalleryFadeOut(controller.signal);
 
@@ -141,15 +130,14 @@ export function SimilarColourGallery({
           }
         }
 
-        responseRef.current = nextResponse;
-        setResponse(nextResponse);
+        matchesRef.current = result.matches;
+        setMatches(result.matches);
+        setVisibleCount(colourResultPageSize);
         setStatus("idle");
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
+      } catch {
+        if (!controller.signal.aborted) {
+          setStatus("error");
         }
-
-        setStatus("error");
       }
     }
 
@@ -202,14 +190,14 @@ export function SimilarColourGallery({
           }ms`,
         }}
       >
-        {response ? (
+        {matches ? (
           <>
             <PhotoGallery
               ariaLabel="Photographs ordered by colour similarity"
               layout="grid"
-              photographs={response.matches}
+              photographs={matches.slice(0, visibleCount)}
             />
-            {response.nextCursor ? (
+            {hasMore ? (
               <div aria-hidden="true" className="h-px" ref={loadTriggerRef} />
             ) : null}
           </>

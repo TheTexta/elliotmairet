@@ -5,6 +5,7 @@ import { ViewTransition } from "react";
 import {
   getPhotographByFilename,
   getPhotographPalette,
+  getPhotographs,
 } from "@/lib/photographs/queries";
 import { photographUrl } from "@/lib/photographs/storage";
 import {
@@ -43,6 +44,14 @@ function decodeRouteFilename(filename: string) {
   }
 
   return decodedFilename;
+}
+
+export const revalidate = 86400;
+
+export async function generateStaticParams() {
+  const photographs = await getPhotographs();
+
+  return photographs.map(({ filename }) => ({ filename }));
 }
 
 export async function generateMetadata({
