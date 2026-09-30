@@ -4,6 +4,11 @@ A Next.js photography archive backed by Supabase. The public site contains the
 gallery; authorized users can manage photographs and site content from the
 admin area.
 
+When the public site is embedded in the project browser at `dextery.dev`, links
+report their destinations to the parent portfolio so they open as the top-level
+page. Standalone browsing and admin navigation are unchanged. The bridge also
+accepts local portfolio development origins.
+
 ## Setup
 
 Requires Node.js 22 or later.

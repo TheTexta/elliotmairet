@@ -1,4 +1,5 @@
 import { getFooterText } from "@/lib/site-content/queries";
+import { PreviewNavigationBridge } from "./preview-navigation-bridge";
 
 
 export default async function PublicLayout({ children }: LayoutProps<"/">) {
@@ -6,6 +7,7 @@ export default async function PublicLayout({ children }: LayoutProps<"/">) {
 
   return (
     <>
+      <PreviewNavigationBridge />
       {children}
       <footer
         id="about"
