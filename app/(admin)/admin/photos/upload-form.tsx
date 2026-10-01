@@ -5,11 +5,9 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  PHOTOGRAPH_BUCKET,
   PHOTOGRAPH_UPLOAD_FORMATS,
   uploadSizeError,
 } from "@/lib/photographs/config";
-import { createClient } from "@/lib/supabase/client";
 
 const inputClassName =
   "h-10 w-full border border-neutral-300 bg-white px-3 text-base text-black outline-none focus:border-black";
@@ -68,15 +66,13 @@ export function UploadForm() {
         throw new Error(prepared.error);
       }
 
-      const supabase = createClient();
-      const { error: uploadError } = await supabase.storage
-        .from(PHOTOGRAPH_BUCKET)
-        .uploadToSignedUrl(prepared.storagePath, prepared.token, file, {
-          cacheControl: "31536000",
-          contentType: file.type,
-        });
+      const uploadResponse = await fetch(prepared.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
 
-      if (uploadError) {
+      if (!uploadResponse.ok) {
         throw new Error("The image could not be uploaded.");
       }
 
@@ -85,6 +81,7 @@ export function UploadForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phase: "publish",
+          stagingPath: prepared.stagingPath,
           storagePath: prepared.storagePath,
           contentType: file.type,
           ...metadata,

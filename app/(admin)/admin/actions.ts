@@ -9,6 +9,10 @@ import {
   invalidateSiteContent,
 } from "@/lib/cache-invalidation";
 import { PHOTOGRAPH_BUCKET } from "@/lib/photographs/config";
+import {
+  deletePublishedObject,
+  deleteR2ObjectForCleanup,
+} from "@/lib/r2/server";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -171,8 +175,14 @@ export async function deletePhotographAction(id: string) {
   }
 
   const { supabase } = await requireAdmin();
+  const storageProvider = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL?.trim()
+    ? "r2"
+    : "supabase";
   const { data, error } = await supabase
-    .rpc("queue_photograph_deletion", { p_photograph_id: id })
+    .rpc("queue_photograph_deletion", {
+      p_photograph_id: id,
+      p_storage_provider: storageProvider,
+    })
     .single();
 
   if (error) {
@@ -185,7 +195,7 @@ export async function deletePhotographAction(id: string) {
     { job_storage_path: deletedPhotograph.storage_path },
   );
 
-  if (readinessError || !cleanupReady) {
+  if (readinessError || cleanupReady !== storageProvider) {
     console.error("admin_storage_cleanup_not_ready", {
       photographId: id,
       storagePath: deletedPhotograph.storage_path,
@@ -195,7 +205,21 @@ export async function deletePhotographAction(id: string) {
     return;
   }
 
-  const { error: cleanupError } = await supabase.storage.from(PHOTOGRAPH_BUCKET).remove([deletedPhotograph.storage_path]);
+  let cleanupError: Error | null = null;
+
+  try {
+    if (storageProvider === "r2") {
+      await deletePublishedObject(deletedPhotograph.storage_path);
+    } else {
+      const { error } = await supabase.storage
+        .from(PHOTOGRAPH_BUCKET)
+        .remove([deletedPhotograph.storage_path]);
+
+      if (error) throw error;
+    }
+  } catch (error) {
+    cleanupError = error instanceof Error ? error : new Error("Unknown R2 cleanup error.");
+  }
 
   if (cleanupError) {
     const { error: logError } = await supabase.rpc("record_storage_cleanup_job", {
@@ -204,6 +228,7 @@ export async function deletePhotographAction(id: string) {
       job_operation: "cleanup",
       job_error_message: cleanupError.message,
       job_not_before: new Date().toISOString(),
+      job_storage_provider: storageProvider,
     });
 
     console.error("admin_storage_cleanup_failed", {
@@ -239,7 +264,7 @@ export async function retryStorageCleanupAction(
   }
 
   const { supabase } = await requireAdmin();
-  const { data: cleanupReady, error: readinessError } = await supabase.rpc(
+  const { data: cleanupProvider, error: readinessError } = await supabase.rpc(
     "begin_storage_cleanup_job",
     { job_storage_path: storagePath },
   );
@@ -252,11 +277,23 @@ export async function retryStorageCleanupAction(
     return { error: "We couldn't check this file. Please try again." };
   }
 
-  if (!cleanupReady) {
+  if (cleanupProvider !== "r2" && cleanupProvider !== "supabase") {
     return { error: "This file isn't ready to remove. Refresh the page to see its current status." };
   }
 
-  const { error: cleanupError } = await supabase.storage.from(PHOTOGRAPH_BUCKET).remove([storagePath]);
+  let cleanupError: Error | null = null;
+
+  try {
+    if (cleanupProvider === "r2") {
+      await deleteR2ObjectForCleanup(storagePath);
+    } else {
+      const { error } = await supabase.storage.from(PHOTOGRAPH_BUCKET).remove([storagePath]);
+
+      if (error) throw error;
+    }
+  } catch (error) {
+    cleanupError = error instanceof Error ? error : new Error("Unknown R2 cleanup error.");
+  }
 
   if (cleanupError) {
     console.error("admin_storage_cleanup_retry_failed", {

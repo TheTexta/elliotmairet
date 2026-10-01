@@ -1,6 +1,8 @@
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 
+import { parseR2Configuration } from "../lib/r2/config.ts";
 import { rgbToHex } from "../lib/palette/k-means.js";
 import {
   extractOklabKMedoids,
@@ -8,7 +10,6 @@ import {
   OKLAB_K_MEDOIDS_ITERATIONS,
 } from "../lib/palette/oklab-k-medoids.js";
 
-const bucket = "elliotmairet";
 const featureCount = 5;
 const sampleLongestSide = 96;
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -18,6 +19,7 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const email = process.env.SUPABASE_ADMIN_EMAIL;
 const password = process.env.SUPABASE_ADMIN_PASSWORD;
 const key = serviceRoleKey ?? publicKey;
+const r2Configuration = parseR2Configuration(process.env);
 
 if (!url || !key || (!serviceRoleKey && (!email || !password))) {
   throw new Error(
@@ -28,6 +30,14 @@ if (!url || !key || (!serviceRoleKey && (!email || !password))) {
 
 const supabase = createClient(url, key, {
   auth: { autoRefreshToken: false, persistSession: false },
+});
+const r2 = new S3Client({
+  region: "auto",
+  endpoint: r2Configuration.endpoint,
+  credentials: {
+    accessKeyId: r2Configuration.accessKeyId,
+    secretAccessKey: r2Configuration.secretAccessKey,
+  },
 });
 if (!serviceRoleKey && email && password) {
   const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
@@ -43,15 +53,16 @@ const { data: photographs, error: photographsError } = await supabase
 if (photographsError) throw photographsError;
 
 for (const [index, photograph] of photographs.entries()) {
-  const { data: storedFile, error: downloadError } = await supabase.storage
-    .from(bucket)
-    .download(photograph.storage_path);
+  const storedFile = await r2.send(new GetObjectCommand({
+    Bucket: r2Configuration.publishedBucket,
+    Key: photograph.storage_path,
+  }));
 
-  if (downloadError || !storedFile) {
-    throw downloadError ?? new Error(`Could not download ${photograph.storage_path}.`);
+  if (!storedFile.Body) {
+    throw new Error(`Could not download ${photograph.storage_path} from R2.`);
   }
 
-  const { data, info } = await sharp(Buffer.from(await storedFile.arrayBuffer()))
+  const { data, info } = await sharp(Buffer.from(await storedFile.Body.transformToByteArray()))
     .rotate()
     .resize({
       width: sampleLongestSide,

@@ -3,6 +3,28 @@ import test from "node:test";
 
 import supabaseImageLoader from "./supabase-image-loader.ts";
 
+test("selects a Cloudflare transformation for an R2 photograph", () => {
+  const previousUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL;
+  process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL = "https://images.example.com";
+
+  try {
+    assert.equal(
+      supabaseImageLoader({
+        src: "https://images.example.com/uploads/photo%20name.jpg",
+        width: 2048,
+        quality: 82,
+      }),
+      "https://images.example.com/cdn-cgi/image/width=2048,quality=82,format=auto/https://images.example.com/uploads/photo%20name.jpg",
+    );
+  } finally {
+    if (previousUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL;
+    } else {
+      process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL = previousUrl;
+    }
+  }
+});
+
 test("selects a transformed Supabase source at the requested width and quality", () => {
   assert.equal(
     supabaseImageLoader({

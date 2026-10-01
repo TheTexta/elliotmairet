@@ -10,6 +10,25 @@ const storageOrigin = "https://api.dextery.dev";
 const objectPathPrefix = "/storage/v1/object/public/elliotmairet/";
 const renderPathPrefix = "/storage/v1/render/image/public/elliotmairet/";
 
+function isR2PhotographUrl(url: URL) {
+  const value = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL?.trim();
+
+  if (!value) return false;
+
+  try {
+    const baseUrl = new URL(value);
+    const basePath = `${baseUrl.pathname.replace(/\/$/, "")}/`;
+
+    return (
+      baseUrl.protocol === "https:"
+      && url.origin === baseUrl.origin
+      && url.pathname.startsWith(basePath)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default function supabaseImageLoader({
   src,
   width,
@@ -21,6 +40,12 @@ export default function supabaseImageLoader({
     url = new URL(src);
   } catch {
     return src;
+  }
+
+  if (isR2PhotographUrl(url)) {
+    const options = `width=${width},quality=${quality ?? 75},format=auto`;
+
+    return `${url.origin}/cdn-cgi/image/${options}/${url.toString()}`;
   }
 
   if (

@@ -7,7 +7,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "features:backfill:oklab": "node --env-file-if-exists=.env.local scripts/backfill-oklab-features.mjs",
+    "features:backfill:oklab": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/backfill-oklab-features.mjs",
+    "storage:migrate:r2": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/migrate-supabase-storage-to-r2.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -15,6 +16,8 @@
     "test:similarity": "node --experimental-strip-types --test lib/photographs/select-similar-matches.test.mjs lib/photographs/find-colour-matches.test.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1144.0",
+    "@aws-sdk/s3-request-presigner": "3.1144.0",
     "@supabase/ssr": "0.12.5",
     "@supabase/supabase-js": "2.112.4",
     "@vercel/analytics": "^2.0.1",
@@ -25,6 +28,7 @@
     "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "server-only": "0.0.1",
     "sharp": "0.35.4"
   },
   "devDependencies": {
