@@ -50,3 +50,14 @@ test("leaves relative and unsupported sources unchanged", () => {
     "https://example.com/photo.jpg",
   );
 });
+
+test("uses namespaced shared image transformations without changing storage keys", () => {
+  const old = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL;
+  process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL = "https://images.dextery.dev/elliotmairet";
+  try {
+    assert.equal(supabaseImageLoader({ src: "https://images.dextery.dev/elliotmairet/uploads/photo%20name.jpg", width: 2048, quality: 82 }), "https://images.dextery.dev/elliotmairet/uploads/photo%20name.jpg?width=2048&quality=82&format=auto");
+  } finally {
+    if (old === undefined) delete process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL;
+    else process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL = old;
+  }
+});

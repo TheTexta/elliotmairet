@@ -44,7 +44,13 @@ export default function supabaseImageLoader({
 
   if (isR2PhotographUrl(url)) {
     const options = `width=${width},quality=${quality ?? 75},format=auto`;
-
+    if (url.pathname.startsWith("/elliotmairet/")) {
+      url.searchParams.set("width", String(width));
+      url.searchParams.set("quality", String(quality ?? 75));
+      url.searchParams.set("format", "auto");
+      return url.toString();
+    }
+    // Legacy root URLs retain the existing built-in transformation endpoint.
     return `${url.origin}/cdn-cgi/image/${options}/${url.toString()}`;
   }
 

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import { invalidatePhotographsAndPalettes } from "@/lib/cache-invalidation";
 import { analyseImage, imageMetadata } from "@/lib/photographs/analyse-image";
+import { createImageDeliverySource } from "@/lib/r2/image-source";
 import {
   MAXIMUM_UPLOAD_BYTES,
   PHOTOGRAPH_UPLOAD_FORMATS,
@@ -318,6 +319,7 @@ export async function POST(request: Request) {
       storedObject.etag,
       storedObject.contentLength,
       createHash("sha256").update(buffer).digest("hex"),
+      await createImageDeliverySource(buffer, image.width, image.height),
     );
 
     const { error: publishError } = await session.supabase.rpc("publish_photograph_with_oklab", {

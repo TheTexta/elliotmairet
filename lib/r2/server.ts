@@ -9,6 +9,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { imageDeliverySourceKey } from "./image-source";
 
 import { parseR2Configuration } from "./config";
 import {
@@ -99,6 +100,7 @@ async function publishedObjectMatchesSource(
   sourceEtag: string,
   sourceLength: number,
   sourceSha256: string,
+  deliveryKey?: string,
 ) {
   const config = configuration();
 
@@ -112,6 +114,7 @@ async function publishedObjectMatchesSource(
       object.ContentLength === sourceLength
       && object.Metadata?.sourceetag === etagMetadataValue(sourceEtag)
       && object.Metadata?.sourcesha256 === sourceSha256
+      && (!deliveryKey || object.Metadata?.["cf-image-source"] === deliveryKey)
     );
   } catch (error) {
     if (
@@ -134,8 +137,18 @@ export async function copyStagedObjectToPublished(
   sourceEtag: string,
   sourceLength: number,
   sourceSha256: string,
+  deliverySource?: Buffer,
 ) {
   const config = configuration();
+  const deliveryKey = deliverySource ? imageDeliverySourceKey(publishedKey) : undefined;
+
+  if (deliverySource && deliveryKey) {
+    await r2Client().send(new PutObjectCommand({
+      Bucket: config.publishedBucket, Key: deliveryKey, Body: deliverySource,
+      ContentType: "image/webp", CacheControl: PUBLISHED_OBJECT_CACHE_CONTROL,
+      Metadata: { sourcesha256: sourceSha256 },
+    }));
+  }
 
   if (
     await publishedObjectMatchesSource(
@@ -143,6 +156,7 @@ export async function copyStagedObjectToPublished(
       sourceEtag,
       sourceLength,
       sourceSha256,
+      deliveryKey,
     )
   ) {
     return;
@@ -160,6 +174,7 @@ export async function copyStagedObjectToPublished(
       Metadata: {
         sourceetag: etagMetadataValue(sourceEtag),
         sourcesha256: sourceSha256,
+        ...(deliveryKey ? { "cf-image-source": deliveryKey } : {}),
       },
       MetadataDirective: "REPLACE",
     }));
@@ -170,6 +185,7 @@ export async function copyStagedObjectToPublished(
         sourceEtag,
         sourceLength,
         sourceSha256,
+        deliveryKey,
       )
     ) {
       return;
@@ -190,6 +206,12 @@ export async function deleteStagedObject(key: string) {
 
 export async function deletePublishedObject(key: string) {
   const config = configuration();
+
+  // The existing cleanup job covers both objects, including retries after partial failure.
+  await r2Client().send(new DeleteObjectCommand({
+    Bucket: config.publishedBucket,
+    Key: imageDeliverySourceKey(key),
+  }));
 
   await r2Client().send(new DeleteObjectCommand({
     Bucket: config.publishedBucket,

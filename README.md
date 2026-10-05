@@ -27,13 +27,14 @@ CLOUDFLARE_ACCESS_ID=
 CLOUDFLARE_SECRET_KEY=
 CLOUDFLARE_R2_BUCKET=elliotmairet
 CLOUDFLARE_R2_STAGING_BUCKET=elliotmairet-staging
-NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL=
+NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL=https://images.dextery.dev/elliotmairet
+NEXT_PUBLIC_CLOUDFLARE_R2_MEDIA_URL=https://media.dextery.dev/elliotmairet
 ```
 
 The public key is required; the legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` also works.
 Set the same key for the appropriate Vercel environments and redeploy after
 rotating it. The Cloudflare credentials must remain server-only. The public R2
-URL must be an HTTPS custom domain attached to the published bucket; leave it
+URL uses the shared image hostname and project prefix; leave it
 unset until the existing catalogue has been copied and verified. While it is
 unset, public photograph URLs continue to use Supabase Storage. Open
 <http://localhost:3000> after starting the dev server.
@@ -85,7 +86,22 @@ the one-hour revalidating cache policy without changing their bytes. It does not
 delete or modify the Supabase source. Once every object is verified and the R2
 custom domain is active, set
 `NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL` and redeploy. Responsive images are then
-served through Cloudflare Image Transformations.
+served through Cloudflare Image Transformations. The shared Worker is managed
+from `bur1alrites/cloudflare-assets/`: `/elliotmairet/` maps to the published
+`elliotmairet` bucket and never changes photograph storage paths. Existing
+`images.dextery.dev/uploads/...` URLs keep working. The private staging bucket
+is not bound to the shared Worker. Media delivery is available under
+`https://media.dextery.dev/elliotmairet/` with the same object keys.
+
+Photographs above Cloudflare's input limits retain their full originals and
+catalogue paths. Upload publication also prepares a WebP of at most 5120 pixels
+under `__image-sources/`; metadata connects it to the original for transformations.
+The shared Worker verifies that both objects refer to the same source checksum.
+Original URLs still serve the original bytes. The existing publication reservation
+and cleanup job cover both objects, including failed publication and deletion.
+Prepare existing oversized photographs with `npm run storage:prepare:images`
+(dry run), then `npm run storage:prepare:images -- --copy`. Reruns verify existing
+delivery copies and preserve original bytes and metadata.
 
 ## Colour features
 
@@ -122,6 +138,56 @@ only for the command's Auth session and must not be added to an environment file
 or committed.
 
 ## Admin access
+
+### Backend DNS and changing public IPs
+
+Supabase is hosted on `gmkserver.tail077753.ts.net`, with public endpoints
+`api.dextery.dev` and `studio.dextery.dev`. Cloudflare is authoritative for
+`dextery.dev`. When the server's public IPv4 changes, both existing A records
+must follow it. The former Vercel DDNS updater updates an inactive DNS provider
+and cannot repair these Cloudflare records.
+
+The replacement is `scripts/infra/cloudflare-ddns.py` (Python 3 and curl).
+It checks both existing records before writing, changes only their IP content,
+preserves TTL/proxy settings, and verifies each update. It defaults to a dry run;
+`--apply` enables changes. A failed or partial update exits nonzero and can be
+rerun safely.
+
+Use a separate Cloudflare API token with **Zone → DNS → Edit** permission scoped
+to `dextery.dev`. Store a JSON configuration outside the repository:
+
+```json
+{"zone_id": "626cad70f16d48eb7a7115d323ad42b5", "token": "YOUR_DNS_TOKEN"}
+```
+
+On the server, stage this configuration as `cloudflare-ddns.json` alongside the
+updater and `scripts/infra/install-cloudflare-ddns.sh`, in a private directory
+(directory mode `700`, configuration mode `600`). Run the installer with sudo.
+If no staging configuration exists, it prompts for the token securely through
+the terminal and creates the private configuration there.
+It first performs a dry run, backs up the existing systemd service and timer,
+replaces `dextery-ddns.service`, and retains the existing five-minute timer.
+The installed configuration is root-owned at `/etc/dextery-cloudflare-ddns.json`
+with mode `600`; the staging configuration is removed after successful installation.
+The previous Vercel script and credentials are left in place for rollback.
+
+Inspect updater results with `journalctl -u dextery-ddns.service`, and check
+authoritative DNS with `dig @dahlia.ns.cloudflare.com api.dextery.dev A`.
+Do not add the DNS token to Vercel or expose it through `NEXT_PUBLIC_*` variables.
+Run the updater's safety checks with
+`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/infra -v`.
+
+When sudo access is unavailable, stage `install-cloudflare-ddns-user.sh` with
+the updater and private configuration and run it as `dextery`. This installs
+the updater in `~/.local/share/dextery-ddns`, protects the directory and token,
+backs up and preserves existing user cron entries, and adds a five-minute
+Cloudflare job with a lock to prevent overlapping runs. Inspect it with
+`crontab -l` and read `~/.local/share/dextery-ddns/update.log`. The cron job runs
+after reboot without an interactive login. The old root-owned Vercel timer is
+left enabled until someone with sudo disables it; it does not update the
+authoritative Cloudflare records. Use one Cloudflare scheduler at a time.
+
+### Admin accounts
 
 Open `/admin/login`. Create the user in Supabase Auth, then allowlist the user
 in the database:

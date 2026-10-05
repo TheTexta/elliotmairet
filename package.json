@@ -13,7 +13,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:palette": "node --test lib/palette/oklab-k-medoids.test.mjs",
-    "test:similarity": "node --experimental-strip-types --test lib/photographs/select-similar-matches.test.mjs lib/photographs/find-colour-matches.test.mjs"
+    "test:similarity": "node --experimental-strip-types --test lib/photographs/select-similar-matches.test.mjs lib/photographs/find-colour-matches.test.mjs",
+    "storage:prepare:images": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/prepare-r2-image-sources.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1144.0",
