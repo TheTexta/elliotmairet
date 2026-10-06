@@ -24,12 +24,12 @@ export function CleanupRetryButton({ storagePath }: { storagePath: string }) {
         {pending ? "Removing file…" : "Remove unused file"}
       </button>
       {state.error ? (
-        <p aria-live="polite" className="mt-2 max-w-64 text-sm leading-5 text-red-800" role="alert">
+        <p aria-live="polite" className="mt-2 max-w-64 wrap-anywhere text-sm leading-5 text-red-800" role="alert">
           {state.error}
         </p>
       ) : null}
       {state.message ? (
-        <p aria-live="polite" className="mt-2 max-w-64 text-sm leading-5 text-neutral-700">
+        <p aria-live="polite" className="mt-2 max-w-64 wrap-anywhere text-sm leading-5 text-neutral-700">
           {state.message}
         </p>
       ) : null}

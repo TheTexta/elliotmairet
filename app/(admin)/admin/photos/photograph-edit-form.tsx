@@ -13,14 +13,14 @@ export function PhotographEditForm({
   const action = updatePhotographAction.bind(null, photograph.id);
 
   return (
-    <details className="relative">
-      <summary className="flex h-9 cursor-pointer list-none items-center gap-1.5 px-2 text-[9px] marker:hidden">
+    <details className="min-w-0 w-full xl:relative xl:w-auto">
+      <summary className="mr-24 ml-auto flex min-h-11 w-fit cursor-pointer list-none items-center gap-1.5 px-2 text-[9px] marker:hidden xl:mr-0 xl:min-h-9">
         <Pencil aria-hidden="true" size={14} strokeWidth={1.8} />
         Edit
       </summary>
       <form
         action={action}
-        className="absolute right-0 z-10 mt-2 grid w-[min(32rem,calc(100vw-3rem))] grid-cols-1 gap-3 border border-neutral-300 bg-white p-4 normal-case shadow-[0_10px_35px_rgba(0,0,0,0.12)] sm:grid-cols-2"
+        className="mt-2 grid min-w-0 w-full grid-cols-1 gap-3 border border-neutral-300 bg-white p-4 normal-case sm:grid-cols-2 xl:absolute xl:right-0 xl:z-10 xl:w-[min(32rem,calc(100vw-3rem))] xl:shadow-[0_10px_35px_rgba(0,0,0,0.12)]"
       >
         <FormField label="Title">
           <AdminInput

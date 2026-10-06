@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 
 export const adminInputClassName =
-  "h-10 w-full border border-neutral-300 bg-white px-3 text-base text-black outline-none focus:border-black sm:h-9";
+  "h-10 min-w-0 w-full max-w-full border border-neutral-300 bg-white px-3 text-base text-black outline-none focus:border-black sm:h-9";
 
 export function FormField({
   children,
@@ -14,7 +14,7 @@ export function FormField({
 }) {
   return (
     <label
-      className={`flex flex-col gap-2 text-[8px] uppercase text-neutral-500 ${className}`}
+      className={`flex min-w-0 flex-col gap-2 wrap-anywhere text-[8px] uppercase text-neutral-500 ${className}`}
     >
       {label}
       {children}

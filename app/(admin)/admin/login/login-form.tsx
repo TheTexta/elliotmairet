@@ -16,7 +16,7 @@ export function LoginForm() {
         Email
         <input
           autoComplete="email"
-          className="h-11 border border-neutral-300 bg-white px-3 text-base text-black outline-none focus:border-black"
+          className="h-11 min-w-0 w-full max-w-full border border-neutral-300 bg-white px-3 text-base text-black outline-none focus:border-black"
           name="email"
           required
           type="email"
@@ -26,14 +26,14 @@ export function LoginForm() {
         Password
         <input
           autoComplete="current-password"
-          className="h-11 border border-neutral-300 bg-white px-3 text-base text-black outline-none focus:border-black"
+          className="h-11 min-w-0 w-full max-w-full border border-neutral-300 bg-white px-3 text-base text-black outline-none focus:border-black"
           name="password"
           required
           type="password"
         />
       </label>
       {state.error ? (
-        <p aria-live="polite" className="border-l-2 border-red-700 pl-3 text-[10px] text-red-800">
+        <p aria-live="polite" className="wrap-anywhere border-l-2 border-red-700 pl-3 text-[10px] text-red-800">
           {state.error}
         </p>
       ) : null}

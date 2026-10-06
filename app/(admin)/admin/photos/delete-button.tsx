@@ -10,7 +10,7 @@ function SubmitButton() {
 
   return (
     <button
-      className="flex h-9 items-center gap-1.5 px-2 text-[9px] text-red-800 disabled:cursor-wait disabled:text-neutral-400"
+      className="flex min-h-11 items-center gap-1.5 px-2 text-[9px] text-red-800 disabled:cursor-wait disabled:text-neutral-400 xl:min-h-9"
       disabled={pending}
       type="submit"
     >

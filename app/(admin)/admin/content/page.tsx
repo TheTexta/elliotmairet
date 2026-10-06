@@ -18,13 +18,13 @@ export default async function AdminContentPage() {
 
   return (
     <main className="min-h-svh bg-neutral-100 text-black normal-case">
-      <header className="flex h-19 items-center justify-between border-b border-neutral-300 px-4 sm:h-22 sm:px-12">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-4">
+      <header className="flex min-h-19 flex-wrap items-center justify-between gap-3 border-b border-neutral-300 px-4 py-4 sm:min-h-22 sm:px-12">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
           <h1 className="text-sm font-medium uppercase sm:text-xl">Content</h1>
           <span className="text-[9px] uppercase text-neutral-500">Public site</span>
         </div>
-        <div className="flex items-center gap-1 sm:gap-3">
-          <Link className="flex h-10 items-center gap-2 px-2 text-[9px] uppercase" href="/admin/photos">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-3">
+          <Link aria-label="Manage photographs" className="flex h-10 items-center gap-2 px-2 text-[9px] uppercase" href="/admin/photos">
             <Images aria-hidden="true" size={15} strokeWidth={1.8} />
             <span className="hidden sm:inline">Photographs</span>
           </Link>

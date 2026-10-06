@@ -197,7 +197,34 @@ insert into private.admin_users (user_id)
 select id from auth.users where email = 'admin@example.com';
 ```
 
-On `/admin/photos`, the storage housekeeping panel lists objects represented by
+The admin layout supports screens from 320px wide. Below 1280px, photographs
+use compact cards with wrapping metadata, and upload and edit panels expand
+inline so their fields and actions stay within the page. At 1280px and above,
+the archive uses its six-column layout and panels open as desktop popovers.
+Headers can wrap, and navigation controls retain accessible labels when their
+visible text is hidden on phones.
+
+On `/admin/photos`, uploads show a local thumbnail, filename, file size, and an
+**Uploading** status through preparation, transfer, and photograph processing.
+Selecting an image fills the editable Captured date from its EXIF capture or
+creation metadata (JPG, PNG, and WEBP). If no valid embedded date is available,
+the form uses the existing `YYYYMMDD-` filename convention, then the file's
+modification date in the browser's local timezone. Browsers do not expose the
+filesystem creation timestamp. The form identifies the date source and preserves
+manual edits while metadata is being read.
+The upload panel, photo details, Content navigation, and sign-out are locked
+while requests are active. Reloading or closing the tab triggers the browser's
+native warning where supported. After publication is confirmed, the panel stays
+open with **Uploaded**, **Close**, and **Upload another** controls.
+
+Failures retain the selected file and details and allow the panel to close.
+Preparation and transfer failures can restart the upload. Publication failures
+offer **Retry publication**, which reuses the original object paths and metadata
+so a lost response does not create another photograph. Those details remain
+locked for that retry; **Choose another photo** clears the attempt. Abandoned
+objects continue through the existing storage cleanup workflow.
+
+The storage housekeeping panel lists objects represented by
 cleanup jobs. Each job records its storage provider, so jobs created before the
 R2 migration continue to clean up Supabase Storage while new jobs target R2.
 Uploads reserve a staged key while they are being published. If publication
@@ -216,6 +243,7 @@ npm run dev             # Start the development server
 npm run build           # Create a production build
 npm run start           # Start the production server
 npm run lint            # Run ESLint
+npm run test:upload     # Run upload workflow tests
 npm run test:palette    # Run OKLab feature extraction tests
 npm run test:similarity # Run photograph similarity tests
 ```

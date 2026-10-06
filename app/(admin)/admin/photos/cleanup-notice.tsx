@@ -34,7 +34,7 @@ function jobTitle(job: StorageCleanupJob) {
 function CleanupJobRow({ job }: { job: StorageCleanupJob }) {
   return (
     <li className="flex flex-col gap-4 border-t border-neutral-200 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1 wrap-anywhere">
         <p className="text-sm font-medium text-neutral-900">{jobTitle(job)}</p>
         <p className="mt-1 text-sm leading-6 text-neutral-600">
           {job.cleanup_ready ? (
@@ -51,14 +51,14 @@ function CleanupJobRow({ job }: { job: StorageCleanupJob }) {
           </summary>
           <div className="mt-2 space-y-1 rounded-sm bg-neutral-100 p-3 leading-5">
             <p className="break-all">Storage path: {job.storage_path}</p>
-            <p className="break-words">Recorded status: {job.error_message}</p>
+            <p className="wrap-anywhere">Recorded status: {job.error_message}</p>
           </div>
         </details>
       </div>
       {job.cleanup_ready ? (
         <CleanupRetryButton storagePath={job.storage_path} />
       ) : (
-        <span className="inline-flex w-fit items-center gap-2 rounded-full bg-neutral-100 px-3 py-2 text-xs font-medium text-neutral-600">
+        <span className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-neutral-100 px-3 py-2 text-xs font-medium text-neutral-600">
           <Clock3 aria-hidden="true" size={15} />
           Waiting period
         </span>
@@ -96,7 +96,7 @@ export function CleanupNotice({
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${readyJobs.length ? "bg-amber-100 text-amber-800" : "bg-neutral-200 text-neutral-700"}`}>
           {readyJobs.length ? <AlertTriangle aria-hidden="true" size={18} /> : <Clock3 aria-hidden="true" size={18} />}
         </div>
-        <div>
+        <div className="min-w-0 wrap-anywhere">
           <p className="text-xs font-semibold uppercase tracking-wider text-neutral-600">Storage housekeeping</p>
           <h2 className="mt-1 text-lg font-semibold leading-7 text-neutral-900" id="storage-housekeeping-title">
             {readyJobs.length

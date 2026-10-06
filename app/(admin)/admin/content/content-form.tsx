@@ -15,13 +15,13 @@ export function ContentForm({ initialContent }: { initialContent: SiteContent })
   const [state, formAction, pending] = useActionState(updateSiteContentAction, initialState);
 
   return (
-    <form action={formAction} className="flex max-w-3xl flex-col gap-4">
+    <form action={formAction} className="flex min-w-0 w-full max-w-3xl flex-col gap-4">
       <label className="flex flex-col gap-2 text-[9px] font-medium uppercase text-neutral-600" htmlFor="seoTitle">
         SEO title
       </label>
       <input
         aria-describedby="seo-title-count"
-        className="h-10 w-full border border-neutral-300 bg-white px-3 text-base text-black outline-none focus:border-black"
+        className="h-10 min-w-0 w-full max-w-full border border-neutral-300 bg-white px-3 text-base text-black outline-none focus:border-black"
         id="seoTitle"
         maxLength={120}
         name="seoTitle"
@@ -36,7 +36,7 @@ export function ContentForm({ initialContent }: { initialContent: SiteContent })
       </label>
       <textarea
         aria-describedby="footer-text-count"
-        className="min-h-56 w-full resize-y border border-neutral-300 bg-white p-4 text-base leading-relaxed text-black outline-none focus:border-black"
+        className="min-h-56 min-w-0 w-full max-w-full resize-y border border-neutral-300 bg-white p-4 text-base leading-relaxed text-black outline-none focus:border-black"
         id="footerText"
         maxLength={2000}
         name="footerText"
@@ -44,11 +44,11 @@ export function ContentForm({ initialContent }: { initialContent: SiteContent })
         value={footerText}
       />
       <div className="flex min-h-10 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div aria-live="polite" className="text-[10px]" id="footer-text-status">
+        <div aria-live="polite" className="min-w-0 wrap-anywhere text-[10px]" id="footer-text-status">
           {state.error ? <p className="border-l-2 border-red-700 pl-3 text-red-800">{state.error}</p> : null}
           {state.message ? <p className="border-l-2 border-black pl-3">{state.message}</p> : null}
         </div>
-        <div className="flex items-center justify-between gap-4 sm:justify-end">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 sm:justify-end">
           <span className="text-[9px] tabular-nums text-neutral-500" id="footer-text-count">
             {footerText.length}/2,000
           </span>
