@@ -1,6 +1,7 @@
-import { photographUrl } from "@/lib/photographs/storage";
+import photographImageLoader from "./photographs/image-loader.ts";
+import { photographUrl } from "./photographs/storage.ts";
 
-import type { Photograph } from "@/lib/photographs/types";
+import type { Photograph } from "./photographs/types.ts";
 
 export const siteOrigin = "https://elliotmairet.com";
 export const siteName = "Elliot Mairet";
@@ -26,11 +27,11 @@ function readableFilename(filename: string) {
     .trim();
 }
 
-export function photographImageAlt(photograph: Photograph) {
+export function photographImageAlt(photograph: Photograph, fallback = `Photograph from ${photograph.year}`) {
   return (
     normalizedText(photograph.altText) ??
     normalizedText(photograph.title) ??
-    `Photograph from ${photograph.year}`
+    fallback
   );
 }
 
@@ -61,12 +62,37 @@ export function photographDescription(photograph: Photograph) {
 }
 
 export function photographSocialImage(photograph: Photograph) {
+  const width = Math.min(1200, photograph.width);
+
   return {
     alt: photographImageAlt(photograph),
-    height: photograph.height,
-    url: photographUrl(photograph.storagePath),
-    width: photograph.width,
+    height: Math.max(1, Math.floor(photograph.height * width / photograph.width)),
+    url: photographImageLoader({
+      src: photographUrl(photograph.storagePath),
+      width: 1200,
+      quality: 82,
+    }),
+    width,
   };
+}
+
+export function serializeJsonLd(value: unknown) {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
+export function catalogueLastModified(photographs: readonly Pick<Photograph, "updatedAt">[]) {
+  let latest: string | undefined;
+  let latestTimestamp = -Infinity;
+
+  for (const { updatedAt } of photographs) {
+    const timestamp = Date.parse(updatedAt);
+    if (timestamp > latestTimestamp) {
+      latest = updatedAt;
+      latestTimestamp = timestamp;
+    }
+  }
+
+  return latest;
 }
 
 export function websiteJsonLd(description: string) {

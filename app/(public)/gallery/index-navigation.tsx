@@ -21,7 +21,7 @@ export function IndexNavigation({ fromPhoto = false }: { fromPhoto?: boolean }) 
           Elliot Mairet
         </TransitionLink>
       ) : (
-        <Link className={indexLinkClassName} href="/">
+        <Link className={indexLinkClassName} href="/" prefetch={false}>
           Elliot Mairet
         </Link>
       )}

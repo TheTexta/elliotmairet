@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
     deviceSizes: [
       320, 480, 640, 768, 960, 1200, 1600, 2048, 2560, 3200, 3840, 5120,
     ],
+    // Match the shared Worker's smallest supported transformation widths.
+    imageSizes: [64, 96, 128, 256, 384],
     loader: "custom",
     loaderFile: "./app/supabase-image-loader.ts",
     qualities: [74, 82],

@@ -1,12 +1,22 @@
+import type { Metadata } from "next";
+
+import { photographImageOrigin } from "@/lib/photographs/storage";
 import { getFooterText } from "@/lib/site-content/queries";
+import { ImagePreconnect } from "./image-preconnect";
 import { PreviewNavigationBridge } from "./preview-navigation-bridge";
 
+export const metadata: Metadata = {
+  robots: {
+    "max-image-preview": "large",
+  },
+};
 
 export default async function PublicLayout({ children }: LayoutProps<"/">) {
   const footerText = await getFooterText();
 
   return (
     <>
+      <ImagePreconnect origin={photographImageOrigin()} />
       <PreviewNavigationBridge />
       {children}
       <footer

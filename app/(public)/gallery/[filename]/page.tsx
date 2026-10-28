@@ -16,10 +16,12 @@ import {
   photographJsonLd,
   photographPath,
   photographSocialImage,
+  serializeJsonLd,
   siteName,
 } from "@/lib/seo";
 
 import { ContentFrame } from "../content-frame";
+import { FadingImage } from "../fading-image";
 import { heroImageSizes } from "../image-sizes";
 import { IndexNavigation } from "../index-navigation";
 import { ScrollToTop } from "../scroll-to-top";
@@ -132,7 +134,7 @@ export default async function PhotographPage({
       <main className="min-h-svh ">
         <script
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(photographJsonLd(photograph)),
+            __html: serializeJsonLd(photographJsonLd(photograph)),
           }}
           type="application/ld+json"
         />
@@ -144,17 +146,19 @@ export default async function PhotographPage({
         <ContentFrame>
           <section>
             <figure className="m-0  h-[80vh] bg-white mt-[8vh] mb-[4vh] flex content-center items-center justify-center">
-              <FullPhotographImage
-                alt={imageAlt}
-                className="block h-auto max-h-full w-auto max-w-full object-contain"
-                fetchPriority="high"
-                height={photograph.height}
-                loading="eager"
-                quality={82}
-                sizes={heroImageSizes}
-                src={imageUrl}
-                width={photograph.width}
-              />
+              <FullPhotographImage>
+                <FadingImage
+                  alt={imageAlt}
+                  className="block h-auto max-h-full w-[calc(100vw-32px)] max-w-full object-contain sm:w-[66.667vw]"
+                  fetchPriority="high"
+                  height={photograph.height}
+                  loading="eager"
+                  quality={82}
+                  sizes={heroImageSizes(photograph.width, photograph.height)}
+                  src={imageUrl}
+                  width={photograph.width}
+                />
+              </FullPhotographImage>
             </figure>
             <div className="" />
             {palette.length === 5 ? (

@@ -2,6 +2,11 @@ import { PHOTOGRAPH_BUCKET } from "./config.ts";
 import { publicObjectUrl } from "../r2/objects.ts";
 import { supabasePublicConfiguration } from "../supabase/config.ts";
 
+export function photographImageOrigin() {
+  const r2PublicUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL?.trim();
+  return new URL(r2PublicUrl || supabasePublicConfiguration().url).origin;
+}
+
 export function photographUrl(storagePath: string) {
   const r2PublicUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL?.trim();
 

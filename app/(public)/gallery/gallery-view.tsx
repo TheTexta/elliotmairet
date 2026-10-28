@@ -3,7 +3,7 @@ import { ViewTransition } from "react";
 import { getPhotographsWithPalettes } from "@/lib/photographs/queries";
 import { photographUrl } from "@/lib/photographs/storage";
 import { getSiteContent } from "@/lib/site-content/queries";
-import { websiteJsonLd } from "@/lib/seo";
+import { photographImageAlt, serializeJsonLd, websiteJsonLd } from "@/lib/seo";
 
 import { ContentFrame } from "./content-frame";
 import { IndexNavigation } from "./index-navigation";
@@ -20,7 +20,7 @@ export async function GalleryView() {
     <>
       <script
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(websiteJsonLd(siteContent.seoDescription)),
+          __html: serializeJsonLd(websiteJsonLd(siteContent.seoDescription)),
         }}
         type="application/ld+json"
       />
@@ -47,6 +47,7 @@ export async function GalleryView() {
               photographs={photographs.map((photograph) => ({
                 ...photograph,
                 imageUrl: photographUrl(photograph.storagePath),
+                alt: photographImageAlt(photograph, "") || undefined,
                 palette: photograph.palette.map(({ hex }) => hex),
               }))}
             />

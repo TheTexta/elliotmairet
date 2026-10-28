@@ -1,42 +1,25 @@
 "use client";
 
-import Image, { type ImageProps } from "next/image";
-import { useState } from "react";
+import { getImageProps, type ImageProps } from "next/image";
 
+import photographImageLoader from "@/lib/photographs/image-loader";
 
-const photoFadeInDurationMs = 300;
-
-export function FadingImage({
-  alt,
-  className,
-  onError,
-  onLoad,
-  style,
-  ...props
-}: ImageProps) {
-  const [isLoaded, setIsLoaded] = useState(false);
+export function FadingImage(props: ImageProps) {
+  // Keep the generated srcset out of the serialized component payload. Loading
+  // and fading are handled by the native image and the delegated head script.
+  const { props: imageProps } = getImageProps({
+    ...props,
+    loader: photographImageLoader,
+  });
 
   return (
-    <Image
-      {...props}
-      alt={alt}
-      className={`${className ?? ""} transition-opacity ease-out motion-reduce:transition-none ${
-        isLoaded ? "opacity-100" : "opacity-0"
-      }`}
-      onError={(event) => {
-        setIsLoaded(true);
-        onError?.(event);
-      }}
-      onLoad={(event) => {
-        setIsLoaded(true);
-        onLoad?.(event);
-      }}
-      ref={(image) => {
-        if (image?.complete) {
-          setIsLoaded(true);
-        }
-      }}
-      style={{ ...style, transitionDuration: `${photoFadeInDurationMs}ms` }}
+    // getImageProps supplies the same optimized responsive sources as next/image.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      {...imageProps}
+      alt={props.alt}
+      data-photograph=""
+      style={props.style}
     />
   );
 }

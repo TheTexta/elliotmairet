@@ -1,16 +1,14 @@
 "use client";
 
-import type { ImageProps } from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
-import { FadingImage } from "../fading-image";
 import {
   paletteSelectionStateEventName,
   type PaletteSelectionStateEvent,
   resetPaletteSelection,
 } from "./palette-reset-event";
 
-export function FullPhotographImage(props: ImageProps) {
+export function FullPhotographImage({ children }: { children: ReactNode }) {
   const [isPaletteFiltered, setIsPaletteFiltered] = useState(false);
 
   useEffect(() => {
@@ -42,7 +40,7 @@ export function FullPhotographImage(props: ImageProps) {
       }}
       type="button"
     >
-      <FadingImage {...props} />
+      {children}
     </button>
   );
 }

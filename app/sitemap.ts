@@ -2,11 +2,11 @@ import type { MetadataRoute } from "next";
 
 import { getPhotographs } from "@/lib/photographs/queries";
 import { photographUrl } from "@/lib/photographs/storage";
-import { absoluteUrl, photographPath } from "@/lib/seo";
+import { absoluteUrl, catalogueLastModified, photographPath } from "@/lib/seo";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const photographs = await getPhotographs();
-  const homepageLastModified = photographs[0]?.updatedAt;
+  const homepageLastModified = catalogueLastModified(photographs);
 
   return [
     {

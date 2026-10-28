@@ -1,6 +1,7 @@
 import { getPhotographsWithPalettes } from "@/lib/photographs/queries";
 import { photographUrl } from "@/lib/photographs/storage";
 import type { ColourSearchPhotograph } from "@/lib/photographs/find-colour-matches";
+import { photographImageAlt } from "@/lib/seo";
 
 export const dynamic = "force-static";
 export const revalidate = 86400;
@@ -16,6 +17,7 @@ export async function GET() {
             height: photograph.height,
             year: photograph.year,
             imageUrl: photographUrl(photograph.storagePath),
+            alt: photographImageAlt(photograph, "") || undefined,
             palette: photograph.palette.map(
               ({ hex, lightness, axisA, axisB, featureSpace }) => ({
                 hex,

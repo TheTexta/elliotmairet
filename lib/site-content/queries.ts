@@ -17,6 +17,7 @@ export type SiteContent = {
 type SiteContentRow = {
   footer_text: string;
   seo_title: string | null;
+  seo_description: string | null;
 };
 
 const defaultSiteContent: SiteContent = {
@@ -29,7 +30,7 @@ export const getSiteContent = unstable_cache(async (): Promise<SiteContent> => {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("site_content")
-    .select("footer_text, seo_title")
+    .select("footer_text, seo_title, seo_description")
     .eq("singleton", true)
     .maybeSingle();
 
@@ -44,10 +45,10 @@ export const getSiteContent = unstable_cache(async (): Promise<SiteContent> => {
 
   return {
     footerText: row.footer_text,
-    seoDescription: row.footer_text,
+    seoDescription: row.seo_description?.trim() || row.footer_text,
     seoTitle: row.seo_title?.trim() || defaultSeoTitle,
   };
-}, ["site-content", "footer"], {
+}, ["site-content", "footer", "seo-description"], {
   revalidate: 86400,
   tags: [cacheTags.siteContent],
 });

@@ -9,6 +9,7 @@ export type PhotoGalleryItem = {
   height: number;
   year: string;
   imageUrl: string;
+  alt?: string;
   palette?: string[];
   closestHex?: string;
   difference?: number;
@@ -24,9 +25,10 @@ function GalleryItem({
   photograph: PhotoGalleryItem;
 }) {
   const archiveLabel = String(index + 1).padStart(3, "0");
-  const imageAlt = photograph.difference === undefined
+  const imageAlt = photograph.alt?.trim() || (photograph.difference === undefined
     ? `Archive photograph ${archiveLabel}, ${photograph.year}`
-    : `Photograph with a colour difference of ${photograph.difference.toFixed(1)}`;
+    : `Photograph with a colour difference of ${photograph.difference.toFixed(1)}`);
+  const eager = photograph.difference === undefined && index < 2;
 
   return (
     <article
@@ -38,6 +40,7 @@ function GalleryItem({
       <TransitionLink
         className="block no-underline focus-visible:outline focus-visible:outline-white"
         href={`/gallery/${encodeURIComponent(photograph.filename)}`}
+        prefetchOnIntent
         resetScroll
         transitionType={photograph.difference === undefined ? "gallery-to-photo" : "photo-to-photo"}
       >
@@ -45,9 +48,9 @@ function GalleryItem({
           <FadingImage
             alt={imageAlt}
             className="block h-auto w-full"
-            fetchPriority={index === 0 ? "high" : "auto"}
+            fetchPriority={eager ? "high" : "auto"}
             height={photograph.height}
-            loading={index === 0 ? "eager" : "lazy"}
+            loading={eager ? "eager" : "lazy"}
             quality={74}
             sizes={galleryImageSizes}
             src={photograph.imageUrl}

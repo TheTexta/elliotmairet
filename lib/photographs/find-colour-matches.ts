@@ -16,6 +16,7 @@ export type ColourSearchPhotograph = {
   height: number;
   year: string;
   imageUrl: string;
+  alt?: string;
   palette: PaletteColour[];
 };
 
@@ -101,6 +102,7 @@ export function findColourMatches(
           height: photograph.height,
           year: photograph.year,
           imageUrl: photograph.imageUrl,
+          ...(photograph.alt !== undefined ? { alt: photograph.alt } : {}),
           palette: colours.map(({ hex }) => hex),
           closestHex: closestMatch.closestColour.hex,
           difference: closestMatch.difference,

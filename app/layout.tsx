@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { defaultSeoDescription, defaultSeoTitle } from "@/lib/site-content/queries";
 import { siteMetadataBase, siteName } from "@/lib/seo";
+import { photographImageLoadScript } from "@/lib/photographs/image-load-script";
 
 import "./globals.css";
 
@@ -41,6 +42,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="scroll-smooth">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: photographImageLoadScript }} />
+      </head>
       <body
         className={`${montserrat.className} min-w-[320px] m-0 bg-white text-black text-sm uppercase  [-webkit-tap-highlight-color:transparent]`}
       >
