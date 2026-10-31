@@ -8,7 +8,6 @@ import {
   getPhotographs,
 } from "@/lib/photographs/queries";
 import { photographUrl } from "@/lib/photographs/storage";
-import { photographCaption } from "@/lib/photographs/text";
 import {
   absoluteUrl,
   photographDescription,
@@ -116,7 +115,6 @@ export default async function PhotographPage({
   const palette = await getPhotographPalette(photograph.id);
   const imageAlt = photographImageAlt(photograph);
   const imageUrl = photographUrl(photograph.storagePath);
-  const caption = photographCaption(photograph);
 
   return (
     <ViewTransition
@@ -163,7 +161,6 @@ export default async function PhotographPage({
                   />
                 </FullPhotographImage>
               </div>
-              {caption ? <figcaption className="mx-auto mt-4 max-w-prose whitespace-pre-wrap wrap-anywhere px-4 text-center text-xs leading-relaxed text-neutral-600">{caption}</figcaption> : null}
             </figure>
             <div className="" />
             {palette.length === 5 ? (

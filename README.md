@@ -85,6 +85,9 @@ recent catalogue update, and structured data escapes embedded HTML delimiters.
 The one-hour R2 cache policy and source checksum/version checks remain in place.
 Run `npm run test:images` for image URL, sizing, storage, and metadata checks.
 
+Public photograph pages do not display captions. Stored descriptions, alt text,
+and admin caption settings remain available; image alt text and SEO are unchanged.
+
 ### Local photograph-labeling pilot
 
 `scripts/seo/label-photographs.mjs` prepares a fixed 20-photograph sample from
