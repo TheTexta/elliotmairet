@@ -44,6 +44,19 @@ deploying. The public gallery and admin tools depend on that schema, and
 `npm run build` reads the catalogue from Supabase to prerender the public pages,
 so a build fails if the database is unreachable or not yet migrated.
 
+### Dependency maintenance
+
+The 2026-10-31 dependency refresh updates the runtime to Next.js 16.4.3,
+React 19.3.1, Motion 14.9.0 and Sharp 0.35.5, together with current compatible
+Supabase/AWS packages and refreshed transitive dependencies. `npm ci` uses the
+committed lockfile. Production dependency audit findings are cleared; moderate
+development-only lint-tooling findings remain.
+
+TypeScript stays on the supported 6.0 line, ESLint on 9, and Node typings on 22:
+newer majors are incompatible with the current lint/test APIs or supported Node
+runtime. See [`docs/dependency-updates.md`](docs/dependency-updates.md) for exact
+versions, compatibility evidence, audit scope, verification and rollout gates.
+
 ## Static rendering
 
 The home page, every `/gallery/[filename]` page, the sitemap, and

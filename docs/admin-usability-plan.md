@@ -148,7 +148,8 @@ cache still held the old homepage title; direct public database and live homepag
 reads confirmed **Elliot Mairet** and the clean description. No SEO values were
 changed by this integration.
 
-`npm audit` reports 20 affected packages (one critical, three high, 16 moderate).
+At the shadcn rollout, `npm audit` reported 20 affected packages (one critical,
+three high, 16 moderate).
 Independent comparison against the pre-integration lockfile confirmed all 22
 implicated installation paths have identical versions; no advisory was introduced
 by this integration and no existing package version was silently upgraded.
@@ -156,5 +157,8 @@ Pre-existing baseline includes Next 16.3.3 (critical), Sharp 0.35.4,
 source-map-js 1.2.1 (high), development Zod 4.6.5 (high), and minimatch/lint tooling
 (moderate). Do not run `npm audit fix --force` or silently include framework/image
 pipeline upgrades. Owner-approved remediation and fresh compatibility verification
-remain separate follow-up work. The owner approved this UI release after these
-findings were disclosed; that approval does not resolve the advisories.
+were separate follow-up work. The owner approved that UI release after these
+findings were disclosed; the UI release itself did not resolve the advisories.
+The subsequent authorized dependency refresh clears the production/critical/high
+findings; see [`dependency-updates.md`](dependency-updates.md) for the current
+versions, remaining development-only findings and verification record.
