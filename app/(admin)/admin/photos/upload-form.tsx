@@ -13,9 +13,10 @@ import {
 } from "@/lib/photographs/upload";
 
 import { AdminInput, FormField } from "./form-controls";
+import { useUnsavedChanges } from "./unsaved-changes";
 
 const buttonClassName =
-  "flex h-10 items-center justify-center gap-2 bg-black px-4 text-[9px] uppercase text-white disabled:cursor-not-allowed disabled:bg-neutral-500";
+  "flex min-h-11 items-center justify-center gap-2 bg-black px-4 text-xs text-white hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:bg-neutral-500";
 
 function formatSize(bytes: number) {
   return bytes < 1024 * 1024
@@ -43,6 +44,7 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
   const busy = isUploading(state);
   const succeeded = state.status === "success";
   const retryPublication = state.status === "error" && state.retryPublication;
+  useUnsavedChanges(busy || Boolean(selection && !succeeded));
 
   useEffect(() => {
     if (!selection) return;
@@ -51,18 +53,6 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
 
   useEffect(() => () => { dateReadRef.current++; }, []);
 
-  useEffect(() => {
-    if (!busy) return;
-
-    function warnBeforeLeaving(event: BeforeUnloadEvent) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
-
-    window.addEventListener("beforeunload", warnBeforeLeaving);
-    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
-  }, [busy]);
-
   function close() {
     if (upload.isActive()) return;
     setOpen(false);
@@ -70,6 +60,7 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
   }
 
   function reset() {
+    if (selection && !succeeded && !window.confirm("Discard this unfinished upload and choose another photo? Any reserved files remain tracked for safe cleanup.")) return;
     if (!upload.reset()) return;
     dateReadRef.current++;
     formRef.current?.reset();
@@ -117,7 +108,7 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
       <button
         aria-controls={panelId}
         aria-expanded={open}
-        className={`${buttonClassName} col-start-2 row-start-2 justify-self-end text-[10px] xl:col-start-3 xl:row-start-1`}
+        className={`${buttonClassName} col-start-2 row-start-1 justify-self-end xl:col-start-3`}
         disabled={busy}
         onClick={() => {
           if (upload.isActive()) return;
@@ -131,19 +122,19 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
         type="button"
       >
         {busy ? <LoaderCircle aria-hidden="true" className="animate-spin motion-reduce:animate-none" size={15} /> : <Plus aria-hidden="true" size={15} />}
-        {busy ? "Uploading" : "Upload"}
+        {busy ? "Uploading" : "Upload photo"}
       </button>
       <section
         aria-labelledby={`${panelId}-title`}
-        className={`col-span-full row-start-3 min-w-0 w-full border border-neutral-300 bg-white p-4 normal-case sm:p-5 xl:absolute xl:top-full xl:right-12 xl:z-20 xl:col-auto xl:row-auto xl:mt-3 xl:max-h-[calc(100dvh-7rem)] xl:w-[calc(100%-6rem)] xl:max-w-xl xl:overflow-y-auto xl:overscroll-contain xl:shadow-[0_10px_35px_rgba(0,0,0,0.12)] ${open ? "" : "hidden"}`}
+        className={`col-span-full row-start-3 min-w-0 w-full max-w-3xl justify-self-end border border-neutral-300 bg-white p-4 normal-case sm:p-6 ${open ? "" : "hidden"}`}
         hidden={!open}
         id={panelId}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="min-w-0 wrap-anywhere text-[11px] font-medium uppercase" id={`${panelId}-title`}>Upload photograph</h2>
+          <h2 className="min-w-0 wrap-anywhere text-base font-medium" id={`${panelId}-title`}>Upload photograph</h2>
           <button
             aria-label="Close upload panel"
-            className="flex h-9 w-9 shrink-0 items-center justify-center border border-neutral-300 disabled:cursor-not-allowed disabled:text-neutral-400"
+            className="flex size-11 shrink-0 items-center justify-center border border-neutral-300 hover:bg-neutral-50 focus-visible:outline-2 disabled:cursor-not-allowed disabled:text-neutral-400"
             disabled={busy}
             onClick={close}
             type="button"
@@ -151,12 +142,13 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
             <X aria-hidden="true" size={16} />
           </button>
         </div>
+        <p className="mb-5 max-w-prose text-sm leading-6 text-neutral-700">Choose an image and check its capture date. It becomes public when upload finishes. Missing captions and image descriptions are generated afterwards; you can edit them any time.</p>
         <form onSubmit={submit} ref={formRef}>
           <fieldset aria-busy={busy} className="grid min-w-0 grid-cols-1 gap-4 disabled:opacity-60 sm:grid-cols-2" disabled={busy || succeeded || retryPublication}>
             <FormField className="sm:col-span-2" label="Image">
               <input
                 accept="image/jpeg,image/png,image/webp"
-                className="w-full min-w-0 border border-dashed border-neutral-400 bg-neutral-50 p-4 text-base text-black file:mr-3 file:border-0 file:bg-black file:px-3 file:py-2 file:text-[9px] file:uppercase file:text-white disabled:cursor-not-allowed"
+                className="w-full min-w-0 border border-dashed border-neutral-400 bg-neutral-50 p-4 text-base text-black file:mr-3 file:min-h-11 file:border-0 file:bg-black file:px-3 file:py-2 file:text-xs file:text-white disabled:cursor-not-allowed"
                 name="file"
                 onChange={(event) => {
                   if (upload.isActive()) return;
@@ -178,10 +170,9 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
                 required
                 type="file"
               />
-              <span className="text-[9px] normal-case">JPG, PNG or WEBP · Up to 512 MiB</span>
+              <span className="text-xs font-normal">JPG, PNG or WEBP · Up to 512 MiB</span>
             </FormField>
-            <FormField label="Title"><AdminInput maxLength={200} name="title" /><span className="text-[9px] normal-case">Optional · Leave blank for automatic text</span></FormField>
-            <FormField label="Captured">
+            <FormField className="sm:col-span-2" label="Date captured">
               <AdminInput
                 name="capturedAt"
                 onChange={(event) => {
@@ -193,14 +184,21 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
                 type="date"
                 value={capturedAt}
               />
-              <span aria-live="polite" className="text-[9px] normal-case">
+              <span aria-live="polite" className="text-xs font-normal">
                 {readingDate ? "Reading photo date…"
                   : dateSource === "metadata" ? "From photo metadata · Editable"
                   : dateSource === "filename" ? "From filename · Editable"
                   : dateSource === "modified" ? "Using file modification date · Editable" : null}
               </span>
             </FormField>
-            <FormField className="sm:col-span-2" label="Alt text"><AdminInput maxLength={500} name="altText" /></FormField>
+            <details className="sm:col-span-2">
+              <summary className="min-h-11 cursor-pointer py-3 text-sm focus-visible:outline-2">Add your own text (optional)</summary>
+              <div className="space-y-4">
+                <p className="text-sm text-neutral-600">Leave these blank for automatic text. Anything you write is protected from generation.</p>
+                <FormField label="Title"><AdminInput maxLength={200} name="title" /></FormField>
+                <FormField label="Image description for screen readers (alt text)"><AdminInput maxLength={500} name="altText" /></FormField>
+              </div>
+            </details>
           </fieldset>
 
           {selection ? (
@@ -218,13 +216,13 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
                 />
               </div>
               <div className="min-w-0">
-                <p className="truncate text-[11px] font-medium" title={selection.file.name}>{selection.file.name}</p>
-                <p className="mt-1 text-[9px] text-neutral-500">{formatSize(selection.file.size)}</p>
+                <p className="wrap-anywhere text-sm font-medium">{selection.file.name}</p>
+                <p className="mt-1 text-xs text-neutral-600">{formatSize(selection.file.size)}</p>
               </div>
             </div>
           ) : null}
 
-          <div aria-atomic="true" className="mt-4 text-[10px]" role="status">
+          <div aria-atomic="true" className="mt-4 text-sm" role="status">
             {busy ? (
               <div className="flex items-start gap-2">
                 <LoaderCircle aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" size={15} />
@@ -241,7 +239,7 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
                   <p className="font-medium uppercase">Uploaded</p>
                   <p className="mt-1 text-neutral-600">The photograph is now public.</p>
                   {state.status === "success" && state.automaticText === "queued" ? (
-                    <p className="mt-1 text-neutral-600">Automatic text is queued. Missing captions, titles and alt text are generated separately; check Automatic text for progress. Your wording stays protected.</p>
+                    <p className="mt-1 text-neutral-600">Your photo is uploaded. Text is generated next; use Check progress in Automatic captions to see when it is ready.</p>
                   ) : null}
                 </div>
               </div>
@@ -249,7 +247,7 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
           </div>
 
           {state.status === "error" ? (
-            <div className="mt-4 min-w-0 wrap-anywhere border-l-2 border-red-700 pl-3 text-[10px] text-red-800" role="alert">
+            <div className="mt-4 min-w-0 wrap-anywhere text-sm text-red-800" role="alert">
               <p className="font-medium">{state.stage ? `${uploadStageLabels[state.stage]} failed` : "Check your image"}</p>
               <p className="mt-1">{state.message}</p>
               {retryPublication ? <p className="mt-1">Retry uses the same photo and details.</p> : null}
@@ -259,12 +257,12 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
           <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
             {succeeded ? (
               <>
-                <button className="h-10 border border-neutral-300 px-4 text-[9px] uppercase" onClick={close} type="button">Close</button>
+                <button className="min-h-11 border border-neutral-300 px-4 text-xs hover:bg-neutral-50 focus-visible:outline-2" onClick={close} type="button">Close</button>
                 <button className={buttonClassName} onClick={reset} type="button"><Plus aria-hidden="true" size={14} />Upload another</button>
               </>
             ) : (
               <>
-                {retryPublication ? <button className="h-10 border border-neutral-300 px-4 text-[9px] uppercase" onClick={reset} type="button">Choose another photo</button> : null}
+                {retryPublication ? <button className="min-h-11 border border-neutral-300 px-4 text-xs hover:bg-neutral-50 focus-visible:outline-2" onClick={reset} type="button">Choose another photo</button> : null}
                 <button className={buttonClassName} disabled={busy || readingDate || !selection} type="submit">
                   {busy ? <LoaderCircle aria-hidden="true" className="animate-spin motion-reduce:animate-none" size={14} /> : <Upload aria-hidden="true" size={14} />}
                   {busy ? "Uploading" : retryPublication ? "Retry publication" : state.status === "error" ? "Retry upload" : "Upload photograph"}

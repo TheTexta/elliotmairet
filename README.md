@@ -79,7 +79,11 @@ Social previews use a transformation capped at 1200 pixels wide rather than
 downloading an original. Existing photograph alt text and titles also supply
 gallery and colour-match image descriptions; the palette JSON includes an
 optional `alt` field. Metadata prefers the existing `site_content.seo_description`
-when populated and otherwise uses the footer text. Public pages allow large
+when populated and otherwise uses a dedicated photographic-archive summary,
+never the footer text. The homepage title and description are editable separately
+under **Admin → Site content**. Contact links and the developer credit remain
+visible but use `data-nosnippet` to exclude them from Google snippets. Google may
+rewrite titles/descriptions and updates require recrawling. Public pages allow large
 search-result image previews, sitemap homepage timestamps reflect the most
 recent catalogue update, and structured data escapes embedded HTML delimiters.
 The one-hour R2 cache policy and source checksum/version checks remain in place.
@@ -167,6 +171,30 @@ deployment evidence and recovery procedures.
 
 Use `npm run test:text` for offline safeguards and `npm run test:text:db` for the
 isolated local Postgres checks (Docker required; never uses Supabase credentials).
+
+## Admin usability
+
+Photos and uploading are the primary workflow. The archive supports search and
+missing-text/hidden-caption filters without unmounting unsaved editors. Edit a
+photo inline; custom caption wording is retained when another mode is selected.
+Public photograph pages remain image-only; caption settings affect retained
+metadata, not a visible caption below the photograph.
+
+Automatic caption progress is compact, with errors/review counts still visible.
+Budget/history, suggested-text import, bulk application/recovery and file cleanup
+are disclosed progressively under **Advanced tools**. Unfinished file cleanup
+also has a visible summary above the archive; removing a catalogue entry is not
+the same as completing object cleanup.
+
+Unsaved photo text, suggested drafts, prepared uploads and site content warn on
+link navigation, sign-out and document unload. New photo revisions refresh clean
+editors only; dirty editors retain their optimistic revision and offer per-photo
+reload/discard. Saving a suggestion refreshes only that record, not dirty siblings.
+Use `npm run test:admin` for offline interaction/state and homepage metadata tests.
+
+See [`docs/admin-usability-plan.md`](docs/admin-usability-plan.md) for findings,
+verification and the planned **shadcn/ui integration** phase. shadcn/ui is not
+installed in the initial cleanup; the component migration is a separate phase.
 
 ## Photograph storage
 

@@ -116,9 +116,12 @@ export async function updateSiteContentAction(
   }
 
   let seoTitle: string | null;
+  let seoDescription: string | null | undefined;
 
   try {
     seoTitle = optionalText(formData, "seoTitle", 120);
+    // Older open forms must not clear a description they did not submit.
+    seoDescription = formData.has("seoDescription") ? optionalText(formData, "seoDescription", 320) : undefined;
   } catch {
     return { error: "The SEO fields are too long." };
   }
@@ -129,6 +132,7 @@ export async function updateSiteContentAction(
     .update({
       footer_text: footerText,
       seo_title: seoTitle,
+      ...(seoDescription !== undefined ? { seo_description: seoDescription } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("singleton", true)
@@ -136,7 +140,7 @@ export async function updateSiteContentAction(
     .maybeSingle();
 
   if (error || !data) {
-    return { error: "The footer text could not be updated." };
+    return { error: "Site content could not be updated. Your changes have not been saved." };
   }
 
   invalidateSiteContent();
@@ -179,7 +183,7 @@ export async function updatePhotographAction(id: string, formData: FormData) {
   invalidatePhotographs();
 }
 
-export async function deletePhotographAction(id: string) {
+export async function deletePhotographAction(id: string): Promise<AdminActionState> {
   if (!uuidPattern.test(id)) {
     throw new Error("Invalid photograph identifier.");
   }
@@ -212,7 +216,8 @@ export async function deletePhotographAction(id: string) {
       message: readinessError?.message ?? "Cleanup is not ready.",
     });
     invalidatePhotographsAndPalettes();
-    return;
+    revalidatePath("/admin/photos");
+    return { message: "Photograph removed from the archive. File removal is pending in Advanced tools." };
   }
 
   let cleanupError: Error | null = null;
@@ -261,6 +266,8 @@ export async function deletePhotographAction(id: string) {
   }
 
   invalidatePhotographsAndPalettes();
+  revalidatePath("/admin/photos");
+  return { message: cleanupError ? "Photograph removed from the archive. File removal is pending in Advanced tools." : "Photograph removed from the archive." };
 }
 
 export async function retryStorageCleanupAction(

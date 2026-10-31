@@ -4,6 +4,10 @@ import { useEffect } from "react";
 
 const unsaved = new Set<symbol>();
 
+export function confirmAdminNavigation(message = "You have unsaved changes or an unfinished operation. Leave this page?") {
+  return !unsaved.size || window.confirm(message);
+}
+
 function beforeUnload(event: BeforeUnloadEvent) {
   event.preventDefault();
   event.returnValue = "";
@@ -15,7 +19,7 @@ function beforeNavigation(event: MouseEvent) {
   if (!(link instanceof HTMLAnchorElement) || link.download || link.target === "_blank") return;
   const destination = new URL(link.href, window.location.href);
   if (destination.href === window.location.href || (destination.pathname === window.location.pathname && destination.search === window.location.search && destination.hash)) return;
-  if (!window.confirm("You have unsaved photograph text or an unfinished operation. Leave this page?")) {
+  if (!confirmAdminNavigation()) {
     event.preventDefault();
     event.stopPropagation();
   }

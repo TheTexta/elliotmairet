@@ -35,7 +35,7 @@ export function PhotographTextReview({ available }: { available: boolean }) {
   const [drafts, setDrafts] = useState<PhotographTextDraft[]>([]);
   const [total, setTotal] = useState(0);
   const [runId, setRunId] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>("pending");
   const [offset, setOffset] = useState(0);
   const [pageVersion, setPageVersion] = useState(0);
   const [selection, setSelection] = useState<string[]>([]);
@@ -67,15 +67,23 @@ export function PhotographTextReview({ available }: { available: boolean }) {
     });
   }
 
-  async function load(nextOffset = offset) {
-    const result = await listPhotographTextDraftsAction({ runId: runId.trim() || undefined, offset: nextOffset, filter });
+  async function load(nextOffset = offset, nextFilter = filter) {
+    const result = await listPhotographTextDraftsAction({ runId: runId.trim() || undefined, offset: nextOffset, filter: nextFilter });
     if (result.error) throw new Error(result.error);
     setDrafts(result.drafts ?? []); setTotal(result.total ?? 0); setOffset(nextOffset);
   }
 
-  function loadPage(nextOffset: number) {
+  function loadPage(nextOffset: number, nextFilter = filter) {
     if (dirtyIds.length && !window.confirm("Discard unsaved draft edits and load this page?")) return;
-    task(async () => { invalidate(); await load(nextOffset); setPageVersion(current => current + 1); });
+    task(async () => { await load(nextOffset, nextFilter); setFilter(nextFilter); invalidate(); setPageVersion(current => current + 1); });
+  }
+
+  async function refreshSavedDraft(savedDraft: PhotographTextDraft) {
+    const result = await listPhotographTextDraftsAction({ runId: savedDraft.runId, photographId: savedDraft.photographId, filter: "all" });
+    const updated = result.drafts?.find(draft => draft.id === savedDraft.id);
+    if (result.error || !updated) throw new Error("The change was saved, but its latest version could not be loaded. Refresh suggestions before editing it again; other unsaved drafts are still here.");
+    // Refresh only this record. Reloading the page would remount dirty siblings.
+    setDrafts(current => current.map(draft => draft.id === updated.id ? updated : draft));
   }
 
   async function importFile(file: File) {
@@ -127,16 +135,18 @@ export function PhotographTextReview({ available }: { available: boolean }) {
   }
 
   return (
-    <details className="min-w-0 border border-neutral-300 bg-white normal-case" onToggle={event => {
+    <details id="text-review" className="min-w-0 border border-neutral-300 bg-white normal-case" onToggle={event => {
       if (event.currentTarget.open && !opened && available) {
         try { setRecoveryToken(sessionStorage.getItem("elliot:photograph-text:approval") ?? ""); } catch { /* Recovery also works by copying the token. */ }
         setOpened(true); task(() => load(0));
       }
     }}>
-      <summary className="min-h-11 cursor-pointer px-4 py-3 text-xs uppercase focus-visible:outline-2 focus-visible:outline-black">Photograph text · private AI draft review</summary>
+      <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-black">Suggested text</summary>
       <div className="min-w-0 space-y-6 border-t border-neutral-300 p-3 text-sm sm:p-4">
-        <p className="max-w-prose text-neutral-700">Drafts and uncertainty notes are private. No generation requests are made here. Importing or editing drafts does not publish text, rename photographs or change routes.</p>
+        <p className="max-w-prose text-neutral-700">Review suggestions that have not been applied. Drafts and review notes are private. Importing or editing them does not change the public site or make a new AI request.</p>
         {!available ? <p role="status">The photograph text migration is required before draft review, import or caption editing is available.</p> : <>
+          <details className="min-w-0 border-b border-neutral-200 pb-3">
+          <summary className="min-h-11 cursor-pointer py-3 text-xs text-neutral-700">Import or choose a catalogue run (advanced)</summary>
           <fieldset disabled={pending || locked} className="flex min-w-0 flex-wrap items-end gap-3">
             <legend className="mb-3 text-xs uppercase">Prepare and import</legend>
             <button type="button" className={button} onClick={() => task(async () => {
@@ -156,26 +166,32 @@ export function PhotographTextReview({ available }: { available: boolean }) {
             <FormField className="min-w-0 flex-1 basis-56" label="Run ID · blank lists all runs">
               <AdminInput value={runId} onChange={event => { setRunId(event.target.value); setSelection([]); invalidate(); }} placeholder="Run UUID" />
             </FormField>
-            <FormField label="Filter"><select className={adminInputClassName} value={filter} onChange={event => { setFilter(event.target.value as Filter); invalidate(); }}>
-              <option value="all">All drafts</option><option value="pending">Pending</option><option value="manual">Manual fields</option><option value="conflict">Conflicts</option>
-            </select></FormField>
             {drafts.length ? <FormField className="min-w-0 max-w-full flex-1 basis-56" label="Choose a loaded run"><select className={adminInputClassName} value={drafts.some(draft => draft.runId === runId) ? runId : ""} onChange={event => {
               setRunId(event.target.value); setSelection([]); invalidate();
             }}><option value="">Select a run</option>{[...new Set(drafts.map(draft => draft.runId))].map(id => <option key={id} value={id}>{id}</option>)}</select></FormField> : null}
-            <button className={button} type="button" onClick={() => loadPage(0)}>Load drafts</button>
+            <button className={button} type="button" onClick={() => loadPage(0)}>Load suggestions</button>
           </fieldset>
+          </details>
+          <div className="flex flex-wrap items-end gap-3">
+            <FormField label="Suggestions to show"><select disabled={pending || locked} className={adminInputClassName} value={filter} onChange={event => loadPage(0, event.target.value as Filter)}>
+              <option value="pending">Not yet applied</option><option value="all">All suggestions</option><option value="manual">Manually edited photos</option><option value="conflict">Changed since generation</option>
+            </select></FormField>
+            <button className={button} disabled={pending || locked} type="button" onClick={() => loadPage(0)}>Refresh suggestions</button>
+          </div>
           <div role={error ? "alert" : "status"} aria-live="polite" className="wrap-anywhere text-sm text-neutral-700">{error || message || (pending ? "Working…" : "Ready to review.")}</div>
-          <p className="text-xs text-neutral-700">{total ? `${offset + 1}–${Math.min(offset + drafts.length, total)} of ${total} drafts` : "No drafts found. Import a draft export or load another run."} {dirtyIds.length ? "Save or discard draft edits before previewing a batch." : ""}</p>
+          <p className="text-xs text-neutral-700">{total ? `${offset + 1}–${Math.min(offset + drafts.length, total)} of ${total} suggestions` : "No suggestions match this filter. Previously applied text is available under All suggestions; normal photo editing is in the archive above."} {dirtyIds.length ? "Save or discard draft edits before previewing a batch." : ""}</p>
           <fieldset disabled={pending || locked} className="min-w-0 space-y-4">
             <legend className="sr-only">Private draft records</legend>
             {drafts.map(draft => <DraftEditor key={`${pageVersion}:${draft.id}:${draft.version}`} draft={draft} selected={selection.includes(draft.id)} onSelect={selected => {
               setSelection(current => selected ? [...current, draft.id] : current.filter(id => id !== draft.id)); invalidate();
-            }} onDirty={markDirty} onEdit={invalidate} onSaved={() => load()} />)}
+            }} onDirty={markDirty} onEdit={invalidate} onSaved={() => refreshSavedDraft(draft)} />)}
           </fieldset>
           <div className="flex flex-wrap gap-2">
             <button className={button} type="button" disabled={pending || locked || offset === 0} onClick={() => loadPage(Math.max(0, offset - 50))}>Previous 50</button>
             <button className={button} type="button" disabled={pending || locked || offset + 50 >= total} onClick={() => loadPage(offset + 50)}>Next 50</button>
           </div>
+          <details className="min-w-0 border-t border-neutral-300 pt-3">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm">Bulk application and batch recovery (advanced)</summary>
           <fieldset disabled={pending || locked} className="min-w-0 space-y-3 border-t border-neutral-300 pt-4">
             <legend className="px-1 text-xs uppercase">Bulk application</legend>
             <p className="text-xs text-neutral-700">{selection.length ? `${selection.length} selected drafts across loaded pages.` : "No selection: preview all drafts in the specified run, not just this page."} Manual fields and unresolved conflicts are excluded.</p>
@@ -236,6 +252,7 @@ export function PhotographTextReview({ available }: { available: boolean }) {
             <p className="text-xs text-neutral-700" role="status">{results.length} recorded results{locked && !pending ? ". Batch interrupted: resume using the retained approval above." : ""}</p>
             <ul className="space-y-1 text-xs">{results.map(row => <li key={row.draftId} className="wrap-anywhere">{row.filename}: {row.status} · {row.fields.map(field => fieldLabels[field]).join(", ") || "no fields changed"}</li>)}</ul>
           </section> : null}
+          </details>
         </>}
       </div>
     </details>
@@ -295,7 +312,7 @@ function DraftEditor({ draft, selected, onSelect, onDirty, onEdit, onSaved }: {
                 if (result.error) throw new Error(result.error);
                 setMessage(result.message ?? "AI suggestion applied."); onEdit(); await onSaved();
               });
-            }}>Use AI suggestion for {fieldLabels[field].toLowerCase()}</button>
+            }}>Replace live {fieldLabels[field].toLowerCase()} with original AI suggestion</button>
           </div>)}
           <FormField className="sm:col-span-2" label="Filename suggestion · draft only, never renames files or routes"><AdminInput maxLength={160} required value={fields.filenameSuggestion} onChange={event => {
             setFields(current => ({ ...current, filenameSuggestion: event.target.value })); onEdit();

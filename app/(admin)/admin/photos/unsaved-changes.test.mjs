@@ -97,3 +97,13 @@ test("multiple dirty editors share one guard until all are clean", () => {
   assert.equal(state.documentListeners.size, 0);
   assert.equal(state.windowListeners.size, 0);
 });
+
+test("explicit sign-out navigation checks the same dirty registry", () => {
+  const state = harness(false);
+  assert.equal(state.exports.confirmAdminNavigation(), true);
+  state.exports.useUnsavedChanges(true);
+  assert.equal(state.exports.confirmAdminNavigation("Sign out?"), false);
+  assert.equal(state.confirmations(), 1);
+  state.cleanups[0]();
+  assert.equal(state.exports.confirmAdminNavigation(), true);
+});

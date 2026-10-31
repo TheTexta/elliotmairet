@@ -6,7 +6,8 @@ import { createPublicClient } from "@/lib/supabase/public";
 export const defaultFooterText =
   "Elliot Mairet is a Montreal based photographer from Victoria BC.\n\nAbove all else he is grateful for you";
 export const defaultSeoTitle = "Elliot Mairet";
-export const defaultSeoDescription = defaultFooterText;
+export const defaultSeoDescription =
+  "Photographs by Elliot Mairet, a Montreal-based photographer from Victoria, BC. Explore his portfolio and photographic archive.";
 
 export type SiteContent = {
   footerText: string;
@@ -45,10 +46,10 @@ export const getSiteContent = unstable_cache(async (): Promise<SiteContent> => {
 
   return {
     footerText: row.footer_text,
-    seoDescription: row.seo_description?.trim() || row.footer_text,
+    seoDescription: row.seo_description?.trim() || defaultSeoDescription,
     seoTitle: row.seo_title?.trim() || defaultSeoTitle,
   };
-}, ["site-content", "footer", "seo-description"], {
+}, ["site-content", "footer", "seo-description-v2"], {
   revalidate: 86400,
   tags: [cacheTags.siteContent],
 });

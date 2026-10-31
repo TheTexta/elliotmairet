@@ -1,15 +1,15 @@
-import { Images, LogOut } from "lucide-react";
+import { Images } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getSiteContent } from "@/lib/site-content/queries";
 import { requireAdmin } from "@/lib/supabase/admin";
 
-import { signOutAction } from "../actions";
+import { SignOutButton } from "../sign-out-button";
 import { ContentForm } from "./content-form";
 
 export const metadata: Metadata = {
-  title: "Content administration",
+  title: "Site content administration",
 };
 
 export default async function AdminContentPage() {
@@ -20,21 +20,16 @@ export default async function AdminContentPage() {
     <main className="min-h-svh bg-neutral-100 text-black normal-case">
       <header className="flex min-h-19 flex-wrap items-center justify-between gap-3 border-b border-neutral-300 px-4 py-4 sm:min-h-22 sm:px-12">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
-          <h1 className="text-sm font-medium uppercase sm:text-xl">Content</h1>
-          <span className="text-[9px] uppercase text-neutral-500">Public site</span>
+          <h1 className="text-lg font-medium uppercase sm:text-xl">Site content</h1>
         </div>
-        <div className="flex flex-wrap items-center gap-1 sm:gap-3">
-          <Link aria-label="Manage photographs" className="flex h-10 items-center gap-2 px-2 text-[9px] uppercase" href="/admin/photos">
+        <nav aria-label="Admin" className="flex w-full flex-wrap items-center sm:w-auto sm:gap-3">
+          <Link className="flex min-h-11 items-center gap-1 px-2 text-xs uppercase hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black" href="/admin/photos">
             <Images aria-hidden="true" size={15} strokeWidth={1.8} />
-            <span className="hidden sm:inline">Photographs</span>
+            <span>Photos</span>
           </Link>
-          <form action={signOutAction}>
-            <button aria-label="Sign out" className="flex h-10 items-center gap-2 px-2 text-[9px] uppercase" type="submit">
-              <LogOut aria-hidden="true" size={15} strokeWidth={1.8} />
-              <span className="hidden sm:inline">Sign out</span>
-            </button>
-          </form>
-        </div>
+          <Link aria-current="page" className="flex min-h-11 items-center border-b border-black px-2 text-xs uppercase focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black" href="/admin/content">Site content</Link>
+          <SignOutButton />
+        </nav>
       </header>
 
       <section className="px-4 py-8 sm:px-12 sm:py-12">

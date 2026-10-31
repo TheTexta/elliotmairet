@@ -2,140 +2,119 @@
 
 import { Pencil, Save } from "lucide-react";
 import { useActionState, useState } from "react";
-
+import { unstable_rethrow } from "next/navigation";
 import type { PhotographWithPalette } from "@/lib/photographs/types";
-import { photographCaption, type CaptionMode, type TextField } from "@/lib/photographs/text";
-
+import { photographCaption, type CaptionMode } from "@/lib/photographs/text";
 import { savePhotographTextAction } from "./text-actions";
 import { AdminInput, FormField, adminInputClassName } from "./form-controls";
 import { useUnsavedChanges } from "./unsaved-changes";
+import { createPhotoEditor, discardPhotoEdits, photoEditorDirty, refreshPhotoEditor } from "./photo-editor-state";
+import { DeleteButton } from "./delete-button";
 
-export function PhotographEditForm({
-  photograph,
-}: {
-  photograph: PhotographWithPalette;
-}) {
-  const [values, setValues] = useState({
-    title: photograph.title ?? "", description: photograph.description ?? "",
-    altText: photograph.altText ?? "", capturedAt: photograph.capturedAt ?? "",
-    captionMode: photograph.captionMode ?? "description", customCaption: photograph.customCaption ?? "",
-  });
-  const [saved, setSaved] = useState(values);
-  const [manualFields, setManualFields] = useState<TextField[]>([]);
-  const [revision, setRevision] = useState(photograph.textRevision);
+const secondaryButton = "min-h-11 border border-neutral-300 bg-white px-3 text-xs text-black hover:bg-neutral-50 focus-visible:outline-2 disabled:cursor-not-allowed disabled:opacity-50";
+
+export function PhotographEditForm({ photograph }: { photograph: PhotographWithPalette }) {
+  const [editor, setEditor] = useState(() => createPhotoEditor(photograph));
   const available = photograph.textMetadataAvailable;
-  const dirty = manualFields.length > 0 || JSON.stringify(values) !== JSON.stringify(saved);
+  const dirty = photoEditorDirty(editor);
   const [state, action, pending] = useActionState(async (previous: { error?: string; message?: string; revision?: number }, form: FormData) => {
     try {
+      const submitted = { ...editor.values };
+      const manual = [...editor.manualFields];
       const result = await savePhotographTextAction(photograph.id, previous, form);
       if (!result.error) {
-        setSaved(values);
-        setManualFields([]);
-        if (result.revision !== undefined) setRevision(result.revision);
+        for (const key of ["title", "description", "altText", "customCaption"] as const) submitted[key] = submitted[key].trim();
+        setEditor(current => ({ ...current, values: submitted, saved: submitted, manualFields: [],
+          revision: result.revision ?? current.revision,
+          seenRevision: Math.max(current.seenRevision, result.revision ?? current.revision),
+          sources: { ...current.sources, ...Object.fromEntries(manual.map(field => [field, "manual" as const])) } }));
       }
       return result;
-    } catch {
-      return { error: "The save could not be completed. Your edits are retained; try again." };
-    }
+    } catch (error) { unstable_rethrow(error); return { error: "Your changes could not be saved. They are still here; try again." }; }
   }, {});
+  const refreshed = refreshPhotoEditor(editor, photograph, pending);
+  if (refreshed !== editor) setEditor(refreshed);
+  const values = editor.values;
+  const stale = available && photograph.textRevision > editor.revision;
   useUnsavedChanges(dirty || pending);
-  function change<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
-    setValues(current => ({ ...current, [key]: value }));
-    const field = key === "altText" ? "alt_text" : key;
-    if (field === "title" || field === "description" || field === "alt_text") {
-      setManualFields(current => current.includes(field) ? current : [...current, field]);
-    }
-  }
-  const source = (field: "title" | "description" | "alt_text") => {
-    const existing = field === "title" ? photograph.title : field === "alt_text" ? photograph.altText : photograph.description;
-    const ownership = photograph.textSources?.[field] ?? (existing ? "manual" : "unset");
-    return ownership === "manual" ? "Manual · protected" : ownership === "ai" ? "AI suggestion" : "Not set";
-  };
 
-  return (
-    <details className="min-w-0 w-full xl:relative xl:w-auto">
-      <summary className="mr-24 ml-auto flex min-h-11 w-fit cursor-pointer list-none items-center gap-1.5 px-2 text-[9px] marker:hidden xl:mr-0 xl:min-h-9">
-        <Pencil aria-hidden="true" size={14} strokeWidth={1.8} />
-        Edit
-      </summary>
-      <form
-        action={action}
-        aria-label={`Edit text for ${photograph.filename}`}
-        aria-busy={pending}
-        className="mt-2 grid max-h-[75dvh] min-w-0 w-full grid-cols-1 gap-3 overflow-y-auto border border-neutral-300 bg-white p-4 normal-case sm:grid-cols-2 xl:absolute xl:right-0 xl:z-10 xl:w-[min(32rem,calc(100vw-3rem))] xl:shadow-[0_10px_35px_rgba(0,0,0,0.12)]"
-      >
-        {available ? <input type="hidden" name="textRevision" value={revision} /> : <p className="text-xs text-neutral-700 sm:col-span-2">The text migration is required for descriptions, captions and AI review. Existing title, alt text and date editing remains available.</p>}
-        {available ? <input type="hidden" name="manualFields" value={JSON.stringify(manualFields)} /> : null}
-        <fieldset disabled={pending} className="contents">
-        <FormField label={`Title · ${source("title")}`}>
-          <AdminInput
-            value={values.title}
-            onChange={event => change("title", event.target.value)}
-            maxLength={200}
-            name="title"
-          />
+  function change<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
+    const field = key === "altText" ? "alt_text" : key;
+    setEditor(current => ({ ...current, values: { ...current.values, [key]: value },
+      manualFields: field === "title" || field === "description" || field === "alt_text"
+        ? current.manualFields.includes(field) ? current.manualFields : [...current.manualFields, field] : current.manualFields }));
+  }
+  const source = (field: "title" | "description" | "alt_text") =>
+    editor.sources[field] === "manual" ? "Your text · protected" : editor.sources[field] === "ai" ? "Generated · editable" : "Not added";
+
+  function discard() {
+    if (dirty && !window.confirm("Discard your unsaved changes to this photograph and load its latest saved text?")) return;
+    setEditor(current => discardPhotoEdits(current, photograph));
+  }
+
+  return <details className="min-w-0 border-t border-neutral-200">
+    <summary className="flex min-h-11 w-fit cursor-pointer items-center gap-2 py-2 text-sm font-medium focus-visible:outline-2">
+      <Pencil aria-hidden="true" size={15} strokeWidth={1.8} />Edit photo
+    </summary>
+    <form action={action} aria-label={`Edit text for ${photograph.filename}`} aria-busy={pending} className="grid min-w-0 gap-5 py-4 sm:grid-cols-2">
+      {available ? <><input type="hidden" name="textRevision" value={editor.revision} /><input type="hidden" name="manualFields" value={JSON.stringify(editor.manualFields)} /></> : <p className="text-sm text-neutral-700 sm:col-span-2">Caption editing is not available yet. Title, alt text and capture date can still be edited.</p>}
+      <input type="hidden" name="sortOrder" value={photograph.sortOrder ?? ""} />
+      {stale ? <div role="status" className="space-y-2 border border-neutral-300 p-3 text-sm sm:col-span-2">
+        <p>This photograph has newer saved text. Your unsaved edits have been kept; load the latest version before saving.</p>
+        <button type="button" className={secondaryButton} disabled={pending} onClick={discard}>Load latest saved text</button>
+      </div> : null}
+      <fieldset disabled={pending} className="contents">
+        <FormField className="sm:col-span-2" label="Title">
+          <AdminInput name="title" maxLength={200} value={values.title} onChange={event => change("title", event.target.value)} />
+          <span className="text-xs font-normal text-neutral-600">{source("title")}</span>
         </FormField>
-        <FormField label="Captured">
-          <AdminInput
-            value={values.capturedAt}
-            onChange={event => change("capturedAt", event.target.value)}
-            name="capturedAt"
-            type="date"
-          />
-        </FormField>
-        <FormField className="sm:col-span-2" label={`Description · ${source("description")}`}>
-          <textarea className={`${adminInputClassName} h-auto! py-2`} rows={3} name="description" maxLength={1000} disabled={!available} value={values.description} onChange={event => change("description", event.target.value)} />
-        </FormField>
-        <FormField className="sm:col-span-2" label={`Alt text · ${source("alt_text")}`}>
-          <textarea
-            className={`${adminInputClassName} h-auto! py-2`}
-            rows={3}
-            value={values.altText}
-            onChange={event => change("altText", event.target.value)}
-            maxLength={500}
-            name="altText"
-          />
-        </FormField>
-        <FormField className="sm:col-span-2" label="Visible caption">
-          <select className={adminInputClassName} name="captionMode" value={values.captionMode} disabled={!available} onChange={event => change("captionMode", event.target.value as CaptionMode)}>
-            <option value="description">Description</option><option value="custom">Custom caption</option><option value="hidden">Hidden</option>
-          </select>
-        </FormField>
-        <FormField className="sm:col-span-2" label="Custom caption · display only">
-          <textarea className={`${adminInputClassName} h-auto! py-2`} rows={3} name="customCaption" maxLength={1000} disabled={!available} required={available && values.captionMode === "custom"} value={values.customCaption} onChange={event => change("customCaption", event.target.value)} />
-        </FormField>
-        <div className="min-w-0 space-y-2 text-xs text-neutral-700 sm:col-span-2">
-          <p>Caption preview: <span className="whitespace-pre-wrap wrap-anywhere">{photographCaption(values) ?? "No visible caption"}</span></p>
-          <p>Custom and Hidden leave the description and alt text unchanged. Custom text is retained when switching modes.</p>
-          <button className="min-h-11 border border-neutral-300 px-3 text-black disabled:opacity-50" type="button" disabled={!available || values.captionMode === "description"} onClick={() => change("captionMode", "description")}>Use description</button>
+        <div className="space-y-4 sm:col-span-2">
+          <FormField label="Description / default caption">
+            <textarea name="description" rows={3} maxLength={1000} disabled={!available} value={values.description} onChange={event => change("description", event.target.value)} className={`${adminInputClassName} py-3`} />
+            <span className="text-xs font-normal text-neutral-600">{source("description")} · Used in search and link previews.</span>
+          </FormField>
+          <FormField label="Caption metadata">
+            <select name="captionMode" disabled={!available} value={values.captionMode} onChange={event => change("captionMode", event.target.value as CaptionMode)} className={adminInputClassName}>
+              <option value="description">Use the description</option><option value="custom">Use a custom caption</option><option value="hidden">Hide the caption</option>
+            </select>
+          </FormField>
+          {values.captionMode === "custom" ? <FormField label="Custom caption">
+            <textarea name="customCaption" rows={3} maxLength={1000} disabled={!available} required value={values.customCaption} onChange={event => change("customCaption", event.target.value)} className={`${adminInputClassName} py-3`} />
+            <span className="text-xs font-normal text-neutral-600">Changes the caption metadata only. Your description and accessibility text stay unchanged.</span>
+          </FormField> : <input type="hidden" name="customCaption" value={values.customCaption} />}
+          <div className="space-y-1 border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700">
+            <p className="font-medium">Caption text preview</p>
+            <p className="whitespace-pre-wrap wrap-anywhere">{photographCaption(values) ?? "No caption metadata."}</p>
+            <p className="text-xs">Public photo pages are image-only. Caption text is retained in metadata, not displayed below the photo.</p>
+            {values.captionMode !== "custom" && values.customCaption ? <p className="pt-2 text-xs">Your custom wording is saved for when you choose Custom again.</p> : null}
+          </div>
         </div>
-        <FormField className="text-neutral-400" label="Sort order">
-          <AdminInput
-            className="cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400"
-            defaultValue={photograph.sortOrder ?? ""}
-            disabled
-            step="1"
-            type="number"
-          />
-          <input
-            defaultValue={photograph.sortOrder ?? ""}
-            name="sortOrder"
-            type="hidden"
-          />
-        </FormField>
-        <div className="flex items-end justify-end">
-          <button
-            className="flex min-h-11 items-center gap-2 bg-black px-4 text-[10px] uppercase text-white disabled:opacity-50"
-            disabled={!dirty}
-            type="submit"
-          >
-            <Save aria-hidden="true" size={13} />
-            {pending ? "Saving…" : "Save text"}
+        <details className="min-w-0 border-t border-neutral-200 sm:col-span-2">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm focus-visible:outline-2">Accessibility and capture date</summary>
+          <div className="grid gap-4 pb-3 sm:grid-cols-2">
+            <FormField className="sm:col-span-2" label="Image description for screen readers (alt text)">
+              <textarea name="altText" rows={3} maxLength={500} value={values.altText} onChange={event => change("altText", event.target.value)} className={`${adminInputClassName} py-3`} />
+              <span className="text-xs font-normal text-neutral-600">{source("alt_text")} · Describe what is visible, not the caption or filename.</span>
+            </FormField>
+            <FormField label="Date captured"><AdminInput name="capturedAt" type="date" value={values.capturedAt} onChange={event => change("capturedAt", event.target.value)} /></FormField>
+            <p className="self-end text-xs leading-5 text-neutral-600">Archive order: {photograph.sortOrder ?? "automatic"}. The original filename and image are not changed by editing text.</p>
+          </div>
+        </details>
+        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+          <button type="submit" disabled={!dirty || stale} className="flex min-h-11 items-center gap-2 bg-black px-4 text-xs text-white hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:opacity-50">
+            <Save aria-hidden="true" size={15} />{pending ? "Saving…" : "Save changes"}
           </button>
+          {dirty ? <button type="button" className={secondaryButton} onClick={discard}>Discard changes</button> : null}
+          <p className="min-w-0 wrap-anywhere text-xs text-neutral-700" role={state.error && dirty ? "alert" : "status"}>
+            {state.error && dirty ? state.error : pending ? "Saving your changes…" : dirty ? "Unsaved changes" : state.message ?? "All changes saved"}
+          </p>
         </div>
-        </fieldset>
-        <p className="text-xs text-neutral-700 sm:col-span-2" role={state.error ? "alert" : "status"}>{state.error ?? (pending ? "Saving your changes…" : dirty ? "Unsaved changes" : state.message ?? "All changes saved")}</p>
-      </form>
+      </fieldset>
+    </form>
+    <details className="border-t border-neutral-200 text-sm">
+      <summary className="min-h-11 cursor-pointer py-3 text-neutral-700 focus-visible:outline-2">Remove this photograph</summary>
+      <p className="mb-2 max-w-prose text-sm text-neutral-600">Permanently removes this photograph from the public archive. This does not affect other photographs.</p>
+      <DeleteButton id={photograph.id} filename={photograph.filename} />
     </details>
-  );
+  </details>;
 }

@@ -30,10 +30,13 @@ export default function AutomaticTextStatus({ initialStatus, loadError = false }
   const [error, setError] = useState(loadError ? "Automatic text status could not be loaded. Refresh status to try again; uploads are unaffected." : "");
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
+  const [received, setReceived] = useState(initialStatus);
+  if (received !== initialStatus && !pending) { setReceived(initialStatus); setStatus(initialStatus); }
   const counts = status?.counts ?? {};
   const waiting = (counts.pending ?? 0) + (counts.processing ?? 0);
   const uncertain = Math.max(status?.uncertainCount ?? 0, counts.uncertain ?? 0);
   const active = status?.enabled && status.serverConfigured;
+  const attention = (counts.failed ?? 0) + (counts.budget_paused ?? 0) + uncertain;
 
   async function load() {
     const result = await getAutomaticTextStatusAction();
@@ -61,22 +64,28 @@ export default function AutomaticTextStatus({ initialStatus, loadError = false }
     });
   }
 
-  return <section aria-labelledby={titleId} aria-busy={pending} className="min-w-0 space-y-4 border border-neutral-300 bg-white p-3 normal-case sm:p-4">
+  return <section aria-labelledby={titleId} aria-busy={pending} className="min-w-0 border border-neutral-300 bg-white p-3 normal-case sm:px-4">
     <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-      <h2 id={titleId} className="text-xs uppercase">Automatic text · future uploads</h2>
+      <div className="min-w-0">
+        <h2 id={titleId} className="text-sm font-medium">Automatic captions {active ? "are on" : ""}</h2>
+        <p className="mt-1 text-xs leading-5 text-neutral-600">{!status ? "Status unavailable. Uploads still work." : !status.serverConfigured || !status.enabled ? "Currently off. Uploads still work without generated text." : waiting ? `${waiting} ${waiting === 1 ? "photo is" : "photos are"} waiting for text. Your own wording stays protected.` : "New uploads get editable captions, titles and alt text."}</p>
+      </div>
       <button type="button" className={button} disabled={pending} onClick={() => task(async () => {
         const result = await refreshAutomaticTextStatusAction();
         if (result.error || !result.status) { setError(result.error ?? "No status was returned. Try refreshing status again."); return; }
-        setStatus(result.status); setMessage("Automatic text status and public text cache refreshed. Photograph edits were not reloaded.");
-      })}>{pending ? "Working…" : "Refresh status"}</button>
+        setStatus(result.status); setMessage("Status updated. Unsaved photo edits have been kept.");
+      })}>{pending ? "Checking…" : "Check progress"}</button>
     </div>
-    <p className="max-w-prose text-sm text-neutral-700">
-      {!status ? "Automatic generation availability has not been verified. Uploads are unaffected."
-        : !status.serverConfigured ? "Not configured on this server. Automatic generation is not active; uploads still succeed."
-        : !status.enabled ? "Automatic generation is disabled. Uploads still succeed without generated text."
-        : "Automatic generation is enabled for future uploads. Text is processed after upload, with a daily rescue job for queued work."}
-    </p>
-    <p className="max-w-prose text-xs leading-5 text-neutral-700">Only unset, blank text fields are auto-filled. Manual text and deliberately cleared fields stay protected. Caption choices—Description, Custom and Hidden—are preserved.</p>
+    {attention ? <p className="mt-2 text-sm text-neutral-800" role="status">{attention} {attention === 1 ? "photo needs" : "photos need"} attention. Open the details below; uploads are unaffected.</p> : null}
+    {(counts.review ?? 0) > 0 ? <a href="#text-review" className="mt-2 inline-flex min-h-11 items-center text-sm underline underline-offset-4" onClick={() => {
+      const tools = document.getElementById("admin-tools"); const review = document.getElementById("text-review");
+      if (tools instanceof HTMLDetailsElement) tools.open = true;
+      if (review instanceof HTMLDetailsElement) review.open = true;
+    }}>{counts.review} {counts.review === 1 ? "suggestion needs" : "suggestions need"} your review</a> : null}
+    <details className="mt-2 min-w-0">
+      <summary className="min-h-11 cursor-pointer py-3 text-xs text-neutral-700 focus-visible:outline-2">Status, monthly budget and history</summary>
+      <div className="space-y-4 border-t border-neutral-200 pt-4">
+    <p className="max-w-prose text-sm leading-6 text-neutral-700">Text is generated after upload. Only blank, unedited fields are filled; your text, deliberate clears and caption choices are preserved. Interrupted work is checked daily.</p>
     {status ? <>
       <p className="wrap-anywhere text-sm tabular-nums">{status.month} UTC · {dollars(status.committedMicros)} committed / {dollars(status.budgetMicros)} monthly limit</p>
       <p className="max-w-prose text-xs leading-5 text-neutral-700">Future uploads have a $5 USD monthly budget, separate from the $20 catalogue backfill. Committed usage includes held reserves, not just settled charges. Budget-paused text resumes next UTC month; uploads still succeed.</p>
@@ -88,7 +97,6 @@ export default function AutomaticTextStatus({ initialStatus, loadError = false }
         <div className="flex gap-2"><dt>Draft review</dt><dd>{counts.review ?? 0}</dd></div>
       </dl>
       {uncertain > 0 ? <p className="max-w-prose text-sm text-neutral-700">Unknown-charge jobs cannot be retried. Their budget reserve is held until an operator reviews the provider charge; this prevents duplicate paid requests.</p> : null}
-      {(counts.review ?? 0) > 0 ? <p className="max-w-prose text-sm text-neutral-700">Open the existing “Private AI draft review” panel to review uncertain text suggestions. No generation retry is needed.</p> : null}
       <details className="min-w-0 border-t border-neutral-300">
         <summary className="min-h-11 cursor-pointer py-3 text-xs focus-visible:outline-2 focus-visible:outline-black">Recent generation history · latest {status.jobs.length} jobs</summary>
         <p className="mb-3 max-w-prose text-xs text-neutral-700">Up to 100 recent jobs are shown. Counts above cover the queue. Retrying a failed job may make a paid request; unresolved charges are never eligible.</p>
@@ -98,12 +106,15 @@ export default function AutomaticTextStatus({ initialStatus, loadError = false }
             <p className="wrap-anywhere text-xs text-neutral-700">{labels[job.status] ?? "Status unavailable"} · {job.attempts} {job.attempts === 1 ? "attempt" : "attempts"}</p>
             <p className="wrap-anywhere text-xs text-neutral-700">Updated <time dateTime={job.updatedAt}>{updatedAt(job.updatedAt)}</time></p>
             {job.status === "uncertain" ? <p className="max-w-prose text-xs text-neutral-700">Reserve held. Operator charge review required; do not retry.</p> : null}
-            {job.status === "review" ? <p className="max-w-prose text-xs text-neutral-700">Continue in the “Private AI draft review” panel.</p> : null}
+            {job.status === "review" ? <p className="max-w-prose text-xs text-neutral-700">Continue in Suggested text under Advanced tools.</p> : null}
+            {job.status === "failed" && job.attempts >= 2 ? <p className="max-w-prose text-xs text-neutral-700">Generation attempt limit reached. You can still edit the photograph text yourself.</p> : null}
           </div>
-          {job.status === "failed" ? <button type="button" className={`${button} self-start sm:shrink-0`} disabled={pending || !active} aria-label={`Retry generation for ${job.filename}`} onClick={() => retry(job)}>Retry generation</button> : null}
+          {job.status === "failed" && job.attempts < 2 ? <button type="button" className={`${button} self-start sm:shrink-0`} disabled={pending || !active} aria-label={`Retry generation for ${job.filename}`} onClick={() => retry(job)}>Retry generation</button> : null}
         </li>)}</ul> : <p className="pb-3 text-xs text-neutral-700">No generation jobs recorded. New uploads are queued here, even while generation is disabled.</p>}
       </details>
     </> : null}
-    <p role={error ? "alert" : "status"} aria-live="polite" className="wrap-anywhere text-xs text-neutral-700">{error || message || (pending ? "Working…" : "Refresh status to check progress without reloading your photograph edits.")}</p>
+      </div>
+    </details>
+    <p role={error ? "alert" : "status"} aria-live="polite" className="wrap-anywhere text-xs text-neutral-700">{error || message || (pending ? "Checking progress…" : "")}</p>
   </section>;
 }

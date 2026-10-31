@@ -9,10 +9,11 @@ import {
   CleanupNotice,
   type StorageCleanupJob,
 } from "./cleanup-notice";
-import { PhotographRow } from "./photograph-row";
+import { PhotographArchive } from "./photograph-archive";
 import { PhotographTextReview } from "./text-review";
 import AutomaticTextStatus from "./automatic-text-status";
 import { getAutomaticTextStatusAction } from "./automatic-text-actions";
+import { AdvancedToolsLink } from "./advanced-tools-link";
 
 export const metadata: Metadata = {
   title: "Photograph administration",
@@ -40,34 +41,22 @@ export default async function AdminPhotosPage() {
     <main className="min-h-svh bg-neutral-100 text-black normal-case">
       <AdminPhotographsHeader count={photographs.length} />
       <section className="px-4 py-6 sm:px-12 sm:py-8">
-        <CleanupNotice jobs={cleanupJobs} loadError={Boolean(cleanupResult.error)} />
+        <p className="mb-5 text-sm text-neutral-700">Manage the photographs on your site. Uploads are public immediately; captions can be edited at any time.</p>
         <div className="mb-6"><AutomaticTextStatus initialStatus={automaticTextResult.status ?? null} loadError={automaticTextResult.error} /></div>
-        <div className="mb-6"><PhotographTextReview available={textAvailable && !stateResult?.error} /></div>
-
-        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[9px] font-medium uppercase text-neutral-600">
-              Public archive
-            </p>
-            <p className="mt-1 text-[10px]">
-              Every row shown here is immediately public.
-            </p>
+        {cleanupResult.error || cleanupJobs.length ? <div role="status" className="mb-4 flex flex-wrap items-center gap-x-3 text-sm text-neutral-800">
+          <p>{cleanupResult.error ? "File maintenance status could not be checked." : `${cleanupJobs.length} unfinished ${cleanupJobs.length === 1 ? "file is" : "files are"} tracked for cleanup. Archive removals stay effective while file cleanup is pending.`}</p>
+          <AdvancedToolsLink>Review file maintenance</AdvancedToolsLink>
+        </div> : null}
+        <PhotographArchive photographs={photographs.map(photo => ({ ...photo, textSources: sources[photo.id] }))} />
+        <details id="admin-tools" className="mt-8 min-w-0 border-t border-neutral-300 pt-3">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium focus-visible:outline-2">Advanced tools</summary>
+          <p className="my-3 max-w-prose text-sm text-neutral-600">Review suggested text, import a catalogue run or recover a batch. These tools are not needed for normal uploads and editing.</p>
+          <div className="space-y-6">
+            <PhotographTextReview available={textAvailable && !stateResult?.error} />
+            <CleanupNotice jobs={cleanupJobs} loadError={Boolean(cleanupResult.error)} />
+            {!cleanupJobs.length && !cleanupResult.error ? <p className="text-sm text-neutral-600">File maintenance: no unfinished files need attention.</p> : null}
           </div>
-          <p className="text-[8px] uppercase text-neutral-500">
-            JPG · PNG · WEBP
-          </p>
-        </div>
-
-        <div className="border border-neutral-300 bg-white">
-          {photographs.map((photograph) => (
-            <PhotographRow key={photograph.id} photograph={{ ...photograph, textSources: sources[photograph.id] }} />
-          ))}
-          {!photographs.length ? (
-            <p className="p-8 text-center text-[10px] uppercase text-neutral-500">
-              No public photographs
-            </p>
-          ) : null}
-        </div>
+        </details>
       </section>
     </main>
   );

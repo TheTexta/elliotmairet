@@ -23,7 +23,7 @@ export default async function PublicLayout({ children }: LayoutProps<"/">) {
         id="about"
         className="grid grid-cols-1 items-start gap-4 px-4 py-8 font-normal sm:grid-cols-2 sm:px-[calc(100vw/6)]"
       >
-        <div className="flex flex-col items-start py-8 text-left sm:py-4">
+        <div data-nosnippet="" className="flex flex-col items-start py-8 text-left sm:py-4">
           <a
             className="animated-index-link no-underline"
             href="mailto:elliot.mairet@gmail.com"

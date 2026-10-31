@@ -14,6 +14,7 @@
     "lint": "eslint",
     "test:text": "node --experimental-strip-types --test lib/photographs/text.test.mjs lib/photographs/automatic-text.test.mjs scripts/seo/label-photographs.test.mjs scripts/seo/catalogue-run.test.mjs 'app/(admin)/admin/photos/unsaved-changes.test.mjs'",
     "test:text:db": "node scripts/test-photograph-text-db.mjs",
+    "test:admin": "node --experimental-strip-types --test 'app/(admin)/admin/photos/admin-ux.test.mjs' 'app/(admin)/admin/photos/unsaved-changes.test.mjs' 'app/(admin)/admin/content/content-form.test.mjs' lib/site-content/queries.test.mjs",
     "test:upload": "node --experimental-strip-types --test lib/photographs/upload.test.mjs lib/photographs/upload-date.test.mjs",
     "test:palette": "node --test lib/palette/oklab-k-medoids.test.mjs",
     "test:similarity": "node --experimental-strip-types --test lib/photographs/select-similar-matches.test.mjs lib/photographs/find-colour-matches.test.mjs",
