@@ -6,13 +6,19 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 
 const require = createRequire(import.meta.url);
+const primitives = {
+  "@/components/ui/button": { Button: "button" }, "@/components/ui/input": { Input: "input" },
+  "@/components/ui/textarea": { Textarea: "textarea" }, "@/components/ui/label": { Label: "label" },
+  "@/components/ui/separator": { Separator: "hr" },
+  "@/components/ui/alert": { Alert: "div", AlertDescription: "div" },
+};
 
 function loadComponent(path, mocks) {
   const source = ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const exports = {};
-  runInNewContext(source, { exports, require: name => mocks[name] ?? require(name) });
+  runInNewContext(source, { exports, require: name => mocks[name] ?? primitives[name] ?? require(name) });
   return exports;
 }
 
@@ -122,7 +128,7 @@ test("failed saves preserve inputs and dirty guard, including thrown failures", 
     assert.equal(byId(failed, "footerText").props.disabled, false);
     assert.equal(button(failed).props.disabled, false);
     assert.equal(form.guarded(), true);
-    assert.ok(find(failed, node => node.type === "p" && /failed|could not/.test(node.props.children)));
+    assert.ok(find(failed, node => typeof node.props?.children === "string" && /failed|could not/.test(node.props.children)));
   }
 });
 

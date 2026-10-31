@@ -7,13 +7,20 @@ import ts from "typescript";
 import * as text from "../../../../lib/photographs/text.ts";
 
 const require = createRequire(import.meta.url);
+const primitives = {
+  "@/components/ui/button": { Button: "button" }, "@/components/ui/input": { Input: "input" },
+  "@/components/ui/textarea": { Textarea: "textarea" }, "@/components/ui/label": { Label: "label" },
+  "@/components/ui/native-select": { NativeSelect: "select" },
+  "@/components/ui/alert": { Alert: "div", AlertTitle: "div", AlertDescription: "div" },
+  "../confirm-provider": { useAdminConfirm: () => async () => true },
+};
 function load(file, mocks = {}, globals = {}) {
   const source = ts.transpileModule(readFileSync(new URL(file, import.meta.url), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const exports = {};
   runInNewContext(source, { exports, FormData, window: { confirm: () => true },
-    require: name => mocks[name] ?? (name === "@/lib/photographs/text" ? text : require(name)), ...globals });
+    require: name => mocks[name] ?? primitives[name] ?? (name === "@/lib/photographs/text" ? text : require(name)), ...globals });
   return exports;
 }
 const { matchesPhotograph } = load("./archive-filter.ts");
@@ -179,4 +186,54 @@ test("automation exceptions stay visible; unknown charges and exhausted jobs hav
   assert.equal(find(tree, node => node.props?.["aria-label"] === "Retry generation for unknown.jpg"), undefined);
   assert.ok(find(tree, node => node.type === "p" && node.props.role === "status"));
   assert.ok(find(tree, node => node.type === "a" && node.props.href === "#text-review"));
+});
+
+test("delete confirmation never calls the action on Cancel; confirmation dispatches once", async () => {
+  for (const accepted of [false, true]) {
+    let calls = 0, warning;
+    const { DeleteButton } = load("./delete-button.tsx", {
+      react: { startTransition: work => work(), useActionState: reducer => [{}, () => { void reducer(); }, false] },
+      "../actions": { deletePhotographAction: async id => { assert.equal(id, "photo-a"); calls++; return { message: "Removed" }; } },
+      "../confirm-provider": { useAdminConfirm: () => async options => { warning = options; return accepted; } },
+    });
+    const tree = DeleteButton({ id: "photo-a", filename: "original.jpg" });
+    await find(tree, node => node.type === "button").props.onClick();
+    assert.equal(calls, accepted ? 1 : 0);
+    assert.match(warning.description, /original\.jpg.*cannot be undone/s);
+    assert.equal(warning.destructive, true);
+  }
+});
+
+test("paid retries require confirmation with the separate $5 cap; Cancel sends nothing", async () => {
+  for (const accepted of [false, true]) {
+    const h = hooks(); let calls = 0, warning;
+    const status = { enabled: true, serverConfigured: true, counts: { failed: 1 }, month: "2026-10", committedMicros: 0, budgetMicros: 5_000_000,
+      jobs: [{ id: "retryable", filename: "retry.jpg", status: "failed", attempts: 1, updatedAt: "2026-10-31" }] };
+    const { default: AutomaticTextStatus } = load("./automatic-text-status.tsx", {
+      react: h.react,
+      "../confirm-provider": { useAdminConfirm: () => async options => { warning = options; return accepted; } },
+      "./automatic-text-actions": { retryAutomaticTextAction: async () => { calls++; return {}; }, getAutomaticTextStatusAction: async () => ({ status }) },
+    });
+    const tree = h.render(AutomaticTextStatus, { initialStatus: status });
+    await find(tree, node => node.props?.["aria-label"] === "Retry generation for retry.jpg").props.onClick();
+    await h.settle();
+    assert.equal(calls, accepted ? 1 : 0);
+    assert.match(warning.description, /paid AI request.*separate \$5 monthly future-upload budget/);
+  }
+});
+
+test("photo discard Cancel retains local edits; confirmed discard restores only this photo", async () => {
+  const h = hooks(); let accepted = false;
+  const { PhotographEditForm } = load("./photograph-edit-form.tsx", {
+    react: h.react, "./text-actions": {}, "./form-controls": {}, "./delete-button": {}, "./photo-editor-state": state,
+    "./unsaved-changes": { useUnsavedChanges() {} },
+    "../confirm-provider": { useAdminConfirm: () => async () => accepted },
+  });
+  const render = () => h.render(PhotographEditForm, { photograph: photo });
+  let tree = render(); named(tree, "title").props.onChange({ target: { value: "Keep my edit" } }); tree = render();
+  await find(tree, node => node.type === "button" && node.props.children === "Discard changes").props.onClick();
+  tree = render(); assert.equal(named(tree, "title").props.value, "Keep my edit");
+  accepted = true;
+  await find(tree, node => node.type === "button" && node.props.children === "Discard changes").props.onClick();
+  tree = render(); assert.equal(named(tree, "title").props.value, photo.title);
 });

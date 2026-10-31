@@ -34,33 +34,35 @@ catalogue reservation. Never replay an unknown-charge request.
   search description, clean fallback, exact owner-requested title **Elliot Mairet**,
   contact/credit `data-nosnippet`. Preserve visible biography/contact content.
 
-## Phase 2 — integrate shadcn/ui (requested, not yet implemented)
+## Phase 2 — shadcn/ui integration
 
 Adopt shadcn/ui as the admin component foundation, not a new visual theme. Scope
 it to `/admin`; do not restyle the public portfolio or import a stock dashboard.
 
-1. **Foundation:** verify the current shadcn CLI's Next.js 16 / React 19 /
-   Tailwind v4 instructions; add reproducible `components.json`, locally owned
-   component source and only required dependencies. Map tokens to the existing
-   neutral palette, Montserrat typography, square edges and focus styles. Avoid
-   global CSS changes that affect public pages.
-2. **Low-risk controls first:** Button, Input, Textarea, Label, Separator and
-   accessible form/status patterns. Retain native date/file controls and current
-   server-action field names, validation limits, disabled and pending behavior.
-   Use native Select where it remains the simpler accessible choice.
-3. **Confirmations:** use AlertDialog for permanent removal and deliberate
-   discard/paid retry confirmations. Preserve filenames, financial warning,
-   least-destructive default, focus return and keyboard behavior. Do not replace
-   synchronous navigation guards with asynchronous dialogs until the navigation
-   contract is explicitly implemented and tested.
-4. **Progressive disclosure and feedback:** evaluate Collapsible/Accordion where
-   they improve native details; retain visible exception counts and batch recovery
-   tokens. Optional toast notifications supplement—not replace—persistent inline
-   success/error/recovery messages. Keep the upload form in-flow unless a tested
-   Dialog/Sheet demonstrably improves the task; do not add a modal by default.
-5. **Ship in bounded steps:** migrate and test one workflow at a time, then
-   independently review, commit and deploy. Keep a behavior-preserving rollback
-   commit; no database/storage migration should be needed.
+1. **Foundation:** current manual installation and official radix-nova registry
+   checked with CLI 4.23.0. Added `components.json` and eight locally owned
+   components. Runtime dependencies are pinned to `radix-ui@1.8.1`,
+   `class-variance-authority@0.7.1`, `cn@0.5.1`. Tokens live under `.admin-ui`,
+   including portals; the global Tailwind entry uses a reference only. No public
+   body/base, radius, colour values, font or dark-mode override was added.
+2. **Controls:** login, site content, archive filters, photo editing, uploads,
+   automatic text, private review and file cleanup use the shared components.
+   Native input names, validation limits, date/file controls, selects and
+   disabled/pending semantics remain intact.
+3. **Confirmations:** one shared AlertDialog handles permanent removal, deliberate
+   discard, paid retry, live original-suggestion replacement, exact batch apply,
+   preview release and rollback. Warnings retain filename, budget and scope.
+   Concurrent prompts cannot overwrite a decision; unmount resolves false.
+   Decisions are awaited before async transitions/action dispatch. Native
+   synchronous navigation and document-unload guards are intentionally unchanged.
+4. **Disclosure/feedback:** native details already meet the workflow and remain;
+   no gratuitous Accordion/Sheet/sidebar was installed. Upload stays in-flow.
+   Inline errors use Alert and retain persistent recovery/status text; no toast
+   dependency or transient-only feedback was added.
+5. **Release:** no database, storage, auth, AI request or production-content change
+   is required. After disclosure of the pre-existing security advisories below,
+   the owner explicitly approved committing and deploying this integration as-is.
+   No security/framework upgrade is bundled into that approval.
 
 ### shadcn/ui acceptance gates
 
@@ -107,4 +109,52 @@ application's control; no Search Console submission is assumed.
 
 The separate initial caption feature was committed as `5f7ee63` and deployed
 successfully. The later `1076785` image-only public-page change is preserved.
-shadcn/ui remains a planned second phase, not part of that deployed caption feature.
+shadcn/ui is a separate second-phase change, not part of that deployed caption
+feature. Release uses a sanitized committed snapshot, excluding private artifacts.
+
+### shadcn verification and security baseline
+
+Offline checks: 39 admin/component/confirmation tests, 58 text tests, 33 upload
+tests, 28 image/SEO tests; lint, TypeScript and production build. The compiled-CSS
+test explicitly checks semantic utilities: defining `@theme` only in the nested
+admin stylesheet was insufficient, so the global entry now references it.
+Independent browser verification used actual components and Radix at 320px and
+1400px, mocking only Next adapters/actions, transport and photo delivery. Cancel,
+Escape, outside-click behavior, keyboard trap/return, exactly-once mocked removal,
+paid-retry/manual-replacement/batch warnings and cancellation, retained draft/photo
+edits and prepared-upload navigation guards passed. Expanded admin and content
+axe scans reported zero violations. Modal scans had no violations but disclosed
+incomplete background/focus-guard and contrast checks; manual focus/opaque token
+contrast checks supplemented them. This is not full WCAG or screen-reader testing.
+
+Review caught two confirmation lifecycle issues: awaiting a modal inside an async
+transition could defer the modal itself (confirmation now precedes dispatch), and
+the persistent layout could retain a decision after browser Back (the decision
+scope is now keyed by pathname and unmount cancels). A long-description mobile
+check also required keeping actions fixed while the focusable details region
+scrolls, rather than scrolling the whole dialog. Focused browser regression at
+320×800 passed with a valid 1,000-character description and extreme unbroken
+tokens: both 44px actions remain visible, Cancel starts focused, keyboard scrolling
+works and focus stays trapped/returns correctly. Those dialog axe scans had zero
+violations or incomplete checks. A reactive local pathname adapter also verified
+scope remount, false resolution and zero stale delete/paid-retry action calls.
+Actual signed-in Next routing, real persistence, touch devices and screen readers
+were not exercised; no production mutations were performed.
+
+A read-only local Next production-server smoke verified the real login uses the
+components and compiled semantic styles, public pages serve without admin
+components, and anonymous admin visits redirect. Its existing daily local ISR
+cache still held the old homepage title; direct public database and live homepage
+reads confirmed **Elliot Mairet** and the clean description. No SEO values were
+changed by this integration.
+
+`npm audit` reports 20 affected packages (one critical, three high, 16 moderate).
+Independent comparison against the pre-integration lockfile confirmed all 22
+implicated installation paths have identical versions; no advisory was introduced
+by this integration and no existing package version was silently upgraded.
+Pre-existing baseline includes Next 16.3.3 (critical), Sharp 0.35.4,
+source-map-js 1.2.1 (high), development Zod 4.6.5 (high), and minimatch/lint tooling
+(moderate). Do not run `npm audit fix --force` or silently include framework/image
+pipeline upgrades. Owner-approved remediation and fresh compatibility verification
+remain separate follow-up work. The owner approved this UI release after these
+findings were disclosed; that approval does not resolve the advisories.

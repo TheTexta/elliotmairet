@@ -5,6 +5,12 @@ import { unstable_rethrow } from "next/navigation";
 import { useActionState, useState } from "react";
 
 import type { SiteContent } from "@/lib/site-content/queries";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import { updateSiteContentAction, type AdminActionState } from "../actions";
 import { useUnsavedChanges } from "../photos/unsaved-changes";
@@ -38,12 +44,11 @@ export function ContentForm({ initialContent }: { initialContent: SiteContent })
   return (
     <form action={formAction} aria-busy={pending} className="flex min-w-0 w-full max-w-3xl flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium uppercase" htmlFor="seoTitle">Site title</label>
+        <Label className="text-sm uppercase" htmlFor="seoTitle">Site title</Label>
         <p className="text-sm leading-relaxed text-neutral-600" id="seo-title-help">Used in browser tabs, search results, and link previews.</p>
       </div>
-      <input
+      <Input
         aria-describedby="seo-title-help seo-title-count"
-        className="min-h-11 min-w-0 w-full max-w-full border border-neutral-300 bg-white px-3 text-base text-black outline-none focus:border-black focus-visible:ring-1 focus-visible:ring-black disabled:bg-neutral-200 disabled:text-neutral-600"
         disabled={pending}
         id="seoTitle"
         maxLength={120}
@@ -55,23 +60,24 @@ export function ContentForm({ initialContent }: { initialContent: SiteContent })
         {seoTitle.length}/120
       </div>
       <div className="mt-4 flex flex-col gap-2">
-        <label className="text-sm font-medium uppercase" htmlFor="seoDescription">Search description</label>
+        <Label className="text-sm uppercase" htmlFor="seoDescription">Search description</Label>
         <p className="text-sm leading-relaxed text-neutral-600" id="seo-description-help">A short summary for search results and link previews, separate from your footer. Search engines may choose different wording and take time to update.</p>
       </div>
-      <textarea
+      <Textarea
         aria-describedby="seo-description-help seo-description-count"
-        className="min-h-28 min-w-0 w-full resize-y border border-neutral-300 bg-white p-4 text-base leading-relaxed text-black outline-none focus:border-black focus-visible:ring-1 focus-visible:ring-black disabled:bg-neutral-200 disabled:text-neutral-600"
+        className="min-h-28 p-4"
         disabled={pending} id="seoDescription" maxLength={320} name="seoDescription" rows={3}
         onChange={event => setSeoDescription(event.target.value)} value={seoDescription}
       />
       <div className="flex justify-end text-xs tabular-nums text-neutral-600" id="seo-description-count">{seoDescription.length}/320</div>
-      <div className="mt-4 flex flex-col gap-2">
-        <label className="text-sm font-medium uppercase" htmlFor="footerText">Footer text</label>
+      <Separator className="mt-4" />
+      <div className="flex flex-col gap-2">
+        <Label className="text-sm uppercase" htmlFor="footerText">Footer text</Label>
         <p className="text-sm leading-relaxed text-neutral-600" id="footer-text-help">Shown at the bottom of the public site. Line breaks are preserved.</p>
       </div>
-      <textarea
+      <Textarea
         aria-describedby="footer-text-help footer-text-count"
-        className="min-h-56 min-w-0 w-full max-w-full resize-y border border-neutral-300 bg-white p-4 text-base leading-relaxed text-black outline-none focus:border-black focus-visible:ring-1 focus-visible:ring-black disabled:bg-neutral-200 disabled:text-neutral-600"
+        className="min-h-56 p-4"
         disabled={pending}
         id="footerText"
         maxLength={2000}
@@ -82,20 +88,20 @@ export function ContentForm({ initialContent }: { initialContent: SiteContent })
       <div className="flex min-h-11 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div aria-live="polite" aria-atomic="true" role="status" className="min-w-0 wrap-anywhere text-sm" id="footer-text-status">
           <p>{pending ? "Saving changes…" : dirty ? "Unsaved changes" : state.message || "No unsaved changes"}</p>
-          {state.error ? <p role="alert" className="text-red-800">{state.error}</p> : null}
+          {state.error ? <Alert variant="destructive"><AlertDescription>{state.error}</AlertDescription></Alert> : null}
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 sm:justify-end">
           <span className="text-xs tabular-nums text-neutral-600" id="footer-text-count">
             {footerText.length}/2,000
           </span>
-          <button
-            className="flex min-h-11 items-center gap-2 bg-black px-4 text-xs uppercase text-white hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:bg-neutral-600"
+          <Button
+            className="uppercase"
             disabled={pending || !dirty}
             type="submit"
           >
             <Save aria-hidden="true" size={14} strokeWidth={1.8} />
             {pending ? "Saving…" : "Save changes"}
-          </button>
+          </Button>
         </div>
       </div>
     </form>

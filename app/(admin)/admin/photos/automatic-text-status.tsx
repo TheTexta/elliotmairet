@@ -1,10 +1,12 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAdminConfirm } from "../confirm-provider";
 
 import { getAutomaticTextStatusAction, refreshAutomaticTextStatusAction, retryAutomaticTextAction, type AutomaticTextSummary } from "./automatic-text-actions";
 
-const button = "min-h-11 max-w-full border border-neutral-300 bg-white px-3 py-2 text-xs text-black hover:bg-neutral-100 active:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:opacity-50";
 const labels: Record<AutomaticTextSummary["jobs"][number]["status"], string> = {
   pending: "Queued", processing: "Generating", budget_paused: "Budget paused", failed: "Failed",
   uncertain: "Charge unknown · operator review", review: "Private draft review needed", completed: "Completed", skipped: "Skipped",
@@ -25,6 +27,7 @@ export default function AutomaticTextStatus({ initialStatus, loadError = false }
   initialStatus: AutomaticTextSummary | null;
   loadError?: boolean | string;
 }) {
+  const confirm = useAdminConfirm();
   const titleId = useId();
   const [status, setStatus] = useState(initialStatus);
   const [error, setError] = useState(loadError ? "Automatic text status could not be loaded. Refresh status to try again; uploads are unaffected." : "");
@@ -53,8 +56,8 @@ export default function AutomaticTextStatus({ initialStatus, loadError = false }
     });
   }
 
-  function retry(job: AutomaticTextSummary["jobs"][number]) {
-    if (!window.confirm(`Retry generation for ${job.filename}? This may send an image preview for a paid AI request, within the separate $5 monthly future-upload budget.`)) return;
+  async function retry(job: AutomaticTextSummary["jobs"][number]) {
+    if (!await confirm({ title: "Retry paid generation?", description: `Retry generation for ${job.filename}? This may send an image preview for a paid AI request, within the separate $5 monthly future-upload budget.`, confirmLabel: "Retry generation" })) return;
     task(async () => {
       const result = await retryAutomaticTextAction(job.id);
       if (result.error) { setError(result.error); return; }
@@ -70,11 +73,11 @@ export default function AutomaticTextStatus({ initialStatus, loadError = false }
         <h2 id={titleId} className="text-sm font-medium">Automatic captions {active ? "are on" : ""}</h2>
         <p className="mt-1 text-xs leading-5 text-neutral-600">{!status ? "Status unavailable. Uploads still work." : !status.serverConfigured || !status.enabled ? "Currently off. Uploads still work without generated text." : waiting ? `${waiting} ${waiting === 1 ? "photo is" : "photos are"} waiting for text. Your own wording stays protected.` : "New uploads get editable captions, titles and alt text."}</p>
       </div>
-      <button type="button" className={button} disabled={pending} onClick={() => task(async () => {
+      <Button type="button" variant="outline" disabled={pending} onClick={() => task(async () => {
         const result = await refreshAutomaticTextStatusAction();
         if (result.error || !result.status) { setError(result.error ?? "No status was returned. Try refreshing status again."); return; }
         setStatus(result.status); setMessage("Status updated. Unsaved photo edits have been kept.");
-      })}>{pending ? "Checking…" : "Check progress"}</button>
+      })}>{pending ? "Checking…" : "Check progress"}</Button>
     </div>
     {attention ? <p className="mt-2 text-sm text-neutral-800" role="status">{attention} {attention === 1 ? "photo needs" : "photos need"} attention. Open the details below; uploads are unaffected.</p> : null}
     {(counts.review ?? 0) > 0 ? <a href="#text-review" className="mt-2 inline-flex min-h-11 items-center text-sm underline underline-offset-4" onClick={() => {
@@ -109,12 +112,13 @@ export default function AutomaticTextStatus({ initialStatus, loadError = false }
             {job.status === "review" ? <p className="max-w-prose text-xs text-neutral-700">Continue in Suggested text under Advanced tools.</p> : null}
             {job.status === "failed" && job.attempts >= 2 ? <p className="max-w-prose text-xs text-neutral-700">Generation attempt limit reached. You can still edit the photograph text yourself.</p> : null}
           </div>
-          {job.status === "failed" && job.attempts < 2 ? <button type="button" className={`${button} self-start sm:shrink-0`} disabled={pending || !active} aria-label={`Retry generation for ${job.filename}`} onClick={() => retry(job)}>Retry generation</button> : null}
+          {job.status === "failed" && job.attempts < 2 ? <Button type="button" variant="outline" className="self-start sm:shrink-0" disabled={pending || !active} aria-label={`Retry generation for ${job.filename}`} onClick={() => retry(job)}>Retry generation</Button> : null}
         </li>)}</ul> : <p className="pb-3 text-xs text-neutral-700">No generation jobs recorded. New uploads are queued here, even while generation is disabled.</p>}
       </details>
     </> : null}
       </div>
     </details>
-    <p role={error ? "alert" : "status"} aria-live="polite" className="wrap-anywhere text-xs text-neutral-700">{error || message || (pending ? "Checking progress…" : "")}</p>
+    {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
+    <p role="status" aria-live="polite" className="wrap-anywhere text-xs text-neutral-700">{message || (pending ? "Checking progress…" : "")}</p>
   </section>;
 }

@@ -6,14 +6,18 @@ import { unstable_rethrow } from "next/navigation";
 import type { PhotographWithPalette } from "@/lib/photographs/types";
 import { photographCaption, type CaptionMode } from "@/lib/photographs/text";
 import { savePhotographTextAction } from "./text-actions";
-import { AdminInput, FormField, adminInputClassName } from "./form-controls";
+import { AdminInput, FormField } from "./form-controls";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAdminConfirm } from "../confirm-provider";
 import { useUnsavedChanges } from "./unsaved-changes";
 import { createPhotoEditor, discardPhotoEdits, photoEditorDirty, refreshPhotoEditor } from "./photo-editor-state";
 import { DeleteButton } from "./delete-button";
 
-const secondaryButton = "min-h-11 border border-neutral-300 bg-white px-3 text-xs text-black hover:bg-neutral-50 focus-visible:outline-2 disabled:cursor-not-allowed disabled:opacity-50";
-
 export function PhotographEditForm({ photograph }: { photograph: PhotographWithPalette }) {
+  const confirm = useAdminConfirm();
   const [editor, setEditor] = useState(() => createPhotoEditor(photograph));
   const available = photograph.textMetadataAvailable;
   const dirty = photoEditorDirty(editor);
@@ -47,8 +51,8 @@ export function PhotographEditForm({ photograph }: { photograph: PhotographWithP
   const source = (field: "title" | "description" | "alt_text") =>
     editor.sources[field] === "manual" ? "Your text · protected" : editor.sources[field] === "ai" ? "Generated · editable" : "Not added";
 
-  function discard() {
-    if (dirty && !window.confirm("Discard your unsaved changes to this photograph and load its latest saved text?")) return;
+  async function discard() {
+    if (dirty && !await confirm({ title: "Discard photo edits?", description: `Discard your unsaved changes to “${photograph.filename}” and load its latest saved text?`, confirmLabel: "Discard changes", destructive: true })) return;
     setEditor(current => discardPhotoEdits(current, photograph));
   }
 
@@ -59,10 +63,10 @@ export function PhotographEditForm({ photograph }: { photograph: PhotographWithP
     <form action={action} aria-label={`Edit text for ${photograph.filename}`} aria-busy={pending} className="grid min-w-0 gap-5 py-4 sm:grid-cols-2">
       {available ? <><input type="hidden" name="textRevision" value={editor.revision} /><input type="hidden" name="manualFields" value={JSON.stringify(editor.manualFields)} /></> : <p className="text-sm text-neutral-700 sm:col-span-2">Caption editing is not available yet. Title, alt text and capture date can still be edited.</p>}
       <input type="hidden" name="sortOrder" value={photograph.sortOrder ?? ""} />
-      {stale ? <div role="status" className="space-y-2 border border-neutral-300 p-3 text-sm sm:col-span-2">
+      {stale ? <Alert role="status" className="sm:col-span-2">
         <p>This photograph has newer saved text. Your unsaved edits have been kept; load the latest version before saving.</p>
-        <button type="button" className={secondaryButton} disabled={pending} onClick={discard}>Load latest saved text</button>
-      </div> : null}
+        <Button type="button" variant="outline" disabled={pending} onClick={discard}>Load latest saved text</Button>
+      </Alert> : null}
       <fieldset disabled={pending} className="contents">
         <FormField className="sm:col-span-2" label="Title">
           <AdminInput name="title" maxLength={200} value={values.title} onChange={event => change("title", event.target.value)} />
@@ -70,16 +74,16 @@ export function PhotographEditForm({ photograph }: { photograph: PhotographWithP
         </FormField>
         <div className="space-y-4 sm:col-span-2">
           <FormField label="Description / default caption">
-            <textarea name="description" rows={3} maxLength={1000} disabled={!available} value={values.description} onChange={event => change("description", event.target.value)} className={`${adminInputClassName} py-3`} />
+            <Textarea name="description" rows={3} maxLength={1000} disabled={!available} value={values.description} onChange={event => change("description", event.target.value)} />
             <span className="text-xs font-normal text-neutral-600">{source("description")} · Used in search and link previews.</span>
           </FormField>
           <FormField label="Caption metadata">
-            <select name="captionMode" disabled={!available} value={values.captionMode} onChange={event => change("captionMode", event.target.value as CaptionMode)} className={adminInputClassName}>
+            <NativeSelect name="captionMode" disabled={!available} value={values.captionMode} onChange={event => change("captionMode", event.target.value as CaptionMode)}>
               <option value="description">Use the description</option><option value="custom">Use a custom caption</option><option value="hidden">Hide the caption</option>
-            </select>
+            </NativeSelect>
           </FormField>
           {values.captionMode === "custom" ? <FormField label="Custom caption">
-            <textarea name="customCaption" rows={3} maxLength={1000} disabled={!available} required value={values.customCaption} onChange={event => change("customCaption", event.target.value)} className={`${adminInputClassName} py-3`} />
+            <Textarea name="customCaption" rows={3} maxLength={1000} disabled={!available} required value={values.customCaption} onChange={event => change("customCaption", event.target.value)} />
             <span className="text-xs font-normal text-neutral-600">Changes the caption metadata only. Your description and accessibility text stay unchanged.</span>
           </FormField> : <input type="hidden" name="customCaption" value={values.customCaption} />}
           <div className="space-y-1 border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700">
@@ -93,7 +97,7 @@ export function PhotographEditForm({ photograph }: { photograph: PhotographWithP
           <summary className="min-h-11 cursor-pointer py-3 text-sm focus-visible:outline-2">Accessibility and capture date</summary>
           <div className="grid gap-4 pb-3 sm:grid-cols-2">
             <FormField className="sm:col-span-2" label="Image description for screen readers (alt text)">
-              <textarea name="altText" rows={3} maxLength={500} value={values.altText} onChange={event => change("altText", event.target.value)} className={`${adminInputClassName} py-3`} />
+              <Textarea name="altText" rows={3} maxLength={500} value={values.altText} onChange={event => change("altText", event.target.value)} />
               <span className="text-xs font-normal text-neutral-600">{source("alt_text")} · Describe what is visible, not the caption or filename.</span>
             </FormField>
             <FormField label="Date captured"><AdminInput name="capturedAt" type="date" value={values.capturedAt} onChange={event => change("capturedAt", event.target.value)} /></FormField>
@@ -101,12 +105,13 @@ export function PhotographEditForm({ photograph }: { photograph: PhotographWithP
           </div>
         </details>
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-          <button type="submit" disabled={!dirty || stale} className="flex min-h-11 items-center gap-2 bg-black px-4 text-xs text-white hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:opacity-50">
+          <Button type="submit" disabled={!dirty || stale}>
             <Save aria-hidden="true" size={15} />{pending ? "Saving…" : "Save changes"}
-          </button>
-          {dirty ? <button type="button" className={secondaryButton} onClick={discard}>Discard changes</button> : null}
-          <p className="min-w-0 wrap-anywhere text-xs text-neutral-700" role={state.error && dirty ? "alert" : "status"}>
-            {state.error && dirty ? state.error : pending ? "Saving your changes…" : dirty ? "Unsaved changes" : state.message ?? "All changes saved"}
+          </Button>
+          {dirty ? <Button type="button" variant="outline" onClick={discard}>Discard changes</Button> : null}
+          {state.error && dirty ? <Alert variant="destructive"><AlertDescription>{state.error}</AlertDescription></Alert> : null}
+          <p className="min-w-0 wrap-anywhere text-xs text-neutral-700" role="status">
+            {pending ? "Saving your changes…" : dirty ? "Unsaved changes" : state.message ?? "All changes saved"}
           </p>
         </div>
       </fieldset>

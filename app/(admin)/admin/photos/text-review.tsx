@@ -6,7 +6,13 @@ import { photographUrl } from "@/lib/photographs/storage";
 import { photographPath } from "@/lib/seo";
 import { previewTextFields, textFields, type PhotographTextDraft, type PhotographTextFields, type TextBatchPreview, type TextBatchResult, type TextField } from "@/lib/photographs/text";
 
-import { AdminInput, FormField, adminInputClassName } from "./form-controls";
+import { AdminInput, FormField } from "./form-controls";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { useAdminConfirm } from "../confirm-provider";
 import {
   acceptPhotographTextDraftFieldAction, applyPhotographTextBatchAction,
   getPhotographTextSnapshotAction, importPhotographTextDraftsAction,
@@ -16,7 +22,6 @@ import {
 } from "./text-actions";
 import { useUnsavedChanges } from "./unsaved-changes";
 
-const button = "min-h-11 border border-neutral-300 bg-white px-3 py-2 text-xs text-black hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:opacity-50";
 const fieldLabels: Record<TextField, string> = { title: "Title", description: "Description", alt_text: "Alt text" };
 const fieldKeys = { title: "title", description: "description", alt_text: "altText" } as const;
 type Filter = "all" | "pending" | "manual" | "conflict";
@@ -31,6 +36,7 @@ function downloadJson(value: unknown) {
 }
 
 export function PhotographTextReview({ available }: { available: boolean }) {
+  const confirm = useAdminConfirm();
   const [opened, setOpened] = useState(false);
   const [drafts, setDrafts] = useState<PhotographTextDraft[]>([]);
   const [total, setTotal] = useState(0);
@@ -73,8 +79,8 @@ export function PhotographTextReview({ available }: { available: boolean }) {
     setDrafts(result.drafts ?? []); setTotal(result.total ?? 0); setOffset(nextOffset);
   }
 
-  function loadPage(nextOffset: number, nextFilter = filter) {
-    if (dirtyIds.length && !window.confirm("Discard unsaved draft edits and load this page?")) return;
+  async function loadPage(nextOffset: number, nextFilter = filter) {
+    if (dirtyIds.length && !await confirm({ title: "Discard draft edits?", description: "Discard unsaved draft edits and load this page?", confirmLabel: "Discard and load", destructive: true })) return;
     task(async () => { await load(nextOffset, nextFilter); setFilter(nextFilter); invalidate(); setPageVersion(current => current + 1); });
   }
 
@@ -116,7 +122,6 @@ export function PhotographTextReview({ available }: { available: boolean }) {
 
   async function apply() {
     if (!preview) return;
-    if (!started && !window.confirm(`Apply this exact preview for run ${preview.runId}? Only eligible fields will change; manual fields and conflicts are excluded.`)) return;
     setStarted(true);
     let complete = false;
     while (!complete) {
@@ -149,13 +154,13 @@ export function PhotographTextReview({ available }: { available: boolean }) {
           <summary className="min-h-11 cursor-pointer py-3 text-xs text-neutral-700">Import or choose a catalogue run (advanced)</summary>
           <fieldset disabled={pending || locked} className="flex min-w-0 flex-wrap items-end gap-3">
             <legend className="mb-3 text-xs uppercase">Prepare and import</legend>
-            <button type="button" className={button} onClick={() => task(async () => {
+            <Button type="button" variant="outline" onClick={() => task(async () => {
               const result = await getPhotographTextSnapshotAction();
               if (result.error || !result.snapshot) throw new Error(result.error ?? "No snapshot was returned.");
               downloadJson(result.snapshot); setMessage("Snapshot downloaded. Generation remains a separate, locally approved step.");
-            })}>Download catalogue snapshot</button>
+            })}>Download catalogue snapshot</Button>
             <FormField label="Import draft JSON · maximum 5 MB">
-              <input type="file" accept="application/json,.json" className="max-w-full text-xs file:mr-2 file:min-h-11 file:border file:border-neutral-300 file:bg-white file:px-3" onChange={event => {
+              <Input type="file" accept="application/json,.json" onChange={event => {
                 const file = event.target.files?.[0]; event.target.value = "";
                 if (file) task(() => importFile(file));
               }} />
@@ -166,17 +171,17 @@ export function PhotographTextReview({ available }: { available: boolean }) {
             <FormField className="min-w-0 flex-1 basis-56" label="Run ID · blank lists all runs">
               <AdminInput value={runId} onChange={event => { setRunId(event.target.value); setSelection([]); invalidate(); }} placeholder="Run UUID" />
             </FormField>
-            {drafts.length ? <FormField className="min-w-0 max-w-full flex-1 basis-56" label="Choose a loaded run"><select className={adminInputClassName} value={drafts.some(draft => draft.runId === runId) ? runId : ""} onChange={event => {
+            {drafts.length ? <FormField className="min-w-0 max-w-full flex-1 basis-56" label="Choose a loaded run"><NativeSelect value={drafts.some(draft => draft.runId === runId) ? runId : ""} onChange={event => {
               setRunId(event.target.value); setSelection([]); invalidate();
-            }}><option value="">Select a run</option>{[...new Set(drafts.map(draft => draft.runId))].map(id => <option key={id} value={id}>{id}</option>)}</select></FormField> : null}
-            <button className={button} type="button" onClick={() => loadPage(0)}>Load suggestions</button>
+            }}><option value="">Select a run</option>{[...new Set(drafts.map(draft => draft.runId))].map(id => <option key={id} value={id}>{id}</option>)}</NativeSelect></FormField> : null}
+            <Button variant="outline" type="button" onClick={() => loadPage(0)}>Load suggestions</Button>
           </fieldset>
           </details>
           <div className="flex flex-wrap items-end gap-3">
-            <FormField label="Suggestions to show"><select disabled={pending || locked} className={adminInputClassName} value={filter} onChange={event => loadPage(0, event.target.value as Filter)}>
+            <FormField label="Suggestions to show"><NativeSelect disabled={pending || locked} value={filter} onChange={event => loadPage(0, event.target.value as Filter)}>
               <option value="pending">Not yet applied</option><option value="all">All suggestions</option><option value="manual">Manually edited photos</option><option value="conflict">Changed since generation</option>
-            </select></FormField>
-            <button className={button} disabled={pending || locked} type="button" onClick={() => loadPage(0)}>Refresh suggestions</button>
+            </NativeSelect></FormField>
+            <Button variant="outline" disabled={pending || locked} type="button" onClick={() => loadPage(0)}>Refresh suggestions</Button>
           </div>
           <div role={error ? "alert" : "status"} aria-live="polite" className="wrap-anywhere text-sm text-neutral-700">{error || message || (pending ? "Working…" : "Ready to review.")}</div>
           <p className="text-xs text-neutral-700">{total ? `${offset + 1}–${Math.min(offset + drafts.length, total)} of ${total} suggestions` : "No suggestions match this filter. Previously applied text is available under All suggestions; normal photo editing is in the archive above."} {dirtyIds.length ? "Save or discard draft edits before previewing a batch." : ""}</p>
@@ -187,42 +192,42 @@ export function PhotographTextReview({ available }: { available: boolean }) {
             }} onDirty={markDirty} onEdit={invalidate} onSaved={() => refreshSavedDraft(draft)} />)}
           </fieldset>
           <div className="flex flex-wrap gap-2">
-            <button className={button} type="button" disabled={pending || locked || offset === 0} onClick={() => loadPage(Math.max(0, offset - 50))}>Previous 50</button>
-            <button className={button} type="button" disabled={pending || locked || offset + 50 >= total} onClick={() => loadPage(offset + 50)}>Next 50</button>
+            <Button variant="outline" type="button" disabled={pending || locked || offset === 0} onClick={() => loadPage(Math.max(0, offset - 50))}>Previous 50</Button>
+            <Button variant="outline" type="button" disabled={pending || locked || offset + 50 >= total} onClick={() => loadPage(offset + 50)}>Next 50</Button>
           </div>
           <details className="min-w-0 border-t border-neutral-300 pt-3">
           <summary className="min-h-11 cursor-pointer py-3 text-sm">Bulk application and batch recovery (advanced)</summary>
           <fieldset disabled={pending || locked} className="min-w-0 space-y-3 border-t border-neutral-300 pt-4">
             <legend className="px-1 text-xs uppercase">Bulk application</legend>
             <p className="text-xs text-neutral-700">{selection.length ? `${selection.length} selected drafts across loaded pages.` : "No selection: preview all drafts in the specified run, not just this page."} Manual fields and unresolved conflicts are excluded.</p>
-            <div className="flex flex-wrap gap-3">{textFields.map(field => <label key={field} className="flex min-h-11 items-center gap-2 text-xs"><input type="checkbox" checked={fields.includes(field)} onChange={event => {
+            <div className="flex flex-wrap gap-3">{textFields.map(field => <Label key={field} className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={fields.includes(field)} onChange={event => {
               setFields(current => event.target.checked ? [...current, field] : current.filter(value => value !== field)); invalidate();
-            }} />{fieldLabels[field]}</label>)}</div>
-            <button type="button" className={button} disabled={!runId.trim() || !fields.length || !!dirtyIds.length} onClick={() => task(async () => {
+            }} />{fieldLabels[field]}</Label>)}</div>
+            <Button type="button" variant="outline" disabled={!runId.trim() || !fields.length || !!dirtyIds.length} onClick={() => task(async () => {
               const result = await previewPhotographTextBatchAction(runId.trim(), fields, selection.length ? selection : undefined);
               if (result.error || !result.preview) throw new Error(result.error ?? "No preview was returned.");
               setPreview(result.preview); setResults([]); setStarted(false); setDone(false);
               setRecoveryToken(result.preview.token);
               try { sessionStorage.setItem("elliot:photograph-text:approval", result.preview.token); } catch { /* Token is also displayed for manual recovery. */ }
-            })}>Preview exact changes</button>
-            <button type="button" className={`${button} ml-2`} disabled={!selection.length} onClick={() => { setSelection([]); invalidate(); }}>Clear selection</button>
+            })}>Preview exact changes</Button>
+            <Button type="button" variant="outline" className="ml-2" disabled={!selection.length} onClick={() => { setSelection([]); invalidate(); }}>Clear selection</Button>
           </fieldset>
           <fieldset disabled={pending} className="flex min-w-0 flex-wrap items-end gap-3 border-t border-neutral-300 pt-4">
             <legend className="px-1 text-xs uppercase">Recover an interrupted or completed batch</legend>
             <FormField className="min-w-0 flex-1 basis-56" label="Approval token · only your account can recover it">
               <AdminInput value={recoveryToken} onChange={event => setRecoveryToken(event.target.value)} placeholder="Approval UUID" />
             </FormField>
-            <button type="button" className={button} disabled={!recoveryToken.trim() || !!dirtyIds.length} onClick={() => task(async () => {
+            <Button type="button" variant="outline" disabled={!recoveryToken.trim() || !!dirtyIds.length} onClick={() => task(async () => {
               const result = await getPhotographTextBatchAction(recoveryToken.trim());
               if (result.error || !result.preview) throw new Error(result.error ?? "The approval could not be recovered.");
               setPreview(result.preview); setRunId(result.preview.runId); setResults(result.results ?? []);
               setFields([...new Set(result.preview.rows.flatMap(previewTextFields))]);
               setStarted(Boolean(result.results?.length)); setDone(result.done ?? false);
               setMessage("Approval and recorded results recovered. Expired approvals need a fresh preview to apply; rollback remains available.");
-            })}>Recover approval and results</button>
-            <button type="button" className={button} disabled={!preview} onClick={() => {
-              if (window.confirm("Release this local preview? Committed changes remain live and recoverable using its approval token.")) invalidate();
-            }}>Release local preview</button>
+            })}>Recover approval and results</Button>
+            <Button type="button" variant="outline" disabled={!preview} onClick={async () => {
+              if (await confirm({ title: "Release local preview?", description: "Committed changes remain live and recoverable using this preview's approval token.", confirmLabel: "Release preview" })) invalidate();
+            }}>Release local preview</Button>
           </fieldset>
           {preview ? <section className="min-w-0 space-y-4 border-t border-neutral-300 pt-4" aria-label="Batch change preview">
             <h3 className="text-sm">Preview · {preview.rows.length} photographs</h3>
@@ -239,15 +244,20 @@ export function PhotographTextReview({ available }: { available: boolean }) {
               </article>)}
             </div>
             <div className="flex flex-wrap gap-2">
-              <button className={`${button} bg-black! text-white!`} type="button" disabled={pending || done || !preview.rows.some(row => row.eligibleFields.length)} onClick={() => task(apply)}>{pending && started ? "Applying…" : started ? "Resume approved batch" : "Confirm and apply eligible fields"}</button>
-              <button className={button} type="button" disabled={pending || !started} onClick={() => {
-                if (!window.confirm("Roll back this batch? Only unchanged applied fields are restored. Newer manual edits remain protected.")) return;
+              <Button type="button" disabled={pending || done || !preview.rows.some(row => row.eligibleFields.length)} onClick={async () => {
+                // Open the dialog outside the async transition: waiting for a
+                // decision inside that transition can defer the dialog itself.
+                if (!started && !await confirm({ title: "Apply approved text changes?", description: `Apply this exact preview for run ${preview.runId}? Only eligible fields will change; manual fields and conflicts are excluded.`, confirmLabel: "Apply eligible fields" })) return;
+                task(apply);
+              }}>{pending && started ? "Applying…" : started ? "Resume approved batch" : "Confirm and apply eligible fields"}</Button>
+              <Button variant="outline" type="button" disabled={pending || !started} onClick={async () => {
+                if (!await confirm({ title: "Roll back this batch?", description: "Only unchanged applied fields are restored. Newer manual edits remain protected.", confirmLabel: "Roll back unchanged fields", destructive: true })) return;
                 task(async () => {
                   const result = await rollbackPhotographTextBatchAction(preview.token);
                   if (result.error) throw new Error(result.error);
                   setResults(result.results ?? []); setDone(true); setMessage(result.message ?? "Rollback completed. Review restored and skipped fields below.");
                 });
-              }}>Roll back unchanged applied fields</button>
+              }}>Roll back unchanged applied fields</Button>
             </div>
             <p className="text-xs text-neutral-700" role="status">{results.length} recorded results{locked && !pending ? ". Batch interrupted: resume using the retained approval above." : ""}</p>
             <ul className="space-y-1 text-xs">{results.map(row => <li key={row.draftId} className="wrap-anywhere">{row.filename}: {row.status} · {row.fields.map(field => fieldLabels[field]).join(", ") || "no fields changed"}</li>)}</ul>
@@ -263,6 +273,7 @@ function DraftEditor({ draft, selected, onSelect, onDirty, onEdit, onSaved }: {
   draft: PhotographTextDraft; selected: boolean; onSelect: (selected: boolean) => void;
   onDirty: (id: string, dirty: boolean) => void; onEdit: () => void; onSaved: () => Promise<void>;
 }) {
+  const confirm = useAdminConfirm();
   const [fields, setFields] = useState<PhotographTextFields>(draft.fields);
   const [resolved, setResolved] = useState(draft.notesResolved);
   const [saved, setSaved] = useState({ fields: draft.fields, resolved: draft.notesResolved });
@@ -283,7 +294,7 @@ function DraftEditor({ draft, selected, onSelect, onDirty, onEdit, onSaved }: {
 
   return <article className="min-w-0 border-t border-neutral-300 pt-3">
     <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-      <label className="flex min-h-11 min-w-0 items-center gap-2 text-xs"><input type="checkbox" checked={selected} onChange={event => onSelect(event.target.checked)} /><span className="wrap-anywhere">{draft.filename} · {draft.status}</span></label>
+      <Label className="flex min-h-11 min-w-0 items-center gap-2"><input type="checkbox" checked={selected} onChange={event => onSelect(event.target.checked)} /><span className="wrap-anywhere">{draft.filename} · {draft.status}</span></Label>
       <div className="flex flex-wrap gap-3 text-xs"><a className="inline-flex min-h-11 items-center underline underline-offset-4" href={photographUrl(draft.storagePath)} target="_blank" rel="noreferrer">View photograph</a><a className="inline-flex min-h-11 items-center underline underline-offset-4" href={photographPath(draft.filename)} target="_blank" rel="noreferrer">Public page</a></div>
     </div>
     <details>
@@ -300,19 +311,19 @@ function DraftEditor({ draft, selected, onSelect, onDirty, onEdit, onSaved }: {
         <fieldset disabled={pending} className="contents">
           {textFields.map(field => <div key={field} className="min-w-0 space-y-2 sm:col-span-2">
             <FormField label={`${fieldLabels[field]} · live source: ${draft.sources[field]}${draft.sources[field] === "manual" ? " · protected" : ""}`}>
-              <textarea className={`${adminInputClassName} h-auto! py-2`} rows={field === "title" ? 2 : 3} maxLength={field === "title" ? 200 : field === "description" ? 1000 : 500} required value={fields[fieldKeys[field]]} onChange={event => {
+              <Textarea rows={field === "title" ? 2 : 3} maxLength={field === "title" ? 200 : field === "description" ? 1000 : 500} required value={fields[fieldKeys[field]]} onChange={event => {
                 setFields(current => ({ ...current, [fieldKeys[field]]: event.target.value })); onEdit();
               }} />
             </FormField>
             <details className="text-xs text-neutral-700"><summary className="min-h-11 cursor-pointer py-3">Original AI {fieldLabels[field].toLowerCase()}</summary><p className="whitespace-pre-wrap wrap-anywhere">{draft.originalFields[fieldKeys[field]]}</p></details>
-            <button type="button" className={button} disabled={dirty} onClick={() => {
-              if (!window.confirm(`Replace the live ${fieldLabels[field].toLowerCase()} with this ORIGINAL AI suggestion, including any manual value?\n\n${draft.originalFields[fieldKeys[field]]}\n\nThis is a live change, not a draft save.`)) return;
+            <Button type="button" variant="outline" disabled={dirty} onClick={async () => {
+              if (!await confirm({ title: `Replace live ${fieldLabels[field].toLowerCase()}?`, description: `Replace the live ${fieldLabels[field].toLowerCase()} with this ORIGINAL AI suggestion, including any manual value?\n\n${draft.originalFields[fieldKeys[field]]}\n\nThis is a live change, not a draft save.`, confirmLabel: "Replace live text", destructive: true })) return;
               task(async () => {
                 const result = await acceptPhotographTextDraftFieldAction(draft.id, draft.version, field, draft.currentRevision);
                 if (result.error) throw new Error(result.error);
                 setMessage(result.message ?? "AI suggestion applied."); onEdit(); await onSaved();
               });
-            }}>Replace live {fieldLabels[field].toLowerCase()} with original AI suggestion</button>
+            }}>Replace live {fieldLabels[field].toLowerCase()} with original AI suggestion</Button>
           </div>)}
           <FormField className="sm:col-span-2" label="Filename suggestion · draft only, never renames files or routes"><AdminInput maxLength={160} required value={fields.filenameSuggestion} onChange={event => {
             setFields(current => ({ ...current, filenameSuggestion: event.target.value })); onEdit();
@@ -320,14 +331,14 @@ function DraftEditor({ draft, selected, onSelect, onDirty, onEdit, onSaved }: {
           <div className="min-w-0 space-y-2 text-xs text-neutral-700 sm:col-span-2">
             <p>Private uncertainty notes</p>
             {fields.uncertainties.length ? <ul className="list-disc space-y-1 pl-4">{fields.uncertainties.map((note, index) => <li key={index} className="wrap-anywhere">{note}</li>)}</ul> : <p>No uncertainty notes.</p>}
-            <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={resolved} onChange={event => { setResolved(event.target.checked); onEdit(); }} />Notes reviewed and resolved</label>
+            <Label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={resolved} onChange={event => { setResolved(event.target.checked); onEdit(); }} />Notes reviewed and resolved</Label>
             <p>Edited suggestions become manual-owned when applied. Save draft edits before using an original AI suggestion or creating a bulk preview.</p>
           </div>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
-            <button className={button} type="submit" disabled={!dirty}>{pending ? "Saving…" : "Save private draft"}</button>
-            <button className={button} type="button" disabled={!dirty} onClick={() => {
-              if (window.confirm("Discard these unsaved draft edits?")) { setFields(saved.fields); setResolved(saved.resolved); onEdit(); }
-            }}>Discard edits</button>
+            <Button variant="outline" type="submit" disabled={!dirty}>{pending ? "Saving…" : "Save private draft"}</Button>
+            <Button variant="outline" type="button" disabled={!dirty} onClick={async () => {
+              if (await confirm({ title: "Discard draft edits?", description: "Discard these unsaved draft edits?", confirmLabel: "Discard edits", destructive: true })) { setFields(saved.fields); setResolved(saved.resolved); onEdit(); }
+            }}>Discard edits</Button>
           </div>
         </fieldset>
         <p role={error ? "alert" : "status"} className="wrap-anywhere text-xs text-neutral-700 sm:col-span-2">{error || message || (pending ? "Working…" : dirty ? "Unsaved private draft edits" : "Private draft unchanged")}</p>

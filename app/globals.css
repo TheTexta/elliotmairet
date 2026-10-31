@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@reference "./(admin)/admin/admin.css";
 
 html {
   scrollbar-width: none; /* Firefox */

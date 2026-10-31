@@ -192,9 +192,18 @@ editors only; dirty editors retain their optimistic revision and offer per-photo
 reload/discard. Saving a suggestion refreshes only that record, not dirty siblings.
 Use `npm run test:admin` for offline interaction/state and homepage metadata tests.
 
-See [`docs/admin-usability-plan.md`](docs/admin-usability-plan.md) for findings,
-verification and the planned **shadcn/ui integration** phase. shadcn/ui is not
-installed in the initial cleanup; the component migration is a separate phase.
+Admin controls now use locally owned **shadcn/ui** components, styled to retain
+Elliot's monochrome square-edged identity. A shared Radix AlertDialog confirms
+permanent removal, discard, paid retries and advanced batch changes; cancellation
+never dispatches the action. Navigation/unload warnings stay browser-native.
+File/date inputs, native selects, inline upload form and details disclosures remain
+native. Persistent inline status/error feedback is retained instead of introducing
+transient-only toasts. Public pages and SEO content are not changed by this migration.
+
+See [`components/ui/README.md`](components/ui/README.md) for component provenance,
+scoped tokens and safe CLI usage, and
+[`docs/admin-usability-plan.md`](docs/admin-usability-plan.md) for verification,
+remaining release gates and the dependency-security baseline.
 
 ## Photograph storage
 

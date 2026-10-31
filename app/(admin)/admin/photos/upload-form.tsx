@@ -14,9 +14,10 @@ import {
 
 import { AdminInput, FormField } from "./form-controls";
 import { useUnsavedChanges } from "./unsaved-changes";
-
-const buttonClassName =
-  "flex min-h-11 items-center justify-center gap-2 bg-black px-4 text-xs text-white hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:bg-neutral-500";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useAdminConfirm } from "../confirm-provider";
 
 function formatSize(bytes: number) {
   return bytes < 1024 * 1024
@@ -25,6 +26,7 @@ function formatSize(bytes: number) {
 }
 
 export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => void }) {
+  const confirm = useAdminConfirm();
   const panelId = useId();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -59,8 +61,8 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
     toggleRef.current?.focus();
   }
 
-  function reset() {
-    if (selection && !succeeded && !window.confirm("Discard this unfinished upload and choose another photo? Any reserved files remain tracked for safe cleanup.")) return;
+  async function reset() {
+    if (selection && !succeeded && !await confirm({ title: "Discard unfinished upload?", description: "Discard this unfinished upload and choose another photo? Any reserved files remain tracked for safe cleanup.", confirmLabel: "Choose another photo", destructive: true })) return;
     if (!upload.reset()) return;
     dateReadRef.current++;
     formRef.current?.reset();
@@ -105,10 +107,10 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
       event.stopPropagation();
       close();
     }}>
-      <button
+      <Button
         aria-controls={panelId}
         aria-expanded={open}
-        className={`${buttonClassName} col-start-2 row-start-1 justify-self-end xl:col-start-3`}
+        className="col-start-2 row-start-1 justify-self-end xl:col-start-3"
         disabled={busy}
         onClick={() => {
           if (upload.isActive()) return;
@@ -123,7 +125,7 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
       >
         {busy ? <LoaderCircle aria-hidden="true" className="animate-spin motion-reduce:animate-none" size={15} /> : <Plus aria-hidden="true" size={15} />}
         {busy ? "Uploading" : "Upload photo"}
-      </button>
+      </Button>
       <section
         aria-labelledby={`${panelId}-title`}
         className={`col-span-full row-start-3 min-w-0 w-full max-w-3xl justify-self-end border border-neutral-300 bg-white p-4 normal-case sm:p-6 ${open ? "" : "hidden"}`}
@@ -132,23 +134,23 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="min-w-0 wrap-anywhere text-base font-medium" id={`${panelId}-title`}>Upload photograph</h2>
-          <button
+          <Button
             aria-label="Close upload panel"
-            className="flex size-11 shrink-0 items-center justify-center border border-neutral-300 hover:bg-neutral-50 focus-visible:outline-2 disabled:cursor-not-allowed disabled:text-neutral-400"
+            variant="outline" size="icon"
             disabled={busy}
             onClick={close}
             type="button"
           >
             <X aria-hidden="true" size={16} />
-          </button>
+          </Button>
         </div>
         <p className="mb-5 max-w-prose text-sm leading-6 text-neutral-700">Choose an image and check its capture date. It becomes public when upload finishes. Missing captions and image descriptions are generated afterwards; you can edit them any time.</p>
         <form onSubmit={submit} ref={formRef}>
           <fieldset aria-busy={busy} className="grid min-w-0 grid-cols-1 gap-4 disabled:opacity-60 sm:grid-cols-2" disabled={busy || succeeded || retryPublication}>
             <FormField className="sm:col-span-2" label="Image">
-              <input
+              <Input
                 accept="image/jpeg,image/png,image/webp"
-                className="w-full min-w-0 border border-dashed border-neutral-400 bg-neutral-50 p-4 text-base text-black file:mr-3 file:min-h-11 file:border-0 file:bg-black file:px-3 file:py-2 file:text-xs file:text-white disabled:cursor-not-allowed"
+                className="border-dashed border-neutral-400 bg-neutral-50 p-4"
                 name="file"
                 onChange={(event) => {
                   if (upload.isActive()) return;
@@ -247,26 +249,26 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
           </div>
 
           {state.status === "error" ? (
-            <div className="mt-4 min-w-0 wrap-anywhere text-sm text-red-800" role="alert">
-              <p className="font-medium">{state.stage ? `${uploadStageLabels[state.stage]} failed` : "Check your image"}</p>
-              <p className="mt-1">{state.message}</p>
+            <Alert variant="destructive" className="mt-4">
+              <AlertTitle>{state.stage ? `${uploadStageLabels[state.stage]} failed` : "Check your image"}</AlertTitle>
+              <AlertDescription>{state.message}</AlertDescription>
               {retryPublication ? <p className="mt-1">Retry uses the same photo and details.</p> : null}
-            </div>
+            </Alert>
           ) : null}
 
           <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
             {succeeded ? (
               <>
-                <button className="min-h-11 border border-neutral-300 px-4 text-xs hover:bg-neutral-50 focus-visible:outline-2" onClick={close} type="button">Close</button>
-                <button className={buttonClassName} onClick={reset} type="button"><Plus aria-hidden="true" size={14} />Upload another</button>
+                <Button variant="outline" onClick={close} type="button">Close</Button>
+                <Button onClick={reset} type="button"><Plus aria-hidden="true" size={14} />Upload another</Button>
               </>
             ) : (
               <>
-                {retryPublication ? <button className="min-h-11 border border-neutral-300 px-4 text-xs hover:bg-neutral-50 focus-visible:outline-2" onClick={reset} type="button">Choose another photo</button> : null}
-                <button className={buttonClassName} disabled={busy || readingDate || !selection} type="submit">
+                {retryPublication ? <Button variant="outline" onClick={reset} type="button">Choose another photo</Button> : null}
+                <Button disabled={busy || readingDate || !selection} type="submit">
                   {busy ? <LoaderCircle aria-hidden="true" className="animate-spin motion-reduce:animate-none" size={14} /> : <Upload aria-hidden="true" size={14} />}
                   {busy ? "Uploading" : retryPublication ? "Retry publication" : state.status === "error" ? "Retry upload" : "Upload photograph"}
-                </button>
+                </Button>
               </>
             )}
           </div>
