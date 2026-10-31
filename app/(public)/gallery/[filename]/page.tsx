@@ -8,6 +8,7 @@ import {
   getPhotographs,
 } from "@/lib/photographs/queries";
 import { photographUrl } from "@/lib/photographs/storage";
+import { photographCaption } from "@/lib/photographs/text";
 import {
   absoluteUrl,
   photographDescription,
@@ -115,6 +116,7 @@ export default async function PhotographPage({
   const palette = await getPhotographPalette(photograph.id);
   const imageAlt = photographImageAlt(photograph);
   const imageUrl = photographUrl(photograph.storagePath);
+  const caption = photographCaption(photograph);
 
   return (
     <ViewTransition
@@ -145,20 +147,23 @@ export default async function PhotographPage({
         <IndexNavigation fromPhoto />
         <ContentFrame>
           <section>
-            <figure className="m-0  h-[80vh] bg-white mt-[8vh] mb-[4vh] flex content-center items-center justify-center">
-              <FullPhotographImage>
-                <FadingImage
-                  alt={imageAlt}
-                  className="block h-auto max-h-full w-[calc(100vw-32px)] max-w-full object-contain sm:w-[66.667vw]"
-                  fetchPriority="high"
-                  height={photograph.height}
-                  loading="eager"
-                  quality={82}
-                  sizes={heroImageSizes(photograph.width, photograph.height)}
-                  src={imageUrl}
-                  width={photograph.width}
-                />
-              </FullPhotographImage>
+            <figure className="m-0 mt-[8vh] mb-[4vh]">
+              <div className="h-[80vh] bg-white flex content-center items-center justify-center">
+                <FullPhotographImage>
+                  <FadingImage
+                    alt={imageAlt}
+                    className="block h-auto max-h-full w-[calc(100vw-32px)] max-w-full object-contain sm:w-[66.667vw]"
+                    fetchPriority="high"
+                    height={photograph.height}
+                    loading="eager"
+                    quality={82}
+                    sizes={heroImageSizes(photograph.width, photograph.height)}
+                    src={imageUrl}
+                    width={photograph.width}
+                  />
+                </FullPhotographImage>
+              </div>
+              {caption ? <figcaption className="mx-auto mt-4 max-w-prose whitespace-pre-wrap wrap-anywhere px-4 text-center text-xs leading-relaxed text-neutral-600">{caption}</figcaption> : null}
             </figure>
             <div className="" />
             {palette.length === 5 ? (

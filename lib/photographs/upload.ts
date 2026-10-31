@@ -3,7 +3,7 @@ import { PHOTOGRAPH_UPLOAD_FORMATS, uploadSizeError } from "./config.ts";
 export type UploadStage = "preparing" | "transferring" | "publishing";
 export type UploadState =
   | { status: "idle" | "ready" | UploadStage }
-  | { status: "success" }
+  | { status: "success"; automaticText?: "queued" }
   | { status: "error"; message: string; stage?: UploadStage; retryPublication: boolean };
 
 export type UploadMetadata = {
@@ -145,7 +145,7 @@ export function createPhotographUpload(
 
       if (typeof published.message !== "string" || !published.message.trim()) throw new Error(fallback());
 
-      update({ status: "success" });
+      update({ status: "success", ...(published.automaticText === "queued" ? { automaticText: "queued" as const } : {}) });
       return true;
     } catch (error) {
       update({

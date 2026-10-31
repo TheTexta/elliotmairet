@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import { invalidatePhotographsAndPalettes } from "@/lib/cache-invalidation";
 import { analyseImage, imageMetadata } from "@/lib/photographs/analyse-image";
+import { processAutomaticPhotographText } from "@/lib/photographs/automatic-text";
 import { createImageDeliverySource } from "@/lib/r2/image-source";
 import {
   MAXIMUM_UPLOAD_BYTES,
@@ -26,6 +27,16 @@ import {
 import { getAdminSession } from "@/lib/supabase/admin";
 
 const signedUploadCleanupDelay = 125 * 60 * 1000;
+
+export const maxDuration = 300;
+
+function publishedResponse(photographId: string) {
+  // The insert trigger durably queued this photo in its publication transaction.
+  // AI failures must never turn confirmed publication into an upload failure.
+  try { after(async () => { await processAutomaticPhotographText({ photographId }); }); }
+  catch { console.error("photograph_auto_text_kick_failed", { photographId }); }
+  return NextResponse.json({ message: "Photograph published.", automaticText: "queued" });
+}
 
 type PrepareRequest = {
   phase: "prepare";
@@ -267,7 +278,7 @@ export async function POST(request: Request) {
       }
 
       invalidatePhotographsAndPalettes();
-      return NextResponse.json({ message: "Photograph published." });
+      return publishedResponse(photographId);
     }
 
     const storedObject = await downloadStagedObject(stagingPath, MAXIMUM_UPLOAD_BYTES);
@@ -381,7 +392,7 @@ export async function POST(request: Request) {
 
     invalidatePhotographsAndPalettes();
 
-    return NextResponse.json({ message: "Photograph published." });
+    return publishedResponse(photographId);
   } catch (error) {
     return responseError(
       error instanceof Error ? error.message : "The photograph could not be published.",

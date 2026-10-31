@@ -149,6 +149,16 @@ export async function updatePhotographAction(id: string, formData: FormData) {
   }
 
   const { supabase } = await requireAdmin();
+  // Old action references must not bypass optimistic revisions after rollout.
+  // The pre-migration editor still works; database triggers cover old deployed
+  // clients during the migration/deployment interval.
+  const textState = await supabase.rpc("photograph_text_states");
+  if (!textState.error) {
+    throw new Error("Text editing has been upgraded. Reload the photograph before saving.");
+  }
+  if (!["PGRST202", "42883"].includes(textState.error.code)) {
+    throw new Error("Text editing could not be verified. Try again.");
+  }
   const { error } = await supabase
     .from("photographs")
     .update({

@@ -43,3 +43,6 @@ next-env.d.ts
 
 # supabase
 /supabase/.temp/
+
+# Local, unapproved AI labeling drafts and image previews
+/.local/photograph-labeling/

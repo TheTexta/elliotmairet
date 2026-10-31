@@ -1,3 +1,5 @@
+import type { CaptionMode, TextSources } from "./text";
+
 export type Photograph = {
   id: string;
   storagePath: string;
@@ -8,6 +10,13 @@ export type Photograph = {
   updatedAt: string;
   title: string | null;
   altText: string | null;
+  description: string | null;
+  captionMode: CaptionMode;
+  customCaption: string | null;
+  textRevision: number;
+  textMetadataAvailable: boolean;
+  // Admin enrichment only; public queries never read private ownership records.
+  textSources?: TextSources;
   sortOrder: number | null;
   year: string;
 };

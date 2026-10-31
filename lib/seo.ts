@@ -2,6 +2,7 @@ import photographImageLoader from "./photographs/image-loader.ts";
 import { photographUrl } from "./photographs/storage.ts";
 
 import type { Photograph } from "./photographs/types.ts";
+import { photographCaption } from "./photographs/text.ts";
 
 export const siteOrigin = "https://elliotmairet.com";
 export const siteName = "Elliot Mairet";
@@ -46,6 +47,8 @@ export function photographDisplayTitle(photograph: Photograph) {
 }
 
 export function photographDescription(photograph: Photograph) {
+  const description = normalizedText(photograph.description);
+  if (description) return description;
   const title = normalizedText(photograph.title);
 
   if (title) {
@@ -123,6 +126,7 @@ export function photographJsonLd(photograph: Photograph) {
     },
     dateCreated: photograph.capturedAt ?? undefined,
     description: photographDescription(photograph),
+    caption: photographCaption(photograph) ?? undefined,
     height: photograph.height,
     name: photographDisplayTitle(photograph),
     url: absoluteUrl(canonicalPath),

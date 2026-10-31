@@ -1,7 +1,9 @@
 import { unstable_cache } from "next/cache";
+import type { PostgrestError } from "@supabase/supabase-js";
 
 import { cacheTags } from "@/lib/cache-tags";
 import { createPublicClient } from "@/lib/supabase/public";
+import type { CaptionMode } from "./text";
 
 import type {
   Photograph,
@@ -9,7 +11,7 @@ import type {
   PhotographWithPalette,
 } from "./types";
 
-const photographColumns = `
+const legacyPhotographColumns = `
   id,
   storage_path,
   filename,
@@ -21,6 +23,11 @@ const photographColumns = `
   alt_text,
   sort_order
 `;
+const photographColumns = `${legacyPhotographColumns}, description, caption_mode, custom_caption, text_revision`;
+
+function missingTextMigration(error: { code?: string } | null) {
+  return error?.code === "42703" || error?.code === "PGRST204";
+}
 
 type PhotographRow = {
   id: string;
@@ -32,6 +39,10 @@ type PhotographRow = {
   updated_at: string;
   title: string | null;
   alt_text: string | null;
+  description?: string | null;
+  caption_mode?: CaptionMode;
+  custom_caption?: string | null;
+  text_revision?: number;
   sort_order: number | null;
 };
 
@@ -64,6 +75,11 @@ function photographFromRow(row: PhotographRow): Photograph {
     updatedAt: row.updated_at,
     title: row.title,
     altText: row.alt_text,
+    description: row.description ?? null,
+    captionMode: row.caption_mode ?? "description",
+    customCaption: row.custom_caption ?? null,
+    textRevision: row.text_revision ?? 0,
+    textMetadataAvailable: row.text_revision !== undefined,
     sortOrder: row.sort_order,
     year: row.captured_at?.slice(0, 4) ?? row.filename.slice(0, 4),
   };
@@ -95,13 +111,22 @@ function oklabFeatureFromRow(row: OklabFeatureRow): PhotographPaletteColour {
 
 async function readPhotographs(): Promise<Photograph[]> {
   const supabase = createPublicClient();
-  const { data, error } = await supabase
+  let { data, error }: { data: PhotographRow[] | null; error: PostgrestError | null } = await supabase
     .from("photographs")
     .select(photographColumns)
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("captured_at", { ascending: false, nullsFirst: false })
     .order("filename", { ascending: false })
     .order("id", { ascending: true });
+
+  // The additive migration may not be deployed yet. Only a missing-column
+  // response enables legacy reads; authorization/network failures still fail.
+  if (missingTextMigration(error)) {
+    ({ data, error } = await supabase.from("photographs").select(legacyPhotographColumns)
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("captured_at", { ascending: false, nullsFirst: false })
+      .order("filename", { ascending: false }).order("id", { ascending: true }));
+  }
 
   if (error) {
     throw error;
@@ -119,11 +144,15 @@ async function readPhotographByFilename(
   filename: string,
 ): Promise<Photograph | null> {
   const supabase = createPublicClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("photographs")
     .select(photographColumns)
     .eq("filename", filename)
     .maybeSingle();
+
+  if (missingTextMigration(error)) {
+    ({ data, error } = await supabase.from("photographs").select(legacyPhotographColumns).eq("filename", filename).maybeSingle());
+  }
 
   if (error) {
     throw error;
@@ -142,11 +171,15 @@ async function readPhotographById(
   id: string,
 ): Promise<Photograph | null> {
   const supabase = createPublicClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("photographs")
     .select(photographColumns)
     .eq("id", id)
     .maybeSingle();
+
+  if (missingTextMigration(error)) {
+    ({ data, error } = await supabase.from("photographs").select(legacyPhotographColumns).eq("id", id).maybeSingle());
+  }
 
   if (error) {
     throw error;

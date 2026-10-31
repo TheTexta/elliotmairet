@@ -180,7 +180,7 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
               />
               <span className="text-[9px] normal-case">JPG, PNG or WEBP · Up to 512 MiB</span>
             </FormField>
-            <FormField label="Title"><AdminInput maxLength={200} name="title" /></FormField>
+            <FormField label="Title"><AdminInput maxLength={200} name="title" /><span className="text-[9px] normal-case">Optional · Leave blank for automatic text</span></FormField>
             <FormField label="Captured">
               <AdminInput
                 name="capturedAt"
@@ -237,7 +237,13 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
             ) : succeeded ? (
               <div className="flex items-start gap-2">
                 <Check aria-hidden="true" className="shrink-0" size={15} />
-                <div className="min-w-0 wrap-anywhere"><p className="font-medium uppercase">Uploaded</p><p className="mt-1 text-neutral-600">The photograph is now public.</p></div>
+                <div className="min-w-0 wrap-anywhere">
+                  <p className="font-medium uppercase">Uploaded</p>
+                  <p className="mt-1 text-neutral-600">The photograph is now public.</p>
+                  {state.status === "success" && state.automaticText === "queued" ? (
+                    <p className="mt-1 text-neutral-600">Automatic text is queued. Missing captions, titles and alt text are generated separately; check Automatic text for progress. Your wording stays protected.</p>
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </div>

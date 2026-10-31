@@ -85,6 +85,86 @@ recent catalogue update, and structured data escapes embedded HTML delimiters.
 The one-hour R2 cache policy and source checksum/version checks remain in place.
 Run `npm run test:images` for image URL, sizing, storage, and metadata checks.
 
+### Local photograph-labeling pilot
+
+`scripts/seo/label-photographs.mjs` prepares a fixed 20-photograph sample from
+the public archive and, only with `--generate`, sends resized JPEG previews to
+OpenAI for **unapproved** title, description, alt-text, and filename suggestions.
+It never writes to Supabase/R2, renames photographs, changes source metadata,
+or deploys. Existing filenames and gallery URLs remain unchanged.
+
+```bash
+# Public GETs and local previews only; no OpenAI calls:
+node scripts/seo/label-photographs.mjs
+
+# Requires explicit permission for paid requests and external image processing.
+# OPENAI_API_KEY belongs only in the ignored .env.local, never NEXT_PUBLIC_*.
+node --env-file=.env.local scripts/seo/label-photographs.mjs --generate --max-usd=5
+
+# Offline safeguards/tests; no external requests:
+node --test scripts/seo/label-photographs.test.mjs
+```
+
+Outputs go to ignored `.local/photograph-labeling/2026-10-30-pilot-gpt-4.1/`: the public
+source/preview manifest, `drafts.json`, spreadsheet-safe `drafts.csv`, a local
+`REVIEW.html`, individual response records, and a usage ledger. Previews are at
+most 1024 pixels on their longest side, converted with the existing Sharp
+dependency without retained EXIF metadata; originals are not uploaded.
+
+The model is `gpt-4.1`, the vision model exposed by the pilot key's live model
+listing; resolved response snapshots are recorded. Standard pricing was checked
+on 2026-10-30. An initial Mini request was rejected with HTTP 403/model_not_found;
+its separate run/ledger is retained, and its $0.06 reservation is carried into
+this run's ceiling. No silent model fallback occurs. GPT-4.1 is listed as
+deprecated in current documentation, so reassess availability before any future
+production integration. At most two requests per photograph are allowed. Each
+attempt reserves $0.05 **before** the request, retaining that reserve after errors:
+$1 for 20 first attempts, at most $2 including retries, plus any prior reservation,
+within the $5 ceiling.
+Reported-token costs are estimates; OpenAI billing is authoritative. The
+script has no tools, model fallbacks, background jobs or auto-publication.
+
+Successful drafts are resumable. A network/timeout ambiguity, or a received
+response without an exported draft, stops rather than repeating a potentially
+billed request: inspect the saved response/usage before authorizing recovery.
+A leftover `.lock` similarly requires confirming no process is running before
+removal. Review all suggestions for invented context; formal artwork titles,
+people, places and dates must remain owner-controlled. Processing beyond this
+pilot or applying any drafts to production requires separate approval.
+
+### Whole-catalogue Sol text and manual captions
+
+Catalogue generation, private admin draft review, editable descriptions/alt text,
+and protected manual caption overrides are implemented. The additive text
+migration was approved and applied to production on 2026-10-31 UTC, with all
+271 original rows/fields verified unchanged by migration. The app is deployed,
+and the approved workflow generated/reviewed/applied text for **270 photographs**.
+One photograph was safely skipped after an uncertain request; its text remains
+unchanged and its full budget reservation is retained. Known estimated backfill
+usage is US$1.2340425 plus US$4.68 held, within the US$20 cap. Consult the operating
+guide for the recorded approval, rollback and unresolved-request state.
+
+See [`docs/photograph-text-generation.md`](docs/photograph-text-generation.md)
+for commands, the US$20 shared spend ledger, review/import/application, caption
+modes, interruption recovery, rollback and rollout gates. The agreed design and
+model-discovery findings remain in
+[`docs/photograph-text-generation-plan.md`](docs/photograph-text-generation-plan.md).
+
+Future uploads now have a deployed and enabled automatic Sol text workflow under the owner's
+**US$5/month UTC** cap. New publications durably queue missing title/description/
+alt text; the description becomes the default caption. Processing happens after
+upload with daily cron recovery, never blocking successful publication. Manual
+text, deliberately cleared fields and Custom/Hidden captions remain protected.
+Admin shows queue/budget/error status and guarded retries. Production-only
+`OPENAI_API_KEY`, `PHOTOGRAPH_TEXT_WORKER_SECRET` and `CRON_SECRET`, plus the
+additive auto-text migration and private enablement, are required; no service-role
+key is added. Live cron/admin/access checks pass; the first real new-upload-to-
+caption production cycle remains to be observed. See the operating guide for
+deployment evidence and recovery procedures.
+
+Use `npm run test:text` for offline safeguards and `npm run test:text:db` for the
+isolated local Postgres checks (Docker required; never uses Supabase credentials).
+
 ## Photograph storage
 
 New uploads are sent by the browser to a presigned key in the private
