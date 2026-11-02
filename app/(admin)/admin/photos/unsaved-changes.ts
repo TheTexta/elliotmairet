@@ -4,6 +4,8 @@ import { useEffect } from "react";
 
 const unsaved = new Set<symbol>();
 
+export function hasUnsavedAdminChanges() { return unsaved.size > 0; }
+
 export function confirmAdminNavigation(message = "You have unsaved changes or an unfinished operation. Leave this page?") {
   return !unsaved.size || window.confirm(message);
 }

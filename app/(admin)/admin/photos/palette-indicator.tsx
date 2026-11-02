@@ -7,7 +7,7 @@ export function PaletteIndicator({
 }) {
   if (!photograph.palette.length) {
     return (
-      <span className="flex items-center gap-2 text-[8px] text-neutral-500">
+      <span className="flex items-center gap-2 text-xs text-neutral-600">
         <span className="size-1.5 rounded-full bg-neutral-500" />
         Palette pending
       </span>

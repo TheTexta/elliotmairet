@@ -10,6 +10,8 @@ import { requireAdmin } from "@/lib/supabase/admin";
 export type AutomaticTextSummary = {
   enabled: boolean;
   serverConfigured: boolean;
+  descriptionAltEnabled?: boolean;
+  descriptionAltRevision?: number;
   month: string;
   budgetMicros: number;
   committedMicros: number;
@@ -19,6 +21,7 @@ export type AutomaticTextSummary = {
     id: string;
     photographId: string;
     filename: string;
+    kind?: "upload" | "description_alt";
     status: "pending" | "processing" | "budget_paused" | "failed" | "uncertain" | "review" | "completed" | "skipped";
     errorCode: string | null;
     attempts: number;
@@ -28,6 +31,16 @@ export type AutomaticTextSummary = {
 
 function serverConfigured() {
   return Boolean(process.env.OPENAI_API_KEY?.trim() && (process.env.PHOTOGRAPH_TEXT_WORKER_SECRET?.length ?? 0) >= 32);
+}
+
+export async function setDescriptionAltAction(enabled: boolean, revision: number): Promise<{ message?: string; error?: string }> {
+  const { supabase } = await requireAdmin();
+  if (typeof enabled !== "boolean" || !Number.isSafeInteger(revision) || revision < 0) return { error: "Refresh status before changing automatic alt text." };
+  if (enabled && !serverConfigured()) return { error: "Automatic text is not configured on this server. The setting was not changed." };
+  const { error } = await supabase.rpc("set_photograph_description_alt", { p_enabled: enabled, p_revision: revision });
+  if (error) return { error: "The setting could not be confirmed. Check progress to reload its current value before trying again." };
+  revalidatePath("/admin/photos");
+  return { message: enabled ? "Automatic alt text enabled. Saving a title or description will queue generation; existing text has not been changed." : "Automatic alt text disabled. Alt text can be edited manually again." };
 }
 
 function statusError(code?: string) {

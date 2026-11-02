@@ -1,0 +1,12 @@
+/.agents
+/.claude
+/.impeccable
+/.git
+/AGENTS.md
+/CLAUDE.md
+/skills-lock.json
+/.env*
+/.local/
+/.next/
+/node_modules/
+/.vercel/

@@ -162,3 +162,84 @@ findings were disclosed; the UI release itself did not resolve the advisories.
 The subsequent authorized dependency refresh clears the production/critical/high
 findings; see [`dependency-updates.md`](dependency-updates.md) for the current
 versions, remaining development-only findings and verification record.
+
+## 2026-11-02 — first-principles whole-admin refinement
+
+The owner selected a **compact image-led list** and a **whole-admin** pass after
+an independent design review and separate source/browser evidence collection.
+The baseline scored 26/40 on Nielsen's heuristics, not user testing. The main
+failure was task hierarchy: routine automation settings pushed mobile search to
+834px and the first thumbnail to 1053px. The monochrome editorial identity,
+inline editing and existing safety mechanisms were retained, not redesigned.
+
+### Changes
+
+- Routine automatic-text settings, explanatory policy and budget/history now
+  start collapsed under **Text settings and history**. Waiting status and
+  issue/suggestion actions remain visible. **Review text issues** opens both
+  settings and recent updates, then focuses the history summary. Unknown-charge
+  requests remain non-retryable, with clearer payment-check instructions.
+- Mobile Photos navigation and the upload trigger use distinct rows rather than
+  crowding the heading. The upload panel stays in flow with the existing focus,
+  Escape, active-operation and publication-recovery safeguards.
+- Compact photograph rows use larger uncropped previews, concise text and one
+  Edit/View action row. File dimensions, original path and palette move inside
+  the existing editor's **Alt text, date and file details** disclosure. Repeated
+  Edit/View/detail names retain their visible labels and add the filename.
+- Search wording reflects title/description/filename/date. Automatic or unknown
+  alt mode hides caption filters and tests missing source text, not pending
+  generated alt. Explicit manual mode retains missing-text/hidden-caption filters.
+  Filtered editors remain mounted and keep local edits.
+- Site content groups search/link previews separately from the public footer,
+  with nearby character counts. Login identifies Elliot, provides truthful
+  account-help instructions, uses readable copy and locks inputs during sign-in.
+  Navigation casing is consistent across Photos and Site content.
+
+### Verification
+
+The fixture imports the actual page/components, React 19, Radix, Tailwind styles
+and Montserrat, with synthetic photographs and mocked Next adapters, all backend
+actions, upload transport and image delivery. It lives outside the repository.
+No real authenticated save, upload, deletion, generation, setting or content
+mutation was performed.
+
+| Normal Photos position | Before | After |
+|---|---:|---:|
+| 320px: search | 834px | 513px |
+| 320px: first thumbnail | 1053px | 728px |
+| 1440px: search | 493px | 320px |
+| 1440px: first thumbnail | 634px | 457px |
+
+- Browser regression covered normal, attention, empty, unavailable and manual
+  states at 320px and 1440px, plus the intermediate 768px layout. No checked
+  horizontal overflow, header/action overlap, JavaScript/console error, external
+  request or actual HTTP write. Visible form text is at least 16px; checked
+  buttons/disclosure controls remain at least 44px high.
+- Mocked interaction checks passed for upload open/file focus/Escape/focus return,
+  retained selection, busy-navigation locks and successful publication feedback;
+  dirty-editor retention through filtering/progress checks, failed save, pending
+  lock, successful save and Cancel/confirmed discard; issue-review focus and
+  cancelled paid retry; manual caption retention; content failure/pending/success;
+  and login help/pending/error states.
+- Added five regression tests for source-text filtering, conservative
+  automatic/unavailable filters, collapsed settings/direct history focus,
+  photograph-specific label-in-name and pending login controls. `test:admin`
+  passes **50**, `test:text` **61**, `test:upload` **45**, `test:images` **28**.
+  Lint, `npx tsc --noEmit --incremental false` and production build pass. The
+  build uses the normal read-only catalogue path; no database test was rerun
+  because this pass changes no SQL or database behavior.
+- Independent source/browser review found a label-in-name regression; visible
+  action wording is now retained in accessible names and covered by the new
+  test. No blocking layout or data-loss finding remained. Nine pre-refinement
+  fingerprints match, including server actions, automatic-generation code,
+  package/lock files and the immutable applied description-alt migration.
+
+The baseline source detector returned zero findings. Its browser overlay could
+not run because the offline fixture's CSP blocked WebAssembly; no successful
+overlay or new accessibility certification is claimed. No physical device,
+screen-reader or real signed-in Next-routing/persistence acceptance was run.
+The separate alt feature is already deployed. The owner subsequently approved
+committing Elliot's local project changes and deploying the UI pass to
+`elliotmairet.com`. GitHub push is not part of that approval. Production
+verification is pending; no database migration or paid-generation test will run
+as part of this release.

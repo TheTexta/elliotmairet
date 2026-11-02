@@ -185,19 +185,46 @@ deployment evidence and recovery procedures.
 Use `npm run test:text` for offline safeguards and `npm run test:text:db` for the
 isolated local Postgres checks (Docker required; never uses Supabase credentials).
 
+**Description-driven alt text (deployed and enabled):** a whole-archive
+setting under **Admin → Photos → Automatic text** generates concise AI alt text
+from the saved title and description after either changes. Alt text becomes
+read-only, and caption controls are hidden without deleting their data. Existing
+alt text stays live until generation succeeds; enabling the setting does not
+backfill the archive. Requests share the existing US$5/month automatic-text cap,
+not an additional budget. The additive `20261101000100_description_generated_alt.sql`
+migration was approved and applied on 2026-11-02 after deploying the compatible
+app, enabling the setting **on** by default. All 271 existing photographs and
+their text were verified unchanged; no archive backfill or paid generation test
+was run. Refresh open admin editors. Administrators can turn the setting off.
+See the operating guide for stale-result, recovery and rollout behavior.
+
 ## Admin usability
 
-Photos and uploading are the primary workflow. The archive supports search and
-missing-text/hidden-caption filters without unmounting unsaved editors. Edit a
-photo inline; custom caption wording is retained when another mode is selected.
-Public photograph pages remain image-only; caption settings affect retained
-metadata, not a visible caption below the photograph.
+Photos and uploading are the primary workflow. A compact image-led list keeps
+uncropped previews, titles, descriptions, filenames and capture dates visible.
+Edit a photo inline; alt/date/file/palette details remain inside its editor.
+Search and filters never unmount unsaved editors. With automatic alt enabled or
+its setting unavailable, **Missing title or description** checks editable source
+text only; caption filters are hidden. When automatic alt is explicitly off,
+missing-text and hidden-caption-metadata filters remain available. Custom caption
+wording is retained; public photograph pages remain image-only.
 
-Automatic caption progress is compact, with errors/review counts still visible.
-Budget/history, suggested-text import, bulk application/recovery and file cleanup
-are disclosed progressively under **Advanced tools**. Unfinished file cleanup
-also has a visible summary above the archive; removing a catalogue entry is not
-the same as completing object cleanup.
+Automatic text has a concise summary and visible issue/suggestion shortcuts.
+**Text settings and history** contains the whole-archive alt setting, budget and
+recent updates; **Review text issues** opens and focuses that history directly.
+Unknown-charge requests still cannot be retried. Suggested-text import, bulk
+application/recovery and file cleanup remain under **Advanced tools**. Unfinished
+file cleanup also has a visible summary above the archive; removing a catalogue
+entry is not the same as completing object cleanup.
+
+Site content groups search/link-preview fields separately from the public footer.
+Sign-in identifies Elliot's archive, explains account help and locks fields while
+pending. Navigation, native form controls and inline feedback retain the same
+monochrome, square-edged design across mobile and desktop.
+
+The 2026-11-02 first-principles UI refinements above are **approved for release**;
+deployment verification is pending. The separately deployed description-driven
+alt workflow is unchanged. See the usability record below for rollout status.
 
 Unsaved photo text, suggested drafts, prepared uploads and site content warn on
 link navigation, sign-out and document unload. New photo revisions refresh clean
@@ -398,6 +425,34 @@ refuse to remove one belonging to a published photograph. Technical paths and
 recorded status messages are available in each item's details.
 
 ## Commands
+
+### Offline regression checks and rollout boundary
+
+`.github/workflows/checks.yml` runs on pushes and pull requests using Node 22,
+`npm ci`, ESLint, `next typegen` then TypeScript (`tsc --noEmit --incremental false`), and every
+offline suite listed below plus `test:images`, `test:admin`, and `test:text`.
+No repository secrets, production data, paid AI calls, uploads or deployment
+commands are needed. `test:text:db` is a separate isolated-Docker check, not a
+credentialed production test, and is not part of this lightweight workflow.
+
+`test:upload` includes `app/api/admin/photos/route.test.mjs`: the actual POST
+handler and admin-session gate run against synthetic storage/DB adapters and real
+Sharp image metadata. Assertions cover anonymous/nonadmin denial, stored MIME
+and actual content mismatches, failed prepare/public cleanup reservations,
+signing failure, and copy success followed by DB failure retaining both reserved
+objects. Identical retry commits once; accepted replay does not recopy or insert;
+filename/path/identity mismatches cannot alter the existing publication.
+Palette analysis, delivery-source generation, DB RPC internals and background AI
+execution are deliberately outside this route fixture (their separate suites
+remain necessary). This is application-boundary evidence, not a live R2/RLS test.
+
+The workflow intentionally does **not** run `npm run build`: prerendering reads
+the real Supabase catalogue. Vercel remains the deployment/build gate; a green
+offline check is not proof of database reachability, live permissions or deployed
+upload acceptance. After pushing, verify the visible Actions run; in a separately
+approved disposable branch, introduce a failing assertion and confirm the check
+fails before removing it. Neither remote check has been exercised merely by
+adding this workflow locally. Live upload acceptance still requires owner approval.
 
 ```bash
 npm run dev             # Start the development server

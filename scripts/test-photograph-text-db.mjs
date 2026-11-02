@@ -12,7 +12,9 @@ const files = [
   "supabase/migrations/20261031000944_photograph_text_drafts.sql",
   "supabase/tests/photograph-text.sql",
   "supabase/migrations/20261031015837_photograph_auto_text.sql",
+  "supabase/migrations/20261101000100_description_generated_alt.sql",
   "supabase/tests/photograph-auto-text.sql",
+  "supabase/tests/description-generated-alt.sql",
 ];
 let created = false;
 try {

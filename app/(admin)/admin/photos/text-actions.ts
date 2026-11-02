@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { invalidatePhotographs } from "@/lib/cache-invalidation";
+import { processAutomaticPhotographText } from "@/lib/photographs/automatic-text";
 import { requireAdmin } from "@/lib/supabase/admin";
 import {
   textFields, uuidPattern, validatePhotographTextFields, validateTextImport,
@@ -78,7 +80,12 @@ export async function savePhotographTextAction(id: string, _previous: TextAction
     });
     if (error) return { error: databaseError(error, "The photograph could not be saved. It may have changed; reload before retrying.") };
     refreshText();
-    return { message: "Text saved. Manual edits are protected from bulk AI updates.", revision: data.revision };
+    if (data.descriptionAltQueued) {
+      try { after(async () => { await processAutomaticPhotographText({ photographId: id }); }); }
+      catch { /* The durable queue remains available to cron recovery. */ }
+    }
+    return { message: data.descriptionAltQueued ? "Text saved. Alt text generation queued; check progress for the result."
+      : "Text saved. Manual edits are protected from bulk AI updates.", revision: data.revision };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "The photograph could not be saved." };
   }

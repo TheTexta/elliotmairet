@@ -35,7 +35,7 @@ function downloadJson(value: unknown) {
   URL.revokeObjectURL(url);
 }
 
-export function PhotographTextReview({ available }: { available: boolean }) {
+export function PhotographTextReview({ available, automaticAlt = false }: { available: boolean; automaticAlt?: boolean | null }) {
   const confirm = useAdminConfirm();
   const [opened, setOpened] = useState(false);
   const [drafts, setDrafts] = useState<PhotographTextDraft[]>([]);
@@ -56,6 +56,7 @@ export function PhotographTextReview({ available }: { available: boolean }) {
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   const locked = started && !done;
+  const altReadOnly = automaticAlt !== false;
   useUnsavedChanges(locked || pending);
   const markDirty = useCallback((id: string, dirty: boolean) => {
     setDirtyIds(current => dirty ? current.includes(id) ? current : [...current, id] : current.filter(value => value !== id));
@@ -187,7 +188,7 @@ export function PhotographTextReview({ available }: { available: boolean }) {
           <p className="text-xs text-neutral-700">{total ? `${offset + 1}–${Math.min(offset + drafts.length, total)} of ${total} suggestions` : "No suggestions match this filter. Previously applied text is available under All suggestions; normal photo editing is in the archive above."} {dirtyIds.length ? "Save or discard draft edits before previewing a batch." : ""}</p>
           <fieldset disabled={pending || locked} className="min-w-0 space-y-4">
             <legend className="sr-only">Private draft records</legend>
-            {drafts.map(draft => <DraftEditor key={`${pageVersion}:${draft.id}:${draft.version}`} draft={draft} selected={selection.includes(draft.id)} onSelect={selected => {
+            {drafts.map(draft => <DraftEditor automaticAlt={automaticAlt} key={`${pageVersion}:${draft.id}:${draft.version}`} draft={draft} selected={selection.includes(draft.id)} onSelect={selected => {
               setSelection(current => selected ? [...current, draft.id] : current.filter(id => id !== draft.id)); invalidate();
             }} onDirty={markDirty} onEdit={invalidate} onSaved={() => refreshSavedDraft(draft)} />)}
           </fieldset>
@@ -200,11 +201,12 @@ export function PhotographTextReview({ available }: { available: boolean }) {
           <fieldset disabled={pending || locked} className="min-w-0 space-y-3 border-t border-neutral-300 pt-4">
             <legend className="px-1 text-xs uppercase">Bulk application</legend>
             <p className="text-xs text-neutral-700">{selection.length ? `${selection.length} selected drafts across loaded pages.` : "No selection: preview all drafts in the specified run, not just this page."} Manual fields and unresolved conflicts are excluded.</p>
-            <div className="flex flex-wrap gap-3">{textFields.map(field => <Label key={field} className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={fields.includes(field)} onChange={event => {
+            {altReadOnly ? <p className="text-xs text-neutral-700">{automaticAlt === null ? "Alt text settings are unavailable. Use Check progress before applying alt text." : "Alt text is read-only while automatic alt text is enabled. Apply titles/descriptions instead; changed source text queues fresh alt text."}</p> : null}
+            <div className="flex flex-wrap gap-3">{textFields.map(field => <Label key={field} className="flex min-h-11 items-center gap-2"><input type="checkbox" disabled={altReadOnly && field === "alt_text"} checked={fields.includes(field) && !(altReadOnly && field === "alt_text")} onChange={event => {
               setFields(current => event.target.checked ? [...current, field] : current.filter(value => value !== field)); invalidate();
             }} />{fieldLabels[field]}</Label>)}</div>
             <Button type="button" variant="outline" disabled={!runId.trim() || !fields.length || !!dirtyIds.length} onClick={() => task(async () => {
-              const result = await previewPhotographTextBatchAction(runId.trim(), fields, selection.length ? selection : undefined);
+               const result = await previewPhotographTextBatchAction(runId.trim(), fields.filter(field => !altReadOnly || field !== "alt_text"), selection.length ? selection : undefined);
               if (result.error || !result.preview) throw new Error(result.error ?? "No preview was returned.");
               setPreview(result.preview); setResults([]); setStarted(false); setDone(false);
               setRecoveryToken(result.preview.token);
@@ -244,7 +246,8 @@ export function PhotographTextReview({ available }: { available: boolean }) {
               </article>)}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" disabled={pending || done || !preview.rows.some(row => row.eligibleFields.length)} onClick={async () => {
+              {altReadOnly && preview.rows.some(row => row.eligibleFields.includes("alt_text")) ? <p className="text-xs text-neutral-700">This approval includes alt text. Create a new title/description-only preview, or confirm automatic alt text is off before applying it.</p> : null}
+              <Button type="button" disabled={pending || done || !preview.rows.some(row => row.eligibleFields.length) || (altReadOnly && preview.rows.some(row => row.eligibleFields.includes("alt_text")))} onClick={async () => {
                 // Open the dialog outside the async transition: waiting for a
                 // decision inside that transition can defer the dialog itself.
                 if (!started && !await confirm({ title: "Apply approved text changes?", description: `Apply this exact preview for run ${preview.runId}? Only eligible fields will change; manual fields and conflicts are excluded.`, confirmLabel: "Apply eligible fields" })) return;
@@ -269,9 +272,10 @@ export function PhotographTextReview({ available }: { available: boolean }) {
   );
 }
 
-function DraftEditor({ draft, selected, onSelect, onDirty, onEdit, onSaved }: {
+function DraftEditor({ draft, selected, onSelect, onDirty, onEdit, onSaved, automaticAlt = false }: {
   draft: PhotographTextDraft; selected: boolean; onSelect: (selected: boolean) => void;
   onDirty: (id: string, dirty: boolean) => void; onEdit: () => void; onSaved: () => Promise<void>;
+  automaticAlt?: boolean | null;
 }) {
   const confirm = useAdminConfirm();
   const [fields, setFields] = useState<PhotographTextFields>(draft.fields);
@@ -311,12 +315,12 @@ function DraftEditor({ draft, selected, onSelect, onDirty, onEdit, onSaved }: {
         <fieldset disabled={pending} className="contents">
           {textFields.map(field => <div key={field} className="min-w-0 space-y-2 sm:col-span-2">
             <FormField label={`${fieldLabels[field]} · live source: ${draft.sources[field]}${draft.sources[field] === "manual" ? " · protected" : ""}`}>
-              <Textarea rows={field === "title" ? 2 : 3} maxLength={field === "title" ? 200 : field === "description" ? 1000 : 500} required value={fields[fieldKeys[field]]} onChange={event => {
+              <Textarea readOnly={automaticAlt !== false && field === "alt_text"} rows={field === "title" ? 2 : 3} maxLength={field === "title" ? 200 : field === "description" ? 1000 : 500} required value={fields[fieldKeys[field]]} onChange={event => {
                 setFields(current => ({ ...current, [fieldKeys[field]]: event.target.value })); onEdit();
               }} />
             </FormField>
             <details className="text-xs text-neutral-700"><summary className="min-h-11 cursor-pointer py-3">Original AI {fieldLabels[field].toLowerCase()}</summary><p className="whitespace-pre-wrap wrap-anywhere">{draft.originalFields[fieldKeys[field]]}</p></details>
-            <Button type="button" variant="outline" disabled={dirty} onClick={async () => {
+            <Button type="button" variant="outline" disabled={dirty || (automaticAlt !== false && field === "alt_text")} onClick={async () => {
               if (!await confirm({ title: `Replace live ${fieldLabels[field].toLowerCase()}?`, description: `Replace the live ${fieldLabels[field].toLowerCase()} with this ORIGINAL AI suggestion, including any manual value?\n\n${draft.originalFields[fieldKeys[field]]}\n\nThis is a live change, not a draft save.`, confirmLabel: "Replace live text", destructive: true })) return;
               task(async () => {
                 const result = await acceptPhotographTextDraftFieldAction(draft.id, draft.version, field, draft.currentRevision);

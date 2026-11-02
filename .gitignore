@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Local, unapproved AI labeling drafts and image previews
 /.local/photograph-labeling/
+
+# Local design-review artifacts
+/.impeccable/

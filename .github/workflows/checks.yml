@@ -1,0 +1,33 @@
+name: Offline checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx --no-install next typegen
+      - run: npx --no-install tsc --noEmit --incremental false
+      - run: npm run test:upload
+      - run: npm run test:palette
+      - run: npm run test:similarity
+      - run: npm run test:images
+      - run: npm run test:admin
+      - run: npm run test:text
+      # Production build prerenders from Supabase. Keep that deployment gate
+      # separate: this job receives no production credentials or catalogue data.

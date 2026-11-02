@@ -15,7 +15,7 @@ export function SignOutButton({ disabled = false, onAttempt }: { disabled?: bool
       }
       if (!confirmAdminNavigation("You have unsaved changes or an unfinished operation. Sign out?")) event.preventDefault();
     }}>
-      <Button variant="ghost" className="gap-1 px-2 uppercase" disabled={disabled} type="submit">
+      <Button variant="ghost" className="gap-1 px-2" disabled={disabled} type="submit">
         <LogOut aria-hidden="true" size={15} strokeWidth={1.8} />
         <span>Sign out</span>
       </Button>

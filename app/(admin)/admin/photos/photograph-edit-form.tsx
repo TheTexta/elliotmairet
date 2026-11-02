@@ -15,12 +15,14 @@ import { useAdminConfirm } from "../confirm-provider";
 import { useUnsavedChanges } from "./unsaved-changes";
 import { createPhotoEditor, discardPhotoEdits, photoEditorDirty, refreshPhotoEditor } from "./photo-editor-state";
 import { DeleteButton } from "./delete-button";
+import { PaletteIndicator } from "./palette-indicator";
 
-export function PhotographEditForm({ photograph }: { photograph: PhotographWithPalette }) {
+export function PhotographEditForm({ photograph, automaticAlt = false }: { photograph: PhotographWithPalette; automaticAlt?: boolean | null }) {
   const confirm = useAdminConfirm();
   const [editor, setEditor] = useState(() => createPhotoEditor(photograph));
   const available = photograph.textMetadataAvailable;
   const dirty = photoEditorDirty(editor);
+  const altReadOnly = automaticAlt !== false;
   const [state, action, pending] = useActionState(async (previous: { error?: string; message?: string; revision?: number }, form: FormData) => {
     try {
       const submitted = { ...editor.values };
@@ -57,7 +59,7 @@ export function PhotographEditForm({ photograph }: { photograph: PhotographWithP
   }
 
   return <details className="min-w-0 border-t border-neutral-200">
-    <summary className="flex min-h-11 w-fit cursor-pointer items-center gap-2 py-2 text-sm font-medium focus-visible:outline-2">
+    <summary aria-label={`Edit photo ${photograph.filename}`} className="flex min-h-11 w-fit cursor-pointer items-center gap-2 py-2 text-sm font-medium focus-visible:outline-2">
       <Pencil aria-hidden="true" size={15} strokeWidth={1.8} />Edit photo
     </summary>
     <form action={action} aria-label={`Edit text for ${photograph.filename}`} aria-busy={pending} className="grid min-w-0 gap-5 py-4 sm:grid-cols-2">
@@ -73,10 +75,11 @@ export function PhotographEditForm({ photograph }: { photograph: PhotographWithP
           <span className="text-xs font-normal text-neutral-600">{source("title")}</span>
         </FormField>
         <div className="space-y-4 sm:col-span-2">
-          <FormField label="Description / default caption">
+          <FormField label="Description">
             <Textarea name="description" rows={3} maxLength={1000} disabled={!available} value={values.description} onChange={event => change("description", event.target.value)} />
             <span className="text-xs font-normal text-neutral-600">{source("description")} · Used in search and link previews.</span>
           </FormField>
+          {altReadOnly ? <><input type="hidden" name="captionMode" value={values.captionMode} /><input type="hidden" name="customCaption" value={values.customCaption} /></> : <>
           <FormField label="Caption metadata">
             <NativeSelect name="captionMode" disabled={!available} value={values.captionMode} onChange={event => change("captionMode", event.target.value as CaptionMode)}>
               <option value="description">Use the description</option><option value="custom">Use a custom caption</option><option value="hidden">Hide the caption</option>
@@ -92,16 +95,26 @@ export function PhotographEditForm({ photograph }: { photograph: PhotographWithP
             <p className="text-xs">Public photo pages are image-only. Caption text is retained in metadata, not displayed below the photo.</p>
             {values.captionMode !== "custom" && values.customCaption ? <p className="pt-2 text-xs">Your custom wording is saved for when you choose Custom again.</p> : null}
           </div>
+          </>}
         </div>
         <details className="min-w-0 border-t border-neutral-200 sm:col-span-2">
-          <summary className="min-h-11 cursor-pointer py-3 text-sm focus-visible:outline-2">Accessibility and capture date</summary>
+          <summary aria-label={`Alt text, date and file details for ${photograph.filename}`} className="min-h-11 cursor-pointer py-3 text-sm focus-visible:outline-2">Alt text, date and file details</summary>
           <div className="grid gap-4 pb-3 sm:grid-cols-2">
             <FormField className="sm:col-span-2" label="Image description for screen readers (alt text)">
-              <Textarea name="altText" rows={3} maxLength={500} value={values.altText} onChange={event => change("altText", event.target.value)} />
-              <span className="text-xs font-normal text-neutral-600">{source("alt_text")} · Describe what is visible, not the caption or filename.</span>
+              <Textarea name="altText" rows={3} maxLength={500} readOnly={altReadOnly} value={altReadOnly ? photograph.altText ?? "" : values.altText} onChange={altReadOnly ? undefined : event => change("altText", event.target.value)} />
+              <span className="text-xs font-normal text-neutral-600">{automaticAlt === null ? "Alt text settings could not be checked. Manual alt editing is locked until you use Check progress to reload the setting; title and description edits are still available."
+                : automaticAlt ? "Read-only. AI regenerates this after you save a changed title or description. The previous alt text stays live until generation succeeds; use Check progress to refresh."
+                : `${source("alt_text")} · Describe what is visible, not the caption or filename.`}</span>
+              {automaticAlt && !values.description.trim() ? <span className="text-xs font-normal text-neutral-600">Add a description to generate alt text. Clearing the description keeps the previous alt text.</span> : null}
             </FormField>
             <FormField label="Date captured"><AdminInput name="capturedAt" type="date" value={values.capturedAt} onChange={event => change("capturedAt", event.target.value)} /></FormField>
-            <p className="self-end text-xs leading-5 text-neutral-600">Archive order: {photograph.sortOrder ?? "automatic"}. The original filename and image are not changed by editing text.</p>
+             <p className="self-end text-xs leading-5 text-neutral-600">Archive order: {photograph.sortOrder ?? "automatic"}. The original filename and image are not changed by editing text.</p>
+             <div className="space-y-2 border-t border-neutral-200 pt-3 text-xs text-neutral-600 sm:col-span-2">
+               <p className="wrap-anywhere">Original file: {photograph.filename}</p>
+               <p>{photograph.width} × {photograph.height} pixels</p>
+               <p className="wrap-anywhere">Storage path: {photograph.storagePath}</p>
+               <PaletteIndicator photograph={photograph} />
+             </div>
           </div>
         </details>
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2">

@@ -16,11 +16,12 @@ accessibility alt text, captured date and caption settings. Text saves check the
 current revision and preserve input on errors. Actual filenames and storage
 paths are not editable here.
 
-Caption modes are independent of accessibility and SEO text:
+In manual-alt mode, caption modes control retained metadata, not a visible public
+caption. They are independent of accessibility and SEO text:
 
-- **Description:** display the approved description, or no caption if it is empty.
-- **Custom:** display the owner's nonempty custom caption instead.
-- **Hidden:** show no caption. The saved custom caption is retained.
+- **Description:** use the approved description as caption metadata, or omit it if empty.
+- **Custom:** use the owner's nonempty custom caption instead.
+- **Hidden:** omit caption metadata. The saved custom caption is retained.
 
 **Use description** switches the display mode without deleting custom wording.
 Editing a description changes its default caption and metadata; a custom caption
@@ -32,6 +33,121 @@ updates and automatic generation. Explicitly touching then clearing an already
 empty text field is also recorded by the upgraded editor. Unchanged sibling
 fields in the same save keep their previous ownership. Direct
 legacy edits and owner-supplied upload text are tracked by database triggers.
+
+## Description-driven alt text — deployed and enabled
+
+The owner selected **whole-archive**, **AI-written alt text**, rather than simply
+copying the description, and subsequently requested this setting **on by default**.
+Deployment and enablement were explicitly approved and completed on 2026-11-02
+UTC. The application was deployed first, then the migration enabled the setting.
+No paid acceptance request or archive backfill was run.
+
+After the additive `20261101000100_description_generated_alt.sql` migration,
+**Admin → Photos → Automatic text → Alt text from descriptions** exposes the
+setting. It defaults **on** when the migration is applied; changing it
+requires an authorized administrator and an up-to-date settings revision.
+Save/discard unfinished edits and uploads first.
+Re-enabling through the UI requires the existing worker and server credentials to
+be configured. The default preference alone does not configure or enable the
+underlying worker, send requests or bypass its budget.
+
+When enabled:
+
+- Editors update title and description; alt text is read-only, including draft
+  review. Caption controls are hidden, but their saved values remain untouched.
+- A changed saved title or nonempty description transactionally queues an
+  independent `description_alt` job. Unchanged saves, dates and alt-only writes do
+  not queue generation. Enabling alone does **not** enqueue existing photographs.
+- The text-only Sol prompt receives the saved title and description, not an image,
+  filename or EXIF. It requests only plain alt text, at most 180 characters, using
+  confirmed names naturally without invented details or keyword stuffing. There
+  is no promise of improved rankings. Source text is data, never instructions.
+- Previous alt text stays public until a valid result commits. A failed request,
+  budget pause or empty description retains it. Editing source text explicitly
+  permits replacing earlier manual alt text; the existing edit history retains
+  the previous value. Titles, descriptions, captions, dates and image objects are
+  never replaced by the alt-only result.
+- New uploads still generate missing title/description using the established
+  image workflow, then queue the text-based alt job. Manual alt input is hidden
+  in the upload form. The normal editor supports descriptions after publication.
+- Upload jobs and alt jobs share the **same US$5/month UTC ledger**, token-bound
+  reservation, model/pricing assumptions, two-paid-attempt ceiling per job,
+  preflight limits, and no-blind-replay behavior. This is not another $5 allowance.
+- Source changes and disable/re-enable cycles invalidate older results. Known
+  charges still settle even when text is stale; uncertain charges retain their
+  reserve. Unresolved alt charges block further alt requests for that photograph,
+  even after another source edit, until operator reconciliation.
+- Normal saves kick bounded background processing; the existing daily cron
+  recovers interrupted work. **Check progress** refreshes status and public caches
+  without making a provider request. History distinguishes upload from alt jobs;
+  eligible known failures retain the guarded retry workflow.
+
+Turning the setting off preserves current alt text and restores manual editing.
+In-flight alt results cannot apply after disablement. No destructive down migration
+is needed for an application rollback: disable first, then roll back the app;
+additive database objects and paid audit history remain in place. Caption data and
+original photographs are not deleted.
+
+Rollout gates: separately approve/deploy the compatible app **before** approving
+and applying the migration, which enables the whole-archive preference immediately.
+Refresh open admin editors afterwards; old forms must not continue offering
+manual alt edits. Verify authorized/anonymous access and the default-on setting,
+then approve one real saved-description-to-alt acceptance request within the
+shared monthly cap. Whole-catalogue regeneration remains a separate paid action.
+
+### 2026-11-02 production rollout record
+
+- Production deployment `dpl_FSDjdwA4sehjL7jZKu6Hz1X1f5ub` is READY and aliased
+  to `https://elliotmairet.com`. The isolated release commit is `8eb9b89`, based
+  on `c8cb2bd`; no branch was pushed and the developer checkout/index was left
+  intact. Unrelated in-progress CI/upload-test changes were excluded. Source
+  inspection verified the package/lockfile stayed at the live baseline and no
+  environment files, agent directories or private local artifacts were uploaded.
+  `.vercelignore` records those exclusions for future local deployments.
+- The full isolated SQL suites also passed on PostgreSQL 15, matching the live
+  server major, in addition to the original PostgreSQL 17 checks.
+- Migration `20261101000100_description_generated_alt.sql` is now applied and
+  recorded in `supabase_migrations.schema_migrations`. Its SHA-256 is
+  `9971b6e2f70a9327a5bcf800202f935498d4dea6d12f12e5669797a304bd5ec0`.
+  Do not edit this applied file; use a new migration for any follow-up.
+- An initial attempt stopped at a preflight table lock because `postgres` is
+  not the private queue's owner. That transaction rolled back before DDL. The
+  successful transaction used the existing owning role, `supabase_admin`; no
+  database grants or role memberships were changed to bypass the restriction.
+- Within the successful transaction, all 271 catalogue rows and text-ownership
+  records were compared before/after; paid attempts and monthly accounting were
+  also unchanged. The catalogue SHA-256 remained
+  `f956cd69f31f86b163fe27a185b9e0813bf3a2180cc4b97beb7edbd77a668102`.
+  Fresh reads confirm worker enabled/configured, description alt enabled at
+  settings revision 0, zero alt jobs and US$0 committed / US$5 for November UTC.
+- Anonymous admin navigation returns 307 to login; upload and cron calls return
+  401. Real anonymous PostgREST calls to status/settings return `42501`, confirming
+  schema discovery without granting access. An authenticated-role database status
+  read using an existing administrator confirms the enabled state. Private base
+  RPCs remain inaccessible to authenticated users. The public catalogue/palette
+  endpoint retains 271 photographs, and the deployment error query found no
+  runtime errors in the rollout window.
+- Protected pre-migration data/schema/function backups, the approved transaction,
+  output and checksum manifest are retained outside Git under
+  `~/.local/share/opencode/backups/elliotmairet/20261102-description-alt/`.
+- **Acceptance limit:** the browser was not signed in, so live authenticated UI
+  behavior and a real saved-description-to-paid-alt cycle were not exercised.
+  Local real-component browser checks and database role/queue tests cover those
+  contracts, but are not a paid production acceptance test. Refresh open admin
+  tabs before editing; the next changed title/description can generate alt text
+  under the existing monthly cap. No bulk regeneration was requested or run.
+
+Local checks: `npm run test:text`, `npm run test:admin`, `npm run test:images`,
+`npm run test:upload`, lint, TypeScript, build, and `npm run test:text:db` against
+disposable network-isolated PostgreSQL. The SQL fixture covers read-only writes,
+unchanged saves, source/setting races, retained manual alt, idempotent accounting,
+unknown-charge holds, upload chaining, shared-cap pauses and disablement.
+The original upload SQL regression suite also runs **after** the new migration,
+asserts that the whole-archive preference starts on, then explicitly turns it off
+to verify manual-mode compatibility. Local browser checks of synthetic
+data rendered through the real components/CSS passed at 1440px and 320px; on/off
+and unavailable-setting states preserved read-only behavior without horizontal
+overflow. This is fixture evidence, not a signed-in production acceptance test.
 
 ## Local generation (explicit paid authorization required)
 

@@ -25,7 +25,7 @@ function formatSize(bytes: number) {
     : `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
 }
 
-export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => void }) {
+export function UploadForm({ onBusyChange, automaticAlt = false }: { onBusyChange: (busy: boolean) => void; automaticAlt?: boolean | null }) {
   const confirm = useAdminConfirm();
   const panelId = useId();
   const router = useRouter();
@@ -110,7 +110,7 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
       <Button
         aria-controls={panelId}
         aria-expanded={open}
-        className="col-start-2 row-start-1 justify-self-end xl:col-start-3"
+        className="row-start-3 w-full sm:col-start-2 sm:row-start-1 sm:w-auto sm:justify-self-end xl:col-start-3"
         disabled={busy}
         onClick={() => {
           if (upload.isActive()) return;
@@ -128,7 +128,7 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
       </Button>
       <section
         aria-labelledby={`${panelId}-title`}
-        className={`col-span-full row-start-3 min-w-0 w-full max-w-3xl justify-self-end border border-neutral-300 bg-white p-4 normal-case sm:p-6 ${open ? "" : "hidden"}`}
+        className={`col-span-full row-start-4 min-w-0 w-full max-w-3xl justify-self-end border border-neutral-300 bg-white p-4 normal-case sm:row-start-3 sm:p-6 xl:row-start-2 ${open ? "" : "hidden"}`}
         hidden={!open}
         id={panelId}
       >
@@ -144,7 +144,7 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
             <X aria-hidden="true" size={16} />
           </Button>
         </div>
-        <p className="mb-5 max-w-prose text-sm leading-6 text-neutral-700">Choose an image and check its capture date. It becomes public when upload finishes. Missing captions and image descriptions are generated afterwards; you can edit them any time.</p>
+        <p className="mb-5 max-w-prose text-sm leading-6 text-neutral-700">Choose an image and check its capture date. It becomes public when upload finishes. Missing text is generated afterwards; edit its title and description in the archive.</p>
         <form onSubmit={submit} ref={formRef}>
           <fieldset aria-busy={busy} className="grid min-w-0 grid-cols-1 gap-4 disabled:opacity-60 sm:grid-cols-2" disabled={busy || succeeded || retryPublication}>
             <FormField className="sm:col-span-2" label="Image">
@@ -198,7 +198,9 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
               <div className="space-y-4">
                 <p className="text-sm text-neutral-600">Leave these blank for automatic text. Anything you write is protected from generation.</p>
                 <FormField label="Title"><AdminInput maxLength={200} name="title" /></FormField>
-                <FormField label="Image description for screen readers (alt text)"><AdminInput maxLength={500} name="altText" /></FormField>
+                {automaticAlt !== false ? <p className="text-sm text-neutral-600">{automaticAlt === null ? "Alt text settings could not be checked. Uploads still work without manual alt text; use Check progress to reload the setting."
+                  : "Alt text is generated from the saved title and description after upload. Update those fields in Edit photo; alt text is read-only."}</p>
+                  : <FormField label="Image description for screen readers (alt text)"><AdminInput maxLength={500} name="altText" /></FormField>}
               </div>
             </details>
           </fieldset>
@@ -241,7 +243,7 @@ export function UploadForm({ onBusyChange }: { onBusyChange: (busy: boolean) => 
                   <p className="font-medium uppercase">Uploaded</p>
                   <p className="mt-1 text-neutral-600">The photograph is now public.</p>
                   {state.status === "success" && state.automaticText === "queued" ? (
-                    <p className="mt-1 text-neutral-600">Your photo is uploaded. Text is generated next; use Check progress in Automatic captions to see when it is ready.</p>
+                    <p className="mt-1 text-neutral-600">Your photo is uploaded. Text is generated next; use Check progress in Automatic text to see when it is ready.</p>
                   ) : null}
                 </div>
               </div>

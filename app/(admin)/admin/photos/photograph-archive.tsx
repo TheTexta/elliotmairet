@@ -11,24 +11,26 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { PhotographRow } from "./photograph-row";
 import { AdvancedToolsLink } from "./advanced-tools-link";
 
-export function PhotographArchive({ photographs }: { photographs: PhotographWithPalette[] }) {
+export function PhotographArchive({ photographs, automaticAlt = false }: { photographs: PhotographWithPalette[]; automaticAlt?: boolean | null }) {
   const id = useId();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ArchiveFilter>("all");
-  const visible = new Set(photographs.filter(photo => matchesPhotograph(photo, query, filter)).map(photo => photo.id));
+  const automatic = automaticAlt !== false;
+  const effectiveFilter = automatic && filter === "hidden" ? "all" : filter;
+  const visible = new Set(photographs.filter(photo => matchesPhotograph(photo, query, effectiveFilter, automatic)).map(photo => photo.id));
   return <section aria-label="Your photographs" className="min-w-0 space-y-4">
     <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end">
       <div className="min-w-0 flex-1">
         <Label htmlFor={`${id}-search`} className="mb-2 block text-neutral-700">Find a photograph</Label>
         <div className="relative">
           <Search aria-hidden="true" size={16} className="pointer-events-none absolute top-3.5 left-3 text-neutral-600" />
-          <Input id={`${id}-search`} type="search" value={query} onChange={event => setQuery(event.target.value)}
-            placeholder="Search title, caption or filename" className="pl-10" />
+          <Input id={`${id}-search`} name="archiveSearch" type="search" value={query} onChange={event => setQuery(event.target.value)}
+            placeholder="Title, description, filename or date" className="pl-10" />
         </div>
       </div>
-      <Label className="flex min-w-0 flex-col gap-2 text-neutral-700 sm:w-48">Show
-        <NativeSelect value={filter} onChange={event => setFilter(event.target.value as ArchiveFilter)}>
-          <option value="all">All photographs</option><option value="missing">Missing text</option><option value="hidden">Hidden captions</option>
+      <Label className="flex min-w-0 flex-col gap-2 text-neutral-700 sm:w-64">Filter photographs
+        <NativeSelect name="archiveFilter" value={effectiveFilter} onChange={event => setFilter(event.target.value as ArchiveFilter)}>
+          <option value="all">All photographs</option><option value="missing">{automatic ? "Missing title or description" : "Missing text"}</option>{!automatic ? <option value="hidden">Hidden caption metadata</option> : null}
         </NativeSelect>
       </Label>
     </div>
@@ -39,7 +41,7 @@ export function PhotographArchive({ photographs }: { photographs: PhotographWith
     <div className="border border-neutral-300 bg-white">
       {/* Keep filtered editors mounted: searching never discards unsaved work. */}
       {photographs.map(photo => <div key={photo.id} hidden={!visible.has(photo.id)}>
-        <PhotographRow photograph={photo} />
+        <PhotographRow photograph={photo} automaticAlt={automaticAlt} />
       </div>)}
       {!visible.size ? <div className="space-y-3 p-6 text-sm">
         <p>{photographs.length ? "No photographs match this search." : "Your archive is empty. Upload your first photograph to get started."}</p>

@@ -1,5 +1,6 @@
 -- ISOLATED ONLY: run after photograph-text-bootstrap.sql, the applied text
--- migration, and photograph_auto_text.sql. No Supabase/network credentials.
+-- migration, photograph_auto_text.sql and description_generated_alt.sql.
+-- No Supabase/network credentials.
 \set ON_ERROR_STOP on
 create function public.auto_assert(condition boolean,message text) returns void language plpgsql as $$
 begin if condition is distinct from true then raise exception 'FAILED: %',message; end if; end $$;
@@ -19,6 +20,11 @@ create function public.auto_result() returns jsonb language sql as $$
 $$;
 select public.auto_assert((select count(*) = 0 from private.photograph_auto_text_jobs),'no seed/backfill jobs');
 select public.auto_assert((select not enabled and worker_secret_hash is null from private.photograph_auto_text_settings),'disabled/unconfigured by default');
+select public.auto_assert((select description_alt_enabled and description_alt_revision = 0
+  from private.photograph_auto_text_settings),'whole-archive description alt is enabled by default');
+-- Explicitly turn off the new mode for the legacy upload-compatibility suite.
+-- The following alt suite exercises switching it back on through the admin RPC.
+update private.photograph_auto_text_settings set description_alt_enabled = false;
 set role anon;
 do $$ begin
   begin perform public.claim_photograph_auto_text(null); raise exception 'null secret accepted'; exception when insufficient_privilege then null; end;

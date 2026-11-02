@@ -13,6 +13,8 @@ const primitives = {
   "@/components/ui/native-select": { NativeSelect: "select" },
   "@/components/ui/alert": { Alert: "div", AlertTitle: "div", AlertDescription: "div" },
   "../confirm-provider": { useAdminConfirm: () => async () => true },
+  "./unsaved-changes": { useUnsavedChanges() {}, hasUnsavedAdminChanges: () => false },
+  "./palette-indicator": { PaletteIndicator: "span" },
 };
 function load(file, mocks = {}, globals = {}) {
   const source = ts.transpileModule(readFileSync(new URL(file, import.meta.url), "utf8"), {
@@ -66,6 +68,35 @@ test("archive search combines words across readable fields and clear filters", (
   assert.equal(matchesPhotograph(photo, "", "hidden"), false);
   assert.equal(matchesPhotograph({ ...photo, captionMode: "hidden" }, "", "hidden"), true);
   assert.equal(matchesPhotograph(photo, "not present", "all"), false);
+});
+
+test("automatic alt missing-text filter only asks for editable source text", () => {
+  const waitingForAlt = { ...photo, altText: null };
+  assert.equal(matchesPhotograph(waitingForAlt, "", "missing", true), false);
+  assert.equal(matchesPhotograph(waitingForAlt, "", "missing", false), true);
+  assert.equal(matchesPhotograph({ ...waitingForAlt, title: " " }, "", "missing", true), true);
+  assert.equal(matchesPhotograph({ ...waitingForAlt, description: null }, "", "missing", true), true);
+});
+
+test("automatic and unavailable settings hide caption filters without hiding retained rows", () => {
+  const h = hooks();
+  const { PhotographArchive } = load("./photograph-archive.tsx", {
+    react: h.react, "./archive-filter": { matchesPhotograph }, "./photograph-row": { PhotographRow: "photo-row" }, "./advanced-tools-link": {},
+  });
+  const photographs = [photo, { ...photo, id: "photo-b", captionMode: "hidden" }];
+  const render = automaticAlt => h.render(PhotographArchive, { photographs, automaticAlt });
+  let tree = render(false);
+  assert.ok(find(tree, node => node.type === "option" && node.props.value === "hidden"));
+  named(tree, "archiveFilter").props.onChange({ target: { value: "hidden" } });
+  tree = render(false);
+  assert.equal(nodes(tree, node => node.props?.hidden === true).length, 1);
+  for (const automaticAlt of [true, null]) {
+    tree = render(automaticAlt);
+    assert.equal(find(tree, node => node.type === "option" && node.props.value === "hidden"), undefined);
+    assert.equal(named(tree, "archiveFilter").props.value, "all");
+    assert.equal(nodes(tree, node => node.props?.hidden === true).length, 0);
+    assert.equal(find(tree, node => node.type === "option" && node.props.value === "missing").props.children, "Missing title or description");
+  }
 });
 
 test("new revisions refresh clean editors but never overwrite dirty editors", () => {
@@ -188,6 +219,62 @@ test("automation exceptions stay visible; unknown charges and exhausted jobs hav
   assert.ok(find(tree, node => node.type === "a" && node.props.href === "#text-review"));
 });
 
+test("text settings start collapsed and reviewing issues opens and focuses their history", () => {
+  const h = hooks();
+  const { default: AutomaticTextStatus } = load("./automatic-text-status.tsx", { react: h.react, "./automatic-text-actions": {} });
+  const tree = h.render(AutomaticTextStatus, { initialStatus: { enabled: true, serverConfigured: true, counts: { failed: 1 },
+    month: "2026-11", committedMicros: 0, budgetMicros: 5_000_000, jobs: [] } });
+  const details = nodes(tree, node => node.type === "details");
+  assert.equal(details.length, 2);
+  for (const detail of details) assert.notEqual(detail.props.open, true);
+  let focused = false;
+  const settings = { open: false };
+  const history = { open: false, querySelector: selector => { assert.equal(selector, "summary"); return { focus() { focused = true; } }; } };
+  details[0].props.ref.current = settings;
+  details[1].props.ref.current = history;
+  const review = find(tree, node => node.type === "button" && node.props["aria-controls"] === details[1].props.id);
+  assert.ok(review);
+  review.props.onClick();
+  assert.equal(settings.open, true);
+  assert.equal(history.open, true);
+  assert.equal(focused, true);
+});
+
+test("photo actions have filename-specific accessible names that retain their visible labels", () => {
+  const { PhotographRow } = load("./photograph-row.tsx", {
+    "next/image": { default: "img" }, "@/lib/photographs/storage": { photographUrl: () => "/local-photo.jpg" },
+    "@/lib/seo": { photographPath: () => "/local-photo" }, "./photograph-edit-form": { PhotographEditForm: "photo-editor" },
+  });
+  const row = PhotographRow({ photograph: photo });
+  assert.equal(find(row, node => node.type === "a").props["aria-label"], `View on site: ${photo.filename}`);
+  assert.equal(row.props["aria-labelledby"], find(row, node => node.type === "h2").props.id);
+  const h = hooks();
+  const { PhotographEditForm } = load("./photograph-edit-form.tsx", {
+    react: h.react, "./text-actions": {}, "./form-controls": {}, "./delete-button": {}, "./photo-editor-state": state,
+  });
+  const editor = h.render(PhotographEditForm, { photograph: photo });
+  assert.ok(find(editor, node => node.type === "summary" && node.props["aria-label"] === `Edit photo ${photo.filename}`));
+  assert.ok(find(editor, node => node.type === "summary" && node.props["aria-label"] === `Alt text, date and file details for ${photo.filename}`));
+});
+
+test("login fields and submission stay locked while sign-in is pending", () => {
+  for (const pending of [false, true]) {
+    const { LoginForm } = load("../login/login-form.tsx", {
+      react: { useActionState: () => [{ error: "Sign-in failed. Try again." }, () => {}, pending] },
+      "../actions": { loginAction() {} },
+    });
+    const tree = LoginForm();
+    assert.equal(tree.props["aria-busy"], pending);
+    assert.equal(find(tree, node => node.type === "fieldset").props.disabled, pending);
+    assert.equal(find(tree, node => node.type === "button").props.disabled, pending);
+    assert.equal(named(tree, "email").props.autoComplete, "email");
+    assert.equal(named(tree, "email").props.autoCapitalize, "none");
+    assert.equal(named(tree, "password").props.autoComplete, "current-password");
+    assert.ok(find(tree, node => node.type === "button").props.children.includes(pending ? "Signing in…" : "Sign in"));
+    assert.ok(find(tree, node => node.props?.children === "Sign-in failed. Try again."));
+  }
+});
+
 test("delete confirmation never calls the action on Cancel; confirmation dispatches once", async () => {
   for (const accepted of [false, true]) {
     let calls = 0, warning;
@@ -204,7 +291,7 @@ test("delete confirmation never calls the action on Cancel; confirmation dispatc
   }
 });
 
-test("paid retries require confirmation with the separate $5 cap; Cancel sends nothing", async () => {
+test("paid retries require confirmation with the shared $5 cap; Cancel sends nothing", async () => {
   for (const accepted of [false, true]) {
     const h = hooks(); let calls = 0, warning;
     const status = { enabled: true, serverConfigured: true, counts: { failed: 1 }, month: "2026-10", committedMicros: 0, budgetMicros: 5_000_000,
@@ -218,7 +305,96 @@ test("paid retries require confirmation with the separate $5 cap; Cancel sends n
     await find(tree, node => node.props?.["aria-label"] === "Retry generation for retry.jpg").props.onClick();
     await h.settle();
     assert.equal(calls, accepted ? 1 : 0);
-    assert.match(warning.description, /paid AI request.*separate \$5 monthly future-upload budget/);
+    assert.match(warning.description, /paid AI request.*shared \$5 monthly automatic-text budget/);
+  }
+});
+
+for (const automaticAlt of [true, null]) test(`automatic or unknown alt setting (${automaticAlt}) keeps alt read-only and source fields editable`, () => {
+  const h = hooks();
+  const { PhotographEditForm } = load("./photograph-edit-form.tsx", {
+    react: h.react, "./text-actions": {}, "./form-controls": {}, "./delete-button": {}, "./photo-editor-state": state,
+  });
+  const tree = h.render(PhotographEditForm, { photograph: photo, automaticAlt });
+  assert.equal(named(tree, "altText").props.readOnly, true);
+  assert.equal(named(tree, "altText").props.onChange, undefined);
+  assert.equal(named(tree, "altText").props.value, photo.altText);
+  assert.equal(named(tree, "captionMode").props.type, "hidden");
+  assert.equal(named(tree, "customCaption").props.type, "hidden");
+  assert.equal(typeof named(tree, "title").props.onChange, "function");
+  assert.equal(typeof named(tree, "description").props.onChange, "function");
+});
+
+test("uploads omit manual alt when the setting is automatic or unavailable", () => {
+  for (const automaticAlt of [true, null, false]) {
+    const h = hooks();
+    const { UploadForm } = load("./upload-form.tsx", {
+      react: h.react, "next/navigation": { useRouter: () => ({ refresh() {} }) },
+      "@/lib/photographs/upload-date": {}, "./form-controls": {},
+      "@/lib/photographs/upload": { createPhotographUpload: () => ({}), isUploading: () => false },
+    });
+    const tree = h.render(UploadForm, { onBusyChange() {}, automaticAlt });
+    assert.equal(Boolean(named(tree, "altText")), automaticAlt === false);
+    assert.ok(named(tree, "title"));
+  }
+});
+
+test("setting action validates revisions and server configuration before its admin-only RPC", async () => {
+  let calls = 0, authenticated = 0, refreshed = 0;
+  const { setDescriptionAltAction } = load("./automatic-text-actions.ts", {
+    "next/cache": { revalidatePath() { refreshed++; } }, "next/server": {},
+    "@/lib/cache-invalidation": {}, "@/lib/photographs/automatic-text": {},
+    "@/lib/supabase/admin": { requireAdmin: async () => { authenticated++; return { supabase: { rpc: async (name, args) => {
+      calls++; assert.equal(name, "set_photograph_description_alt"); assert.equal(args.p_enabled, true); assert.equal(args.p_revision, 2); return {};
+    } } }; } },
+  }, { process: { env: { OPENAI_API_KEY: "fixture", PHOTOGRAPH_TEXT_WORKER_SECRET: "s".repeat(32) } } });
+  assert.ok((await setDescriptionAltAction(true, -1)).error);
+  assert.equal(calls, 0);
+  assert.ok((await setDescriptionAltAction(true, 2)).message);
+  assert.equal(calls, 1); assert.equal(authenticated, 2); assert.equal(refreshed, 1);
+});
+
+test("saving source text schedules queued work after commit; scheduling failure does not undo the save", async () => {
+  for (const schedulingFails of [false, true]) {
+    let scheduled = 0, processed = 0;
+    const { savePhotographTextAction } = load("./text-actions.ts", {
+      "next/cache": { revalidatePath() {} },
+      "next/server": { after() { scheduled++; if (schedulingFails) throw new Error("fixture"); } },
+      "@/lib/cache-invalidation": { invalidatePhotographs() {} },
+      "@/lib/photographs/automatic-text": { processAutomaticPhotographText() { processed++; } },
+      "@/lib/supabase/admin": { requireAdmin: async () => ({ supabase: { rpc: async () => ({ data: { revision: 3, descriptionAltQueued: true } }) } }) },
+      "../actions": {},
+    });
+    const data = new FormData();
+    for (const [key, value] of Object.entries({ textRevision: "2", captionMode: "description", customCaption: "", capturedAt: "", sortOrder: "", manualFields: '["description"]', title: "Performer", description: "A performer holds a microphone.", altText: "Previous alt" })) data.set(key, value);
+    const result = await savePhotographTextAction("00000000-0000-4000-8000-000000000011", {}, data);
+    assert.equal(result.error, undefined); assert.equal(result.revision, 3);
+    assert.match(result.message, /generation queued/); assert.equal(scheduled, 1); assert.equal(processed, 0);
+  }
+});
+
+test("whole-archive alt setting requires confirmation, preserves off on Cancel and blocks unfinished edits", async () => {
+  for (const [accepted, dirty] of [[false, false], [true, false], [true, true]]) {
+    const h = hooks(); let calls = 0, warning;
+    const status = { enabled: true, serverConfigured: true, descriptionAltEnabled: false, descriptionAltRevision: 4,
+      counts: {}, month: "2026-11", committedMicros: 0, budgetMicros: 5_000_000, jobs: [] };
+    const { default: AutomaticTextStatus } = load("./automatic-text-status.tsx", {
+      react: h.react, "./unsaved-changes": { useUnsavedChanges() {}, hasUnsavedAdminChanges: () => dirty },
+      "../confirm-provider": { useAdminConfirm: () => async options => { warning = options; return accepted; } },
+      "./automatic-text-actions": { setDescriptionAltAction: async (enabled, revision) => {
+        calls++; assert.equal(enabled, true); assert.equal(revision, 4); return { message: "Saved" };
+      }, getAutomaticTextStatusAction: async () => ({ status: { ...status, descriptionAltEnabled: true, descriptionAltRevision: 5 } }) },
+    });
+    let tree = h.render(AutomaticTextStatus, { initialStatus: status });
+    await find(tree, node => node.props?.children === "Enable automatic alt text").props.onClick();
+    await h.settle(); tree = h.render(AutomaticTextStatus, { initialStatus: status });
+    assert.equal(calls, accepted && !dirty ? 1 : 0);
+    if (!dirty) {
+      assert.match(warning.description, /whole archive/);
+      assert.match(warning.description, /including previous manual alt text/);
+      assert.match(warning.description, /\$5 monthly budget/);
+      assert.match(warning.description, /does not regenerate existing photos/);
+    } else assert.equal(warning, undefined);
+    if (calls) assert.ok(find(tree, node => node.props?.children === "Turn off automatic alt text"));
   }
 });
 
