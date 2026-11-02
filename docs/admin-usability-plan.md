@@ -241,5 +241,52 @@ screen-reader or real signed-in Next-routing/persistence acceptance was run.
 The separate alt feature is already deployed. The owner subsequently approved
 committing Elliot's local project changes and deploying the UI pass to
 `elliotmairet.com`. GitHub push is not part of that approval. Production
-verification is pending; no database migration or paid-generation test will run
-as part of this release.
+verification and release evidence follow. No database migration or paid-generation
+test was run as part of this release.
+
+### Production rollout — 2026-11-02
+
+- Local release commit: `91ab83f47675290e40f009feef440b528929e8d8`.
+  It also records the previously deployed description-alt feature and Elliot's
+  offline CI/upload regression work. Private review artifacts remain local and
+  ignored; no GitHub push was made.
+- Production deployment: `dpl_JAbbEm9e1ZKkygyjR45kiEzimyt8`, **READY** at
+  approximately 17:01 UTC, aliased to `https://elliotmairet.com` and the existing
+  www/Vercel domains. Deployment URL:
+  `https://elliotmairet-jeuck9w4o-thetextas-projects.vercel.app`.
+- Deployment used a sanitized export of that exact commit, not the working tree.
+  All **173 uploaded source files** match the committed release's dry-run
+  manifest, including the immutable applied migration. The SHA-256 fingerprint
+  of the sorted path/SHA-1 pairs is
+  `830870b6bb1f4645d0625a20fefd6ece4cafddf4812848b049ba93b9d39ec3fc`.
+  Environment files, agent instructions/skills, local drafts, `.impeccable`, Git
+  metadata and build/dependency directories were excluded. Production settings
+  and credentials were inherited; no shared-backend, storage, DNS or database
+  changes were made.
+- Fresh local checks passed: admin **50**, text **61**, upload **45**, image/SEO
+  **28**, palette **4**, similarity **13** (**201** total), lint, TypeScript and
+  production build. Vercel's production build also passed for all 284 generated
+  routes. The build emitted non-failing Node-engine and npm `cache-dir` notices;
+  no runtime/framework upgrade was bundled into release.
+- Live read-only checks passed for homepage and a public photograph, all **271**
+  homepage gallery destinations, unchanged title/description/canonical, identical
+  palette JSON and robots content, protected Photos/Site content redirects to the
+  new login, admin `noindex, nofollow`, and anonymous cron denial (**401**).
+  A runtime-error query for the release window returned no errors; this is an
+  immediate smoke check, not long-term monitoring.
+- The sitemap's initial byte comparison differed. Comparison against the prior
+  deployment confirmed the same **272** URLs and image locations; only six
+  `lastmod` values (homepage plus five photographs) refreshed from prior catalogue
+  edits at 13:27–13:31 UTC, before this 17:00 deployment. No sitemap implementation
+  change or new catalogue mutation was made to resolve the difference.
+- The actual production login was inspected at 320px and 1440px: new Elliot
+  identity/help, 16px input text, 44px fields/button and no horizontal overflow.
+  Signed-in Photos/Content interaction acceptance remains the earlier mocked
+  component/browser coverage; no real upload, save, deletion, login attempt or
+  paid request was used for deployment verification. Save/discard unfinished
+  work before refreshing an existing admin tab.
+
+The previous production deployment
+`dpl_FSDjdwA4sehjL7jZKu6Hz1X1f5ub` remains the application rollback checkpoint;
+this UI release requires no database rollback. Rollout notes are recorded in a
+separate local documentation commit after deployment verification.

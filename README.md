@@ -222,9 +222,11 @@ Sign-in identifies Elliot's archive, explains account help and locks fields whil
 pending. Navigation, native form controls and inline feedback retain the same
 monochrome, square-edged design across mobile and desktop.
 
-The 2026-11-02 first-principles UI refinements above are **approved for release**;
-deployment verification is pending. The separately deployed description-driven
-alt workflow is unchanged. See the usability record below for rollout status.
+The 2026-11-02 first-principles UI refinements are **deployed** to
+`https://elliotmairet.com` from local commit `91ab83f`. The separately deployed
+description-driven alt workflow is unchanged. Refresh existing admin tabs after
+saving or discarding unfinished edits. See the usability record below for rollout
+verification and remaining live-acceptance limits.
 
 Unsaved photo text, suggested drafts, prepared uploads and site content warn on
 link navigation, sign-out and document unload. New photo revisions refresh clean
