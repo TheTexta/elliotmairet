@@ -649,3 +649,67 @@ Detailed read-only snapshots and build comparison are retained outside Git in
 the temporary `elliot-release-20261103.NJK985/` directory. The authorised Git push
 must be non-forced; deployment state and the live post-release catalogue should
 be checked separately rather than inferred from a successful push.
+
+## 2026-11-03 — automatic-only gallery and clickable filter (local refinement)
+
+After the preceding release, the owner requested removal of **Load more
+photographs** and a correctly clickable admin gallery filter.
+
+- The manual action and its focus-moving handler are removed. The existing
+  observer and keyboard-edge reveal remain automatic, preserving ratio slots,
+  date order, compact rows and stable loading geometry. Browsers without
+  IntersectionObserver reveal all remaining lazy previews in a cancellable
+  animation-frame callback, so no photographs require a missing button.
+- The filter has an explicit label/control ID association. Native selects now
+  render as full-width blocks with an enabled pointer cursor; disabled feedback
+  and the non-intercepting decorative arrow are retained. No custom popup,
+  programmatic picker, dependency or form-value contract is introduced.
+- Regression tests cover button absence during loading/completion, automatic
+  observer-less availability, filter label/value/URL state and native select
+  hit-area/cursor markup. Public catalogue/cache, deletion state, storage,
+  generation, authorization and navigation safeguards are unchanged.
+
+These changes are local only; no new commit, push or deployment is authorised.
+
+`test:admin` **74**, lint, TypeScript and the production build (**277 outputs**)
+pass. The admin/UI detector reports no findings; design YAML/JSON and all 31
+token/eight component references validate. Public/API/domain/cache/storage/SQL
+sources and dependencies remain unchanged from the verified release.
+
+Focused offline browser verification passes **six groups**: no manual loading
+action at 320/768/1440px in initial/intermediate/completed/filtered states; trusted
+centre and arrow clicks open the native picker; every sampled field zone hits
+the select with a pointer cursor. Label focus and disabled feedback pass, with
+44px field/wrapper height and 16px text. React filter values, URL/count reset,
+ordering and return context pass separately. Automatic and observer-less loading
+remain accessible; **48 → 96 → 144 → 155** reveal has **0px** geometry/scroll delta.
+
+The macOS headless browser cannot commit native ArrowDown/Enter selection, also
+reproduced with a standalone native select. Complete OS-picker keyboard selection
+is therefore not certified; filter state changes were independently exercised
+with `selectOption` after trusted pointer-opening checks. No claim is made that
+the original picker was functionally blocked. Native OS popup surfaces are not
+included in the screenshots, though their `:open` state was verified.
+
+Main verification matches **five consumed source hashes**, the actual JS bundle
+and **nine unique captures** in `elliot-admin-filter-browser-20261103/`. No browser
+errors, external/write requests or privileged operations occurred. The previously
+identified ten deleted photo routes remain excluded from the local build, with
+the new addition retained.
+
+The independent visual finish review returned **`disposition: ship`**, with no
+material fixes. All six required mobile/tablet/desktop captures are valid. The
+owned fixture listener has been stopped; native OS selection commitment and
+physical-mobile behaviour remain outside the stated verification. No commit,
+push, deployment or production mutation was performed for this refinement.
+
+### Subsequent release approval
+
+The owner subsequently authorised **commit + push** on 2026-11-03. The reviewed
+source is unchanged. A fresh public catalogue read found **263** photographs,
+including a new `20261004-DSCF3952.jpg` added after the previous build. The local
+generated fetch cache was moved to the temporary release directory, not deleted,
+and the rebuild now produces **278 outputs** from current catalogue data. No
+production cache, catalogue or storage mutation was performed. The ten previously
+identified deletions remain absent. Fresh admin tests (**74**), lint and
+build/TypeScript pass; the existing browser/visual evidence remains applicable.

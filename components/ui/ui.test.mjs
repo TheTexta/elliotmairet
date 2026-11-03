@@ -36,6 +36,16 @@ test("real Button supports native submissions, disabled state and asChild links"
   const link = render(Button, { asChild: true, variant: "ghost" }, createElement("a", { href: "/admin/content" }, "Site content"));
   assert.match(link, /^<a /); assert.match(link, /href="\/admin\/content"/); assert.doesNotMatch(link, /<button/);
 });
+
+test("native selects use the full clickable field with a non-intercepting arrow and disabled cursor", () => {
+  const { NativeSelect } = load("native-select");
+  const select = render(NativeSelect, { id: "photo-filter", name: "archiveFilter", disabled: true }, createElement("option", { value: "all" }, "All photographs"));
+  assert.match(select, /<select[^>]*class="[^"]*block cursor-pointer/);
+  assert.match(select, /disabled:cursor-not-allowed/);
+  assert.match(select, /id="photo-filter"/); assert.match(select, /disabled=""/);
+  const arrow = select.match(/<svg[^>]*>/)?.[0] ?? "";
+  assert.match(arrow, /aria-hidden="true"/); assert.match(arrow, /pointer-events-none/);
+});
 test("admin CSS defines scoped tokens without changing public radius/body defaults", async () => {
   const css = readFileSync(new URL("../../app/(admin)/admin/admin.css", import.meta.url), "utf8");
   assert.match(css, /\.admin-ui\s*\{/); assert.doesNotMatch(css, /(?:^|\n)(?::root|body|\*)\s*\{/);

@@ -45,7 +45,11 @@ export function PhotographArchive({ photographs, automaticAlt = false, notices =
 
   useEffect(() => {
     const gallery = galleryRef.current;
-    if (!hasMore || !gallery || typeof IntersectionObserver !== "function") return;
+    if (!hasMore || !gallery) return;
+    if (typeof IntersectionObserver !== "function") {
+      const frame = requestAnimationFrame(() => revealThrough(filtered.length));
+      return () => cancelAnimationFrame(frame);
+    }
     const observer = new IntersectionObserver(entries => {
       let through = 0;
       for (const entry of entries) {
@@ -55,15 +59,10 @@ export function PhotographArchive({ photographs, automaticAlt = false, notices =
     }, { rootMargin: "1000px 0px" });
     gallery.querySelectorAll("[data-photograph-index]").forEach(target => observer.observe(target));
     return () => observer.disconnect();
-  }, [hasMore, count, revealThrough]);
+  }, [hasMore, count, revealThrough, filtered.length]);
 
   function change(next: ArchiveState) {
     window.history.replaceState(null, "", archiveHref(next));
-  }
-  function loadMore() {
-    const nextId = filtered[visible.length]?.id;
-    revealThrough(count + ARCHIVE_BATCH_SIZE);
-    if (nextId) requestAnimationFrame(() => document.getElementById(`photograph-${nextId}`)?.focus());
   }
   const removed = params.get("removed");
   return <>
@@ -81,20 +80,18 @@ export function PhotographArchive({ photographs, automaticAlt = false, notices =
               placeholder="Title, description, filename or date" className="pl-10" />
           </div>
         </div>
-        <Label className="flex min-w-0 flex-col gap-2 sm:w-64">Filter photographs
-          <NativeSelect name="archiveFilter" value={filter} onChange={event => change({ ...current, filter: event.target.value as ArchiveFilter })}>
+        <div className="flex min-w-0 flex-col gap-2 sm:w-64">
+          <Label htmlFor={`${id}-filter`}>Filter photographs</Label>
+          <NativeSelect id={`${id}-filter`} name="archiveFilter" value={filter} onChange={event => change({ ...current, filter: event.target.value as ArchiveFilter })}>
             <option value="all">All photographs</option>
             <option value="missing">{automatic ? "Missing title or description" : "Missing text"}</option>
             {!automatic ? <option value="hidden">Hidden caption metadata</option> : null}
           </NativeSelect>
-        </Label>
+        </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3 text-xs">
         <p role="status">{filtered.length === photographs.length ? `${photographs.length} photographs` : `${filtered.length} of ${photographs.length} photographs`}<span className="sr-only">. {visible.length} loaded.</span></p>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link className="admin-back-link" prefetch={false} href={toolsHref} onClick={() => rememberGalleryPosition(href, undefined, visible.length)}>Photo tools</Link>
-          {filtered.length > ARCHIVE_BATCH_SIZE ? <Button type="button" variant="outline" disabled={!hasMore} onClick={loadMore}>Load more photographs</Button> : null}
-        </div>
+        <Link className="admin-back-link" prefetch={false} href={toolsHref} onClick={() => rememberGalleryPosition(href, undefined, visible.length)}>Photo tools</Link>
       </div>
       {removed === "done" || removed === "pending" ? <p role="status" className="border border-border p-3 text-sm">Photograph removed from the public archive.{removed === "pending" ? <> File removal is still tracked. <Link href={`${toolsHref}#file-maintenance`} className="underline">Review file maintenance</Link>.</> : null}</p> : null}
       {notices.length ? <div role="status" className="space-y-1 text-sm leading-6">{notices.map(notice => <p key={notice}>{notice}</p>)}<Link prefetch={false} href={toolsHref} className="admin-back-link">Review text and file maintenance</Link></div> : null}

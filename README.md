@@ -207,9 +207,9 @@ The local redesign separates finding photographs from editing them:
   retain catalogue order; photographs without a capture date follow dated entries.
   This admin-only ordering does not change the public catalogue's custom order. Search
   and filter are URL-backed. **48** lazy thumbnails mount initially; approaching
-  unloaded photographs reveals further 48-item batches. A
-  keyboard-accessible **Load more photographs** action also works without
-  IntersectionObserver. Photos in each row share a height, with proportional widths
+  unloaded photographs reveals further 48-item batches, without a manual loading
+  button. If IntersectionObserver is unavailable, all previews become available
+  with native image lazy-loading. Photos in each row share a height, with proportional widths
   and even **12px/16px** gutters rather than holes beneath shorter images. Responsive
   target heights are **4.8rem/7.2rem**, reduced to 60% of the first justified layout;
   actual heights adjust to fit each row without cropping. Incomplete rows stay
@@ -218,10 +218,10 @@ The local redesign separates finding photographs from editing them:
   does not resize loaded rows or extend the page. Only the revealed set mounts
   images and edit links. Viewport changes and explicit filtering can reflow rows.
   The observer prepares slots within **1000px** of the viewport, including direct
-  jumps into unloaded space. The manual action stays in the top gallery toolbar,
-  disabled rather than removed at completion, so no bottom loading footer jumps
-  down. Keyboard focus near the revealed edge also prepares the next batch without
-  moving focus; manual activation still focuses the first newly revealed photo.
+  jumps into unloaded space. There is no loading button or moving bottom footer.
+  Keyboard focus near the revealed edge also prepares the next batch without
+  moving focus. The native filter has an explicit label and full-width clickable
+  field, including its arrow area, with pointer/disabled cursor feedback.
   This uses the cached catalogue,
   not a new database pagination API; palettes and editor prefetch stay out.
 - A thumbnail opens `/admin/photos/[id]/edit`, loading that photograph and its
@@ -285,6 +285,8 @@ photos and retaining one new addition compared with the preceding build. No
 catalogue or storage mutation was performed for this release. Public appearance
 and SEO-content rules remain unchanged; the inactive history bootstrap shares the
 global client entry. Save/discard unfinished work before refreshing an admin tab.
+The owner also approved committing and pushing the automatic-only loading and
+filter-click refinement on **2026-11-03**.
 
 See [`components/ui/README.md`](components/ui/README.md) for component provenance,
 scoped tokens and safe CLI usage, and

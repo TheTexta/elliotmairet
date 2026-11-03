@@ -45,6 +45,9 @@ of their first justified height. Use compact justified rows: equal height within
 each row, proportional widths, consistent gutters and no cropping or date reordering.
 Infinite preview loading must not jolt the page or push a visible footer down:
 reserve photo geometry before loading, keep loaded rows stable and prefetch ahead.
+The owner then removed the manual loading button and requested a properly
+clickable native gallery filter. Keep loading automatic, including a lazy-image
+fallback when IntersectionObserver is unavailable.
 
 ## Product principles
 

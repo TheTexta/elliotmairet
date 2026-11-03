@@ -80,7 +80,7 @@ function archiveHarness(photographs, search = "", observerAvailable = true) {
     "../page-heading": { AdminPageHeading: "page-heading" }, "./photograph-thumbnail": { PhotographThumbnail: "photo-thumbnail", PhotographPlaceholder: "photo-placeholder" },
     "./gallery-position": {}, "next/navigation": { useSearchParams: () => params },
   }, { window: { history: { replaceState: write } }, IntersectionObserver: observerAvailable ? IntersectionObserver : undefined,
-    requestAnimationFrame: callback => callback(), document: { getElementById: id => ({ focus: () => focused.push(id) }) } });
+    requestAnimationFrame: callback => callback(), cancelAnimationFrame() {}, document: { getElementById: id => ({ focus: () => focused.push(id) }) } });
   return { render: automaticAlt => {
     effects = []; tree = h.render(PhotographArchive, { photographs, automaticAlt });
     const gallery = find(tree, node => node.type === "div" && node.props.ref);
@@ -183,7 +183,7 @@ test("caption mode switches retain custom text; save sends deliberately blank ma
 
 test("infinite gallery extends one chronological row layout by 48, caps at the catalogue and resets on search", () => {
   const photographs = Array.from({ length: 105 }, (_, i) => ({ ...photo, id: `photo-${i}` }));
-  const { render, writes, focused } = archiveHarness(photographs, "page=2");
+  const { render, writes, focused, observe, observers } = archiveHarness(photographs, "page=2");
   let tree = render();
   let thumbnails = nodes(tree, node => node.type === "photo-thumbnail");
   assert.equal(thumbnails.length, 48); assert.equal(thumbnails[0].props.photograph.id, "photo-0");
@@ -192,7 +192,8 @@ test("infinite gallery extends one chronological row layout by 48, caps at the c
   assert.equal(nodes(tree, node => node.type === "form").length, 0);
   assert.equal(find(tree, node => node.props?.["aria-label"] === "Gallery pages"), undefined);
   assert.equal(nodes(tree, node => node.props?.className === "admin-photo-grid").length, 1);
-  find(tree, node => node.type === "button" && node.props.children === "Load more photographs").props.onClick(); tree = render();
+  assert.equal(find(tree, node => node.type === "button" && node.props.children === "Load more photographs"), undefined);
+  observe(); observers.at(-1).callback([{ isIntersecting: true, target: observers.at(-1).targets[0] }]); tree = render();
   thumbnails = nodes(tree, node => node.type === "photo-thumbnail");
   assert.equal(thumbnails.length, 96); assert.equal(thumbnails[0].props.photograph.id, "photo-0");
   assert.equal(thumbnails[95].props.photograph.id, "photo-95");
@@ -200,12 +201,12 @@ test("infinite gallery extends one chronological row layout by 48, caps at the c
   assert.equal(nodes(tree, node => node.type === "photo-placeholder").length, 9);
   assert.equal(nodes(tree, node => node.props?.className === "admin-photo-grid").length, 1);
   assert.equal(nodes(tree, node => node.props?.className === "admin-masonry").length, 0);
-  assert.equal(focused[0], "photograph-photo-48");
-  find(tree, node => node.type === "button" && node.props.children === "Load more photographs").props.onClick(); tree = render();
+  assert.equal(focused.length, 0);
+  observe(); observers.at(-1).callback([{ isIntersecting: true, target: observers.at(-1).targets[0] }]); tree = render();
   thumbnails = nodes(tree, node => node.type === "photo-thumbnail");
   assert.equal(thumbnails.length, 105); assert.equal(new Set(thumbnails.map(node => node.props.photograph.id)).size, 105);
   assert.equal(nodes(tree, node => node.type === "photo-placeholder").length, 0);
-  assert.equal(find(tree, node => node.type === "button" && node.props.children === "Load more photographs").props.disabled, true);
+  assert.equal(find(tree, node => node.type === "button" && node.props.children === "Load more photographs"), undefined);
   find(tree, node => node.props?.type === "search").props.onChange({ target: { value: "no match" } });
   tree = render();
   assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 0);
@@ -231,7 +232,7 @@ test("infinite append reveals the next oldest capture dates rather than input or
   let tree = h.render(), thumbnails = nodes(tree, node => node.type === "photo-thumbnail");
   assert.equal(thumbnails[0].props.photograph.id, "dated-69");
   assert.equal(thumbnails.at(-1).props.photograph.id, "dated-22");
-  find(tree, node => node.type === "button" && node.props.children === "Load more photographs").props.onClick(); tree = h.render();
+  h.observe(); h.observers[0].callback([{ isIntersecting: true, target: h.observers[0].targets[0] }]); tree = h.render();
   thumbnails = nodes(tree, node => node.type === "photo-thumbnail");
   assert.equal(thumbnails.length, 70); assert.equal(thumbnails[48].props.photograph.id, "dated-21");
   assert.equal(thumbnails.at(-1).props.photograph.id, "dated-0");
@@ -275,14 +276,26 @@ test("keyboard approach reveals the next previews without stealing focus, even w
   assert.equal(h.focused.length, 0);
 });
 
-test("manual loading remains usable when IntersectionObserver is unavailable", () => {
+test("all lazy previews become available without a button when IntersectionObserver is unavailable", () => {
   const photographs = Array.from({ length: 70 }, (_, i) => ({ ...photo, id: `photo-${i}` }));
   const h = archiveHarness(photographs, "", false);
   let tree = h.render();
-  assert.equal(h.observe(), undefined); assert.equal(h.observers.length, 0);
-  find(tree, node => node.type === "button" && node.props.children === "Load more photographs").props.onClick(); tree = h.render();
+  assert.equal(typeof h.observe(), "function"); assert.equal(h.observers.length, 0);
+  tree = h.render();
   assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 70);
-  assert.equal(h.focused[0], "photograph-photo-48");
+  assert.equal(h.focused.length, 0);
+  assert.equal(find(tree, node => node.type === "button" && node.props.children === "Load more photographs"), undefined);
+});
+
+test("gallery filter has an explicit label and changes only filter URL state", () => {
+  const h = archiveHarness([photo, { ...photo, id: "missing-photo", description: null }]);
+  let tree = h.render();
+  const filter = named(tree, "archiveFilter");
+  assert.equal(find(tree, node => node.type === "label" && node.props.children === "Filter photographs").props.htmlFor, filter.props.id);
+  filter.props.onChange({ target: { value: "missing" } }); tree = h.render();
+  assert.equal(h.writes.at(-1), "/admin/photos?filter=missing");
+  assert.equal(named(tree, "archiveFilter").props.value, "missing");
+  assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 1);
 });
 
 test("saving one suggested draft refreshes only that draft, not dirty siblings", async () => {
