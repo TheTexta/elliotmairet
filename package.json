@@ -18,7 +18,7 @@
     "test:upload": "node --experimental-strip-types --test lib/photographs/upload.test.mjs lib/photographs/upload-date.test.mjs app/api/admin/photos/route.test.mjs",
     "test:palette": "node --test lib/palette/oklab-k-medoids.test.mjs",
     "test:similarity": "node --experimental-strip-types --test lib/photographs/select-similar-matches.test.mjs lib/photographs/find-colour-matches.test.mjs",
-    "test:images": "node --experimental-strip-types --test lib/r2/*.test.mjs lib/photographs/storage.test.mjs lib/seo.test.mjs app/supabase-image-loader.test.mjs 'app/(public)/gallery/image-sizes.test.mjs' 'app/(public)/gallery/photo-gallery-columns.test.mjs'",
+    "test:images": "node --experimental-strip-types --test lib/r2/*.test.mjs lib/photographs/storage.test.mjs lib/photographs/queries.test.mjs lib/seo.test.mjs app/supabase-image-loader.test.mjs 'app/(public)/gallery/image-sizes.test.mjs' 'app/(public)/gallery/photo-gallery-columns.test.mjs'",
     "storage:prepare:images": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/prepare-r2-image-sources.mjs"
   },
   "dependencies": {

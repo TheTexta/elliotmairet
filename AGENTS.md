@@ -1,6 +1,6 @@
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Project
 
-This repository contains Elliot Mairêt's photography portfolio and archive.
+This repository contains Elliot Mairet's photography portfolio and archive.
 
 The public site displays the photograph catalogue. Authorized users can manage photographs and site content through the `/admin` area.
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, ImageIcon, LoaderCircle, Plus, Upload, X } from "lucide-react";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { Check, ImageIcon, LoaderCircle, Plus, Upload } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { detectUploadDate, type UploadDate } from "@/lib/photographs/upload-date";
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAdminConfirm } from "../confirm-provider";
+import { useAdminUploadNavigation } from "../admin-workspace";
 
 function formatSize(bytes: number) {
   return bytes < 1024 * 1024
@@ -25,15 +27,13 @@ function formatSize(bytes: number) {
     : `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
 }
 
-export function UploadForm({ onBusyChange, automaticAlt = false }: { onBusyChange: (busy: boolean) => void; automaticAlt?: boolean | null }) {
+export function UploadForm({ returnHref = "/admin/photos", automaticAlt = false }: { returnHref?: string; automaticAlt?: boolean | null }) {
   const confirm = useAdminConfirm();
-  const panelId = useId();
+  const { setUploadBusy } = useAdminUploadNavigation();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const toggleRef = useRef<HTMLButtonElement>(null);
   const dateReadRef = useRef(0);
-  const [open, setOpen] = useState(false);
   const [capturedAt, setCapturedAt] = useState("");
   const [dateSource, setDateSource] = useState<UploadDate["source"] | null>(null);
   const [readingDate, setReadingDate] = useState(false);
@@ -41,12 +41,12 @@ export function UploadForm({ onBusyChange, automaticAlt = false }: { onBusyChang
   const [state, setState] = useState<UploadState>({ status: "idle" });
   const [upload] = useState(() => createPhotographUpload((next) => {
     setState(next);
-    onBusyChange(isUploading(next));
+    setUploadBusy(isUploading(next));
   }));
   const busy = isUploading(state);
   const succeeded = state.status === "success";
   const retryPublication = state.status === "error" && state.retryPublication;
-  useUnsavedChanges(busy || Boolean(selection && !succeeded));
+  useUnsavedChanges(busy || Boolean(selection && !succeeded), busy);
 
   useEffect(() => {
     if (!selection) return;
@@ -54,12 +54,7 @@ export function UploadForm({ onBusyChange, automaticAlt = false }: { onBusyChang
   }, [selection]);
 
   useEffect(() => () => { dateReadRef.current++; }, []);
-
-  function close() {
-    if (upload.isActive()) return;
-    setOpen(false);
-    toggleRef.current?.focus();
-  }
+  useEffect(() => () => setUploadBusy(false), [setUploadBusy]);
 
   async function reset() {
     if (selection && !succeeded && !await confirm({ title: "Discard unfinished upload?", description: "Discard this unfinished upload and choose another photo? Any reserved files remain tracked for safe cleanup.", confirmLabel: "Choose another photo", destructive: true })) return;
@@ -101,56 +96,14 @@ export function UploadForm({ onBusyChange, automaticAlt = false }: { onBusyChang
   }
 
   return (
-    <div className="contents" onKeyDown={(event) => {
-      if (event.key !== "Escape" || !open) return;
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    }}>
-      <Button
-        aria-controls={panelId}
-        aria-expanded={open}
-        className="row-start-3 w-full sm:col-start-2 sm:row-start-1 sm:w-auto sm:justify-self-end xl:col-start-3"
-        disabled={busy}
-        onClick={() => {
-          if (upload.isActive()) return;
-          if (open) close();
-          else {
-            setOpen(true);
-            requestAnimationFrame(() => fileRef.current?.focus());
-          }
-        }}
-        ref={toggleRef}
-        type="button"
-      >
-        {busy ? <LoaderCircle aria-hidden="true" className="animate-spin motion-reduce:animate-none" size={15} /> : <Plus aria-hidden="true" size={15} />}
-        {busy ? "Uploading" : "Upload photo"}
-      </Button>
-      <section
-        aria-labelledby={`${panelId}-title`}
-        className={`col-span-full row-start-4 min-w-0 w-full max-w-3xl justify-self-end border border-neutral-300 bg-white p-4 normal-case sm:row-start-3 sm:p-6 xl:row-start-2 ${open ? "" : "hidden"}`}
-        hidden={!open}
-        id={panelId}
-      >
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="min-w-0 wrap-anywhere text-base font-medium" id={`${panelId}-title`}>Upload photograph</h2>
-          <Button
-            aria-label="Close upload panel"
-            variant="outline" size="icon"
-            disabled={busy}
-            onClick={close}
-            type="button"
-          >
-            <X aria-hidden="true" size={16} />
-          </Button>
-        </div>
-        <p className="mb-5 max-w-prose text-sm leading-6 text-neutral-700">Choose an image and check its capture date. It becomes public when upload finishes. Missing text is generated afterwards; edit its title and description in the archive.</p>
-        <form onSubmit={submit} ref={formRef}>
-          <fieldset aria-busy={busy} className="grid min-w-0 grid-cols-1 gap-4 disabled:opacity-60 sm:grid-cols-2" disabled={busy || succeeded || retryPublication}>
+      <section aria-label="Upload photograph" className="min-w-0 w-full max-w-3xl">
+        <p className="mb-5 max-w-prose text-sm leading-6">Choose an image and check its capture date. It becomes public when upload finishes. Missing text is generated afterwards; edit its title and description on its photo page.</p>
+        <form aria-label="Upload photograph" onSubmit={submit} ref={formRef}>
+          <fieldset aria-busy={busy} className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2" disabled={busy || succeeded || retryPublication}>
             <FormField className="sm:col-span-2" label="Image">
               <Input
                 accept="image/jpeg,image/png,image/webp"
-                className="border-dashed border-neutral-400 bg-neutral-50 p-4"
+                className="border-dashed p-4"
                 name="file"
                 onChange={(event) => {
                   if (upload.isActive()) return;
@@ -196,9 +149,9 @@ export function UploadForm({ onBusyChange, automaticAlt = false }: { onBusyChang
             <details className="sm:col-span-2">
               <summary className="min-h-11 cursor-pointer py-3 text-sm focus-visible:outline-2">Add your own text (optional)</summary>
               <div className="space-y-4">
-                <p className="text-sm text-neutral-600">Leave these blank for automatic text. Anything you write is protected from generation.</p>
+                <p className="text-sm">Leave these blank for automatic text. Anything you write is protected from generation.</p>
                 <FormField label="Title"><AdminInput maxLength={200} name="title" /></FormField>
-                {automaticAlt !== false ? <p className="text-sm text-neutral-600">{automaticAlt === null ? "Alt text settings could not be checked. Uploads still work without manual alt text; use Check progress to reload the setting."
+                {automaticAlt !== false ? <p className="text-sm">{automaticAlt === null ? "Alt text settings could not be checked. Uploads still work without manual alt text; use Photo tools to reload the setting."
                   : "Alt text is generated from the saved title and description after upload. Update those fields in Edit photo; alt text is read-only."}</p>
                   : <FormField label="Image description for screen readers (alt text)"><AdminInput maxLength={500} name="altText" /></FormField>}
               </div>
@@ -206,9 +159,9 @@ export function UploadForm({ onBusyChange, automaticAlt = false }: { onBusyChang
           </fieldset>
 
           {selection ? (
-            <div className="mt-4 flex items-center gap-3 border border-neutral-200 bg-neutral-50 p-3">
-              <div className="relative h-16 w-20 shrink-0 overflow-hidden bg-neutral-200">
-                <ImageIcon aria-hidden="true" className="absolute inset-0 m-auto text-neutral-400" size={20} />
+            <div className="mt-4 flex items-center gap-3 border border-border p-3">
+              <div className="relative h-16 w-20 shrink-0 overflow-hidden">
+                <ImageIcon aria-hidden="true" className="absolute inset-0 m-auto" size={20} />
                 {/* A local blob URL needs no server image optimization. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -221,7 +174,7 @@ export function UploadForm({ onBusyChange, automaticAlt = false }: { onBusyChang
               </div>
               <div className="min-w-0">
                 <p className="wrap-anywhere text-sm font-medium">{selection.file.name}</p>
-                <p className="mt-1 text-xs text-neutral-600">{formatSize(selection.file.size)}</p>
+                <p className="mt-1 text-xs">{formatSize(selection.file.size)}</p>
               </div>
             </div>
           ) : null}
@@ -232,8 +185,8 @@ export function UploadForm({ onBusyChange, automaticAlt = false }: { onBusyChang
                 <LoaderCircle aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" size={15} />
                 <div className="min-w-0 wrap-anywhere">
                   <p className="font-medium uppercase">Uploading</p>
-                  <p className="mt-1 text-neutral-600">{uploadStageLabels[state.status]}</p>
-                  <p className="mt-1 text-neutral-600">Keep this page open until the photograph is uploaded.</p>
+                  <p className="mt-1">{uploadStageLabels[state.status]}</p>
+                  <p className="mt-1">Keep this page open until the photograph is uploaded.</p>
                 </div>
               </div>
             ) : succeeded ? (
@@ -241,9 +194,9 @@ export function UploadForm({ onBusyChange, automaticAlt = false }: { onBusyChang
                 <Check aria-hidden="true" className="shrink-0" size={15} />
                 <div className="min-w-0 wrap-anywhere">
                   <p className="font-medium uppercase">Uploaded</p>
-                  <p className="mt-1 text-neutral-600">The photograph is now public.</p>
+                  <p className="mt-1">The photograph is now public.</p>
                   {state.status === "success" && state.automaticText === "queued" ? (
-                    <p className="mt-1 text-neutral-600">Your photo is uploaded. Text is generated next; use Check progress in Automatic text to see when it is ready.</p>
+                    <p className="mt-1">Your photo is uploaded. Text is generated next; use Photo tools to check progress.</p>
                   ) : null}
                 </div>
               </div>
@@ -261,7 +214,7 @@ export function UploadForm({ onBusyChange, automaticAlt = false }: { onBusyChang
           <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
             {succeeded ? (
               <>
-                <Button variant="outline" onClick={close} type="button">Close</Button>
+                <Button variant="outline" asChild><Link prefetch={false} href={returnHref}>Back to gallery</Link></Button>
                 <Button onClick={reset} type="button"><Plus aria-hidden="true" size={14} />Upload another</Button>
               </>
             ) : (
@@ -276,6 +229,5 @@ export function UploadForm({ onBusyChange, automaticAlt = false }: { onBusyChang
           </div>
         </form>
       </section>
-    </div>
   );
 }

@@ -3,7 +3,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const alertVariants = cva("relative w-full min-w-0 space-y-2 rounded-none border p-3 text-sm leading-relaxed", {
-  variants: { variant: { default: "border-border bg-background text-foreground", destructive: "border-destructive/30 bg-background text-destructive" } },
+  variants: { variant: { default: "border-border bg-background text-foreground", destructive: "border-destructive bg-background text-destructive" } },
   defaultVariants: { variant: "default" },
 });
 export function Alert({ className, variant, ...props }: ComponentProps<"div"> & VariantProps<typeof alertVariants>) {

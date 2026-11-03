@@ -10,22 +10,34 @@ const source = ts.transpileModule(readFileSync(new URL("./confirm-provider.tsx",
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
 }).outputText;
 function harness() {
-  const slots = [], cleanups = [];
-  let cursor = 0, effects = false, tree, focusCount = 0, pathname = "/admin/photos";
+  const slots = [];
+  let cursor = 0, changed = false, effects = [], tree, focusCount = 0, pathname = "/admin/photos";
   class HTMLElement { isConnected = true; focus() { focusCount++; } }
   const opener = new HTMLElement();
   const exports = {};
   runInNewContext(source, { exports, HTMLElement, document: { activeElement: opener },
     require: name => name === "react" ? {
       createContext: () => ({ Provider: "provider" }), useContext: () => tree?.props.value,
-      useState(initial) { const i = cursor++; if (!(i in slots)) slots[i] = initial; return [slots[i], value => { slots[i] = value; }]; },
+      useState(initial) { const i = cursor++; if (!(i in slots)) slots[i] = initial; return [slots[i], value => { if (slots[i] !== value) changed = true; slots[i] = value; }]; },
       useRef(initial) { const i = cursor++; return slots[i] ??= { current: initial }; },
-      useCallback: fn => fn, useEffect: fn => { if (!effects) cleanups.push(fn()); },
+      useCallback: fn => fn, useEffect: (fn, deps) => {
+        const i = cursor++, previous = slots[i];
+        if (!previous || deps.some((value, index) => value !== previous.deps[index])) {
+          effects.push(() => { previous?.cleanup?.(); slots[i] = { deps, cleanup: fn() }; });
+        }
+      },
     } : name === "next/navigation" ? { usePathname: () => pathname } : name === "@/components/ui/alert-dialog" ? Object.fromEntries([
       "AlertDialog", "AlertDialogAction", "AlertDialogCancel", "AlertDialogContent", "AlertDialogDescription", "AlertDialogFooter", "AlertDialogHeader", "AlertDialogTitle",
     ].map(name => [name, name])) : require(name),
   });
-  function render() { cursor = 0; tree = exports.AdminConfirmProvider({ children: null }); effects = true; return tree; }
+  function render() {
+    do {
+      cursor = 0; changed = false; effects = [];
+      tree = exports.AdminConfirmProvider({ children: "persistent workspace" });
+      effects.forEach(effect => effect());
+    } while (changed);
+    return tree;
+  }
   function find(node, type) {
     if (!node || typeof node !== "object") return;
     if (node.type === type) return node;
@@ -34,8 +46,8 @@ function harness() {
   render();
   return { confirm: options => tree.props.value(options), render,
     dialog: () => find(tree, "AlertDialog"), action: () => find(tree, "AlertDialogAction"), cancel: () => find(tree, "AlertDialogCancel"),
-    content: () => find(tree, "AlertDialogContent"), cleanup: () => cleanups.forEach(fn => fn?.()), opener, focusCount: () => focusCount,
-    boundary: () => exports.AdminConfirmBoundary({ children: null }), setPath: value => { pathname = value; } };
+    content: () => find(tree, "AlertDialogContent"), cleanup: () => slots.forEach(slot => slot?.cleanup?.()), opener, focusCount: () => focusCount,
+    boundary: () => exports.AdminConfirmBoundary({ children: "persistent workspace" }), setPath: value => { pathname = value; } };
 }
 const options = { title: "Remove photograph?", description: "Permanent removal of photo.jpg", destructive: true, confirmLabel: "Remove permanently" };
 
@@ -80,15 +92,19 @@ test("closing restores focus only to a connected opener", async () => {
   assert.equal(h.focusCount(), 1);
 });
 
-test("route changes key the scope so navigation cancels a pending decision", async () => {
+test("route changes cancel decisions without keying or remounting the workspace", async () => {
   const h = harness(); let actions = 0;
   const previous = h.boundary();
   const decision = h.confirm(options).then(accepted => { if (accepted) actions++; return accepted; });
   h.render(); h.setPath("/admin/content");
   const next = h.boundary();
-  assert.notEqual(next.key, previous.key);
-  // React unmounts the old provider when this route key changes.
-  h.cleanup();
+  assert.equal(next.key, previous.key);
+  assert.equal(next.props.children, previous.props.children);
+  h.render();
   assert.equal(await decision, false);
   assert.equal(actions, 0);
+  assert.equal(h.dialog().props.open, false);
+  // Returning to the original route cannot reopen the abandoned warning.
+  h.setPath("/admin/photos"); h.render();
+  assert.equal(h.dialog().props.open, false);
 });

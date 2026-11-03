@@ -40,6 +40,9 @@ export async function setDescriptionAltAction(enabled: boolean, revision: number
   const { error } = await supabase.rpc("set_photograph_description_alt", { p_enabled: enabled, p_revision: revision });
   if (error) return { error: "The setting could not be confirmed. Check progress to reload its current value before trying again." };
   revalidatePath("/admin/photos");
+  revalidatePath("/admin/photos/[id]/edit", "page");
+  revalidatePath("/admin/photos/upload");
+  revalidatePath("/admin/photos/tools");
   return { message: enabled ? "Automatic alt text enabled. Saving a title or description will queue generation; existing text has not been changed." : "Automatic alt text disabled. Alt text can be edited manually again." };
 }
 
@@ -68,6 +71,8 @@ export async function refreshAutomaticTextStatusAction(): Promise<{ status?: Aut
     // process shutdown. Never rerun the provider merely to refresh public text.
     invalidatePhotographs();
     revalidatePath("/admin/photos");
+    revalidatePath("/admin/photos/[id]/edit", "page");
+    revalidatePath("/admin/photos/tools");
   }
   return result;
 }
@@ -85,6 +90,8 @@ export async function retryAutomaticTextAction(jobId: string): Promise<{ message
     }
     after(async () => { await processAutomaticPhotographText({ photographId }); });
     revalidatePath("/admin/photos");
+    revalidatePath("/admin/photos/[id]/edit", "page");
+    revalidatePath("/admin/photos/tools");
     return { message: "Generation retry queued. It may make a paid request within the monthly budget. Refresh status to check progress." };
   } catch {
     return { error: "The retry could not be confirmed. Refresh status before trying again; a queued job may still run." };

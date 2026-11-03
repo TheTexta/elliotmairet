@@ -141,18 +141,18 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
   }
 
   return (
-    <details id="text-review" className="min-w-0 border border-neutral-300 bg-white normal-case" onToggle={event => {
+    <details id="text-review" className="min-w-0 border border-border bg-background normal-case" onToggle={event => {
       if (event.currentTarget.open && !opened && available) {
         try { setRecoveryToken(sessionStorage.getItem("elliot:photograph-text:approval") ?? ""); } catch { /* Recovery also works by copying the token. */ }
         setOpened(true); task(() => load(0));
       }
     }}>
       <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-black">Suggested text</summary>
-      <div className="min-w-0 space-y-6 border-t border-neutral-300 p-3 text-sm sm:p-4">
-        <p className="max-w-prose text-neutral-700">Review suggestions that have not been applied. Drafts and review notes are private. Importing or editing them does not change the public site or make a new AI request.</p>
+      <div className="min-w-0 space-y-6 border-t border-border p-3 text-sm sm:p-4">
+        <p className="max-w-prose">Review suggestions that have not been applied. Drafts and review notes are private. Importing or editing them does not change the public site or make a new AI request.</p>
         {!available ? <p role="status">The photograph text migration is required before draft review, import or caption editing is available.</p> : <>
-          <details className="min-w-0 border-b border-neutral-200 pb-3">
-          <summary className="min-h-11 cursor-pointer py-3 text-xs text-neutral-700">Import or choose a catalogue run (advanced)</summary>
+          <details className="min-w-0 border-b border-border pb-3">
+          <summary className="min-h-11 cursor-pointer py-3 text-xs">Import or choose a catalogue run (advanced)</summary>
           <fieldset disabled={pending || locked} className="flex min-w-0 flex-wrap items-end gap-3">
             <legend className="mb-3 text-xs uppercase">Prepare and import</legend>
             <Button type="button" variant="outline" onClick={() => task(async () => {
@@ -184,8 +184,8 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
             </NativeSelect></FormField>
             <Button variant="outline" disabled={pending || locked} type="button" onClick={() => loadPage(0)}>Refresh suggestions</Button>
           </div>
-          <div role={error ? "alert" : "status"} aria-live="polite" className="wrap-anywhere text-sm text-neutral-700">{error || message || (pending ? "Working…" : "Ready to review.")}</div>
-          <p className="text-xs text-neutral-700">{total ? `${offset + 1}–${Math.min(offset + drafts.length, total)} of ${total} suggestions` : "No suggestions match this filter. Previously applied text is available under All suggestions; normal photo editing is in the archive above."} {dirtyIds.length ? "Save or discard draft edits before previewing a batch." : ""}</p>
+          <div role={error ? "alert" : "status"} aria-live="polite" className="wrap-anywhere text-sm">{error || message || (pending ? "Working…" : "Ready to review.")}</div>
+          <p className="text-xs">{total ? `${offset + 1}–${Math.min(offset + drafts.length, total)} of ${total} suggestions` : "No suggestions match this filter. Previously applied text is available under All suggestions; open a photograph in Photos to edit its live text."} {dirtyIds.length ? "Save or discard draft edits before previewing a batch." : ""}</p>
           <fieldset disabled={pending || locked} className="min-w-0 space-y-4">
             <legend className="sr-only">Private draft records</legend>
             {drafts.map(draft => <DraftEditor automaticAlt={automaticAlt} key={`${pageVersion}:${draft.id}:${draft.version}`} draft={draft} selected={selection.includes(draft.id)} onSelect={selected => {
@@ -196,12 +196,12 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
             <Button variant="outline" type="button" disabled={pending || locked || offset === 0} onClick={() => loadPage(Math.max(0, offset - 50))}>Previous 50</Button>
             <Button variant="outline" type="button" disabled={pending || locked || offset + 50 >= total} onClick={() => loadPage(offset + 50)}>Next 50</Button>
           </div>
-          <details className="min-w-0 border-t border-neutral-300 pt-3">
+          <details className="min-w-0 border-t border-border pt-3">
           <summary className="min-h-11 cursor-pointer py-3 text-sm">Bulk application and batch recovery (advanced)</summary>
-          <fieldset disabled={pending || locked} className="min-w-0 space-y-3 border-t border-neutral-300 pt-4">
+          <fieldset disabled={pending || locked} className="min-w-0 space-y-3 border-t border-border pt-4">
             <legend className="px-1 text-xs uppercase">Bulk application</legend>
-            <p className="text-xs text-neutral-700">{selection.length ? `${selection.length} selected drafts across loaded pages.` : "No selection: preview all drafts in the specified run, not just this page."} Manual fields and unresolved conflicts are excluded.</p>
-            {altReadOnly ? <p className="text-xs text-neutral-700">{automaticAlt === null ? "Alt text settings are unavailable. Use Check progress before applying alt text." : "Alt text is read-only while automatic alt text is enabled. Apply titles/descriptions instead; changed source text queues fresh alt text."}</p> : null}
+            <p className="text-xs">{selection.length ? `${selection.length} selected drafts across loaded pages.` : "No selection: preview all drafts in the specified run, not just this page."} Manual fields and unresolved conflicts are excluded.</p>
+            {altReadOnly ? <p className="text-xs">{automaticAlt === null ? "Alt text settings are unavailable. Use Check progress before applying alt text." : "Alt text is read-only while automatic alt text is enabled. Apply titles/descriptions instead; changed source text queues fresh alt text."}</p> : null}
             <div className="flex flex-wrap gap-3">{textFields.map(field => <Label key={field} className="flex min-h-11 items-center gap-2"><input type="checkbox" disabled={altReadOnly && field === "alt_text"} checked={fields.includes(field) && !(altReadOnly && field === "alt_text")} onChange={event => {
               setFields(current => event.target.checked ? [...current, field] : current.filter(value => value !== field)); invalidate();
             }} />{fieldLabels[field]}</Label>)}</div>
@@ -214,7 +214,7 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
             })}>Preview exact changes</Button>
             <Button type="button" variant="outline" className="ml-2" disabled={!selection.length} onClick={() => { setSelection([]); invalidate(); }}>Clear selection</Button>
           </fieldset>
-          <fieldset disabled={pending} className="flex min-w-0 flex-wrap items-end gap-3 border-t border-neutral-300 pt-4">
+          <fieldset disabled={pending} className="flex min-w-0 flex-wrap items-end gap-3 border-t border-border pt-4">
             <legend className="px-1 text-xs uppercase">Recover an interrupted or completed batch</legend>
             <FormField className="min-w-0 flex-1 basis-56" label="Approval token · only your account can recover it">
               <AdminInput value={recoveryToken} onChange={event => setRecoveryToken(event.target.value)} placeholder="Approval UUID" />
@@ -231,14 +231,14 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
               if (await confirm({ title: "Release local preview?", description: "Committed changes remain live and recoverable using this preview's approval token.", confirmLabel: "Release preview" })) invalidate();
             }}>Release local preview</Button>
           </fieldset>
-          {preview ? <section className="min-w-0 space-y-4 border-t border-neutral-300 pt-4" aria-label="Batch change preview">
+          {preview ? <section className="min-w-0 space-y-4 border-t border-border pt-4" aria-label="Batch change preview">
             <h3 className="text-sm">Preview · {preview.rows.length} photographs</h3>
-            <p className="wrap-anywhere text-xs text-neutral-700">Run {preview.runId} · approval expires {preview.expiresAt}</p>
-            <p className="wrap-anywhere text-xs text-neutral-700">Approval token: {preview.token}. Keep this to recover results or roll back unchanged fields after leaving this page.</p>
+            <p className="wrap-anywhere text-xs">Run {preview.runId} · approval expires {preview.expiresAt}</p>
+            <p className="wrap-anywhere text-xs">Approval token: {preview.token}. Keep this to recover results or roll back unchanged fields after leaving this page.</p>
             <div className="max-h-[60dvh] space-y-4 overflow-y-auto">
-              {preview.rows.map(row => <article key={row.draftId} className="min-w-0 border-b border-neutral-200 pb-3">
+              {preview.rows.map(row => <article key={row.draftId} className="min-w-0 border-b border-border pb-3">
                 <h4 className="wrap-anywhere text-sm">{row.filename} · {row.status}</h4>
-                <p className="text-xs text-neutral-700">Eligible: {row.eligibleFields.map(field => fieldLabels[field]).join(", ") || "none"}. Protected: {row.protectedFields.map(field => fieldLabels[field]).join(", ") || "none"}.</p>
+                <p className="text-xs">Eligible: {row.eligibleFields.map(field => fieldLabels[field]).join(", ") || "none"}. Protected: {row.protectedFields.map(field => fieldLabels[field]).join(", ") || "none"}.</p>
                 {previewTextFields(row).map(field => <div key={field} className="mt-2 grid min-w-0 gap-2 text-xs sm:grid-cols-2">
                   <p className="whitespace-pre-wrap wrap-anywhere"><strong>{fieldLabels[field]} before:</strong> {row.before[field] ?? "(empty)"}</p>
                   <p className="whitespace-pre-wrap wrap-anywhere"><strong>After{row.eligibleFields.includes(field) ? "" : " · excluded"}:</strong> {row.after[field] ?? "(empty)"}</p>
@@ -246,7 +246,7 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
               </article>)}
             </div>
             <div className="flex flex-wrap gap-2">
-              {altReadOnly && preview.rows.some(row => row.eligibleFields.includes("alt_text")) ? <p className="text-xs text-neutral-700">This approval includes alt text. Create a new title/description-only preview, or confirm automatic alt text is off before applying it.</p> : null}
+              {altReadOnly && preview.rows.some(row => row.eligibleFields.includes("alt_text")) ? <p className="text-xs">This approval includes alt text. Create a new title/description-only preview, or confirm automatic alt text is off before applying it.</p> : null}
               <Button type="button" disabled={pending || done || !preview.rows.some(row => row.eligibleFields.length) || (altReadOnly && preview.rows.some(row => row.eligibleFields.includes("alt_text")))} onClick={async () => {
                 // Open the dialog outside the async transition: waiting for a
                 // decision inside that transition can defer the dialog itself.
@@ -262,7 +262,7 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
                 });
               }}>Roll back unchanged applied fields</Button>
             </div>
-            <p className="text-xs text-neutral-700" role="status">{results.length} recorded results{locked && !pending ? ". Batch interrupted: resume using the retained approval above." : ""}</p>
+            <p className="text-xs" role="status">{results.length} recorded results{locked && !pending ? ". Batch interrupted: resume using the retained approval above." : ""}</p>
             <ul className="space-y-1 text-xs">{results.map(row => <li key={row.draftId} className="wrap-anywhere">{row.filename}: {row.status} · {row.fields.map(field => fieldLabels[field]).join(", ") || "no fields changed"}</li>)}</ul>
           </section> : null}
           </details>
@@ -296,7 +296,7 @@ function DraftEditor({ draft, selected, onSelect, onDirty, onEdit, onSaved, auto
     });
   }
 
-  return <article className="min-w-0 border-t border-neutral-300 pt-3">
+  return <article className="min-w-0 border-t border-border pt-3">
     <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
       <Label className="flex min-h-11 min-w-0 items-center gap-2"><input type="checkbox" checked={selected} onChange={event => onSelect(event.target.checked)} /><span className="wrap-anywhere">{draft.filename} · {draft.status}</span></Label>
       <div className="flex flex-wrap gap-3 text-xs"><a className="inline-flex min-h-11 items-center underline underline-offset-4" href={photographUrl(draft.storagePath)} target="_blank" rel="noreferrer">View photograph</a><a className="inline-flex min-h-11 items-center underline underline-offset-4" href={photographPath(draft.filename)} target="_blank" rel="noreferrer">Public page</a></div>
@@ -319,7 +319,7 @@ function DraftEditor({ draft, selected, onSelect, onDirty, onEdit, onSaved, auto
                 setFields(current => ({ ...current, [fieldKeys[field]]: event.target.value })); onEdit();
               }} />
             </FormField>
-            <details className="text-xs text-neutral-700"><summary className="min-h-11 cursor-pointer py-3">Original AI {fieldLabels[field].toLowerCase()}</summary><p className="whitespace-pre-wrap wrap-anywhere">{draft.originalFields[fieldKeys[field]]}</p></details>
+            <details className="text-xs"><summary className="min-h-11 cursor-pointer py-3">Original AI {fieldLabels[field].toLowerCase()}</summary><p className="whitespace-pre-wrap wrap-anywhere">{draft.originalFields[fieldKeys[field]]}</p></details>
             <Button type="button" variant="outline" disabled={dirty || (automaticAlt !== false && field === "alt_text")} onClick={async () => {
               if (!await confirm({ title: `Replace live ${fieldLabels[field].toLowerCase()}?`, description: `Replace the live ${fieldLabels[field].toLowerCase()} with this ORIGINAL AI suggestion, including any manual value?\n\n${draft.originalFields[fieldKeys[field]]}\n\nThis is a live change, not a draft save.`, confirmLabel: "Replace live text", destructive: true })) return;
               task(async () => {
@@ -332,7 +332,7 @@ function DraftEditor({ draft, selected, onSelect, onDirty, onEdit, onSaved, auto
           <FormField className="sm:col-span-2" label="Filename suggestion · draft only, never renames files or routes"><AdminInput maxLength={160} required value={fields.filenameSuggestion} onChange={event => {
             setFields(current => ({ ...current, filenameSuggestion: event.target.value })); onEdit();
           }} /></FormField>
-          <div className="min-w-0 space-y-2 text-xs text-neutral-700 sm:col-span-2">
+          <div className="min-w-0 space-y-2 text-xs sm:col-span-2">
             <p>Private uncertainty notes</p>
             {fields.uncertainties.length ? <ul className="list-disc space-y-1 pl-4">{fields.uncertainties.map((note, index) => <li key={index} className="wrap-anywhere">{note}</li>)}</ul> : <p>No uncertainty notes.</p>}
             <Label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={resolved} onChange={event => { setResolved(event.target.checked); onEdit(); }} />Notes reviewed and resolved</Label>
@@ -345,7 +345,7 @@ function DraftEditor({ draft, selected, onSelect, onDirty, onEdit, onSaved, auto
             }}>Discard edits</Button>
           </div>
         </fieldset>
-        <p role={error ? "alert" : "status"} className="wrap-anywhere text-xs text-neutral-700 sm:col-span-2">{error || message || (pending ? "Working…" : dirty ? "Unsaved private draft edits" : "Private draft unchanged")}</p>
+        <p role={error ? "alert" : "status"} className="wrap-anywhere text-xs sm:col-span-2">{error || message || (pending ? "Working…" : dirty ? "Unsaved private draft edits" : "Private draft unchanged")}</p>
       </form>
     </details>
   </article>;

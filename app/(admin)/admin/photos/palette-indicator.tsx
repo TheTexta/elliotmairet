@@ -7,8 +7,8 @@ export function PaletteIndicator({
 }) {
   if (!photograph.palette.length) {
     return (
-      <span className="flex items-center gap-2 text-xs text-neutral-600">
-        <span className="size-1.5 rounded-full bg-neutral-500" />
+      <span className="flex items-center gap-2 text-xs">
+        <span className="size-1.5 rounded-full bg-foreground" />
         Palette pending
       </span>
     );
@@ -18,7 +18,7 @@ export function PaletteIndicator({
     <div aria-label="Extracted palette" className="flex gap-1">
       {photograph.palette.map((colour) => (
         <span
-          className="size-3.5 rounded-full border border-black/10"
+          className="size-3.5 rounded-full border border-border"
           key={colour.rank}
           style={{ backgroundColor: colour.hex }}
           title={colour.hex}

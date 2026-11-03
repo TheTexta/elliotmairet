@@ -1,4 +1,4 @@
-# Elliot Mairêt
+# Elliot Mairet
 
 A Next.js photography archive backed by Supabase Postgres and Auth, with
 photograph objects stored in Cloudflare R2. The public site contains the gallery;
@@ -186,7 +186,7 @@ Use `npm run test:text` for offline safeguards and `npm run test:text:db` for th
 isolated local Postgres checks (Docker required; never uses Supabase credentials).
 
 **Description-driven alt text (deployed and enabled):** a whole-archive
-setting under **Admin → Photos → Automatic text** generates concise AI alt text
+setting under **Admin → Photos → Photo tools → Automatic text** generates concise AI alt text
 from the saved title and description after either changes. Alt text becomes
 read-only, and caption controls are hidden without deleting their data. Existing
 alt text stays live until generation succeeds; enabling the setting does not
@@ -200,47 +200,91 @@ See the operating guide for stale-result, recovery and rollout behavior.
 
 ## Admin usability
 
-Photos and uploading are the primary workflow. A compact image-led list keeps
-uncropped previews, titles, descriptions, filenames and capture dates visible.
-Edit a photo inline; alt/date/file/palette details remain inside its editor.
-Search and filters never unmount unsaved editors. With automatic alt enabled or
-its setting unavailable, **Missing title or description** checks editable source
-text only; caption filters are hidden. When automatic alt is explicitly off,
-missing-text and hidden-caption-metadata filters remain available. Custom caption
-wording is retained; public photograph pages remain image-only.
+The local redesign separates finding photographs from editing them:
 
-Automatic text has a concise summary and visible issue/suggestion shortcuts.
-**Text settings and history** contains the whole-archive alt setting, budget and
-recent updates; **Review text issues** opens and focuses that history directly.
-Unknown-charge requests still cannot be retried. Suggested-text import, bulk
-application/recovery and file cleanup remain under **Advanced tools**. Unfinished
-file cleanup also has a visible summary above the archive; removing a catalogue
-entry is not the same as completing object cleanup.
+- `/admin/photos` is a thumbnail-only, justified-row gallery. Capture dates run
+  **newest first, left-to-right across each row, then top-to-bottom**. Equal dates
+  retain catalogue order; photographs without a capture date follow dated entries.
+  This admin-only ordering does not change the public catalogue's custom order. Search
+  and filter are URL-backed. **48** lazy thumbnails mount initially; approaching
+  unloaded photographs reveals further 48-item batches. A
+  keyboard-accessible **Load more photographs** action also works without
+  IntersectionObserver. Photos in each row share a height, with proportional widths
+  and even **12px/16px** gutters rather than holes beneath shorter images. Responsive
+  target heights are **4.8rem/7.2rem**, reduced to 60% of the first justified layout;
+  actual heights adjust to fit each row without cropping. Incomplete rows stay
+  left-aligned and height-capped. Lightweight, non-interactive aspect-ratio slots
+  reserve the matching catalogue's full layout from the start; revealing previews
+  does not resize loaded rows or extend the page. Only the revealed set mounts
+  images and edit links. Viewport changes and explicit filtering can reflow rows.
+  The observer prepares slots within **1000px** of the viewport, including direct
+  jumps into unloaded space. The manual action stays in the top gallery toolbar,
+  disabled rather than removed at completion, so no bottom loading footer jumps
+  down. Keyboard focus near the revealed edge also prepares the next batch without
+  moving focus; manual activation still focuses the first newly revealed photo.
+  This uses the cached catalogue,
+  not a new database pagination API; palettes and editor prefetch stay out.
+- A thumbnail opens `/admin/photos/[id]/edit`, loading that photograph and its
+  palette only. Title and description are immediately editable; alt/date/file/
+  palette details remain available below. Back to Photos restores search/filter,
+  loaded gallery depth, scroll position and the originating thumbnail's keyboard
+  focus when session storage is available. Obsolete `page` query parameters are ignored.
+- `/admin/photos/upload` is a dedicated, immediately open upload workspace. The
+  existing file/date detection, publication retry and recovery controller is reused.
+  Active uploads disable shared navigation and sign-out; prepared files warn
+  before leaving. Success offers Back to gallery or Upload another.
+- `/admin/photos/tools` contains automatic text, its shared budget/history,
+  private suggestions/import/batch recovery and file maintenance. Actionable
+  queue/cleanup summaries remain visible in Photos. Unknown charges cannot be
+  retried. Removing a photo returns to the gallery with pending-cleanup feedback.
+- Photos, editing, upload, tools and Site content share one authenticated layout
+  and persistent header. Login uses the same visual language without privileged
+  navigation. Montserrat, black/white chrome, square controls and thin rules are
+  consistent; photographs and palette swatches retain their colours.
+  Header/nav chrome hugs its text with compact **24px** navigation targets rather
+  than form-sized blocks; fields and primary form actions remain **44px**. Sign out
+  shows a pointer when enabled and a not-allowed cursor while uploads disable it.
+  The shared header and login use the plain name **Elliot Mairet**, without an accent.
 
-Site content groups search/link-preview fields separately from the public footer.
-Sign-in identifies Elliot's archive, explains account help and locks fields while
-pending. Navigation, native form controls and inline feedback retain the same
-monochrome, square-edged design across mobile and desktop.
-
-The 2026-11-02 first-principles UI refinements are **deployed** to
-`https://elliotmairet.com` from local commit `91ab83f`. The separately deployed
-description-driven alt workflow is unchanged. Refresh existing admin tabs after
-saving or discarding unfinished edits. See the usability record below for rollout
-verification and remaining live-acceptance limits.
+With automatic alt enabled or its setting unavailable, **Missing title or
+description** checks editable source text only; manual alt and caption controls
+remain locked/hidden conservatively. Explicit manual mode retains missing-text
+and hidden-caption-metadata filters. Custom wording is not deleted; public photo
+pages remain image-only. Site content retains separate search-preview/footer fields.
+Local text edits can queue generation without processing it immediately if the
+local server lacks the worker capability; Check progress does not run the queue.
+See the [automatic-text configuration guide](docs/photograph-text-generation.md#local-editing-and-apparently-stuck-jobs)
+before retrying or provisioning local generation.
 
 Unsaved photo text, suggested drafts, prepared uploads and site content warn on
-link navigation, sign-out and document unload. New photo revisions refresh clean
-editors only; dirty editors retain their optimistic revision and offer per-photo
-reload/discard. Saving a suggestion refreshes only that record, not dirty siblings.
-Use `npm run test:admin` for offline interaction/state and homepage metadata tests.
+links, sign-out, document unload and same-document Back/Forward. Pending photo saves,
+removals and uploads block route changes. `instrumentation-client.ts` installs the
+history listener **before hydration**, ahead of Next's router listener; it stays
+inert when no admin form has registered unfinished work. Do not move registration
+back into a dirty-only effect: real router traversal can otherwise unmount the
+form first. On browsers with Navigation API history
+indices, declined traversal returns to the existing entry; older browsers restore
+the working entry with its router state, which can replace the Forward branch.
+New revisions refresh clean editors only; dirty editors keep their optimistic
+revision and offer per-photo reload/discard. Saved suggestions refresh only that
+record. Route changes cancel stale confirmations without remounting the header.
 
-Admin controls now use locally owned **shadcn/ui** components, styled to retain
-Elliot's monochrome square-edged identity. A shared Radix AlertDialog confirms
-permanent removal, discard, paid retries and advanced batch changes; cancellation
-never dispatches the action. Navigation/unload warnings stay browser-native.
-File/date inputs, native selects, inline upload form and details disclosures remain
-native. Persistent inline status/error feedback is retained instead of introducing
-transient-only toasts. Public pages and SEO content are not changed by this migration.
+Locally owned **shadcn/ui** controls and a shared Radix AlertDialog retain native
+form contracts, keyboard focus, explicit cancellation and persistent inline
+feedback. Navigation/unload warnings remain browser-native. Use `npm run test:admin`
+for offline interaction/state, route, component and homepage metadata tests.
+
+**Release authorization:** the owner approved committing and pushing this admin
+redesign to `main` on **2026-11-03**. The previous production baseline was the
+compact-list UI from `91ab83f`; verify the connected Vercel deployment separately.
+No schema, storage, permissions or generation-policy migration is included. The
+release refreshes all six photograph cache namespaces so retained cross-deployment
+data cannot revive Elliot's recent deletions. Verification matched **262** live
+photos to built gallery routes, sitemap and palette data, excluding ten removed
+photos and retaining one new addition compared with the preceding build. No
+catalogue or storage mutation was performed for this release. Public appearance
+and SEO-content rules remain unchanged; the inactive history bootstrap shares the
+global client entry. Save/discard unfinished work before refreshing an admin tab.
 
 See [`components/ui/README.md`](components/ui/README.md) for component provenance,
 scoped tokens and safe CLI usage, and

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -45,4 +45,19 @@ test("admin CSS defines scoped tokens without changing public radius/body defaul
   const path = new URL("../../app/globals.css", import.meta.url);
   const result = await postcss([tailwind()]).process(readFileSync(path, "utf8"), { from: fileURLToPath(path) });
   for (const utility of ["bg-primary", "text-primary-foreground", "bg-popover", "border-input", "text-muted-foreground"]) assert.ok(result.css.includes(`.${utility}`), utility);
+});
+
+test("admin chrome uses only black and white, with image and palette colour left intact", () => {
+  const root = new URL("../../app/(admin)/admin/", import.meta.url);
+  const css = readFileSync(new URL("admin.css", root), "utf8");
+  const colours = [...css.matchAll(/#[a-f\d]{3,8}\b/gi)].map(match => match[0]);
+  assert.ok(colours.length > 20);
+  assert.ok(colours.every(colour => ["#000", "#fff"].includes(colour.toLowerCase())));
+  for (const entry of readdirSync(root, { recursive: true }).filter(entry => entry.endsWith(".tsx"))) {
+    const source = readFileSync(new URL(entry, root), "utf8");
+    assert.doesNotMatch(source, /(?:text|border|bg|divide)-(?:neutral|gray|slate|red|amber|blue)-\d+/, entry);
+  }
+  for (const file of ["button", "input", "label", "alert", "alert-dialog"]) {
+    assert.doesNotMatch(readFileSync(new URL(`./${file}.tsx`, import.meta.url), "utf8"), /(?:bg|border|text)-[\w-]+\/\d+|disabled:opacity-\d+/);
+  }
 });

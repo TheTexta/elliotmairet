@@ -392,6 +392,22 @@ operation. Anonymous callers without that capability cannot claim, reserve,
 finish or fail jobs; ordinary authenticated users cannot read the queue/ledger.
 Admin status/retry still require existing `is_admin()` membership.
 
+### Local editing and apparently stuck jobs
+
+Local admin saves use the same durable database queue even when the local worker
+is not configured. An OpenAI key alone is insufficient: the server also needs a
+valid `PHOTOGRAPH_TEXT_WORKER_SECRET` of at least 32 characters matching the
+database capability. Without it, the worker returns `unconfigured` before claiming
+or billing anything, leaving an otherwise eligible job queued for production
+recovery. **Check progress** only reloads status and invalidates caches; it never
+starts generation. The configured production rescue runs daily at **04:17 UTC**.
+
+For diagnosis, check configuration presence without printing values, then inspect
+job status, attempts, preflight failures, next-attempt/lease times, unresolved
+reservations and the shared monthly budget through a read-only transaction. Do
+not clear jobs, release charges, retry paid work, change schedules or copy
+production secrets into local configuration without separate approval.
+
 Apply the new additive auto-text migration (not an edit of the applied draft
 migration), deploy the application/cron with the three production secrets, verify
 access and zero old-catalogue jobs, then enable the private settings row. A

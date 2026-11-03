@@ -10,7 +10,7 @@ export function AlertDialog(props: ComponentProps<typeof AlertDialogPrimitive.Ro
 }
 export function AlertDialogContent({ className, ...props }: ComponentProps<typeof AlertDialogPrimitive.Content>) {
   return <AlertDialogPrimitive.Portal>
-    <AlertDialogPrimitive.Overlay data-slot="alert-dialog-overlay" className="admin-ui fixed inset-0 z-50 bg-black/40" />
+    <AlertDialogPrimitive.Overlay data-slot="alert-dialog-overlay" className="admin-ui fixed inset-0 z-50 bg-background" />
     <AlertDialogPrimitive.Content data-slot="alert-dialog-content"
       className={cn("admin-ui fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-5 overflow-hidden rounded-none border border-border bg-popover p-5 text-popover-foreground normal-case outline-none sm:p-6", className)} {...props} />
   </AlertDialogPrimitive.Portal>;

@@ -25,16 +25,163 @@
   --popover-foreground: #000;
   --primary: #000;
   --primary-foreground: #fff;
-  --secondary: #f5f5f5;
+  --secondary: #fff;
   --secondary-foreground: #000;
-  --muted: #f5f5f5;
-  --muted-foreground: #525252;
-  --accent: #e5e5e5;
-  --accent-foreground: #000;
-  --destructive: #991b1b;
-  --border: #d4d4d4;
-  --input: #d4d4d4;
+  --muted: #fff;
+  --muted-foreground: #000;
+  --accent: #000;
+  --accent-foreground: #fff;
+  --destructive: #000;
+  --border: #000;
+  --input: #000;
   --ring: #000;
   --radius: 0;
   color-scheme: light;
+  accent-color: #000;
+  caret-color: #000;
+}
+
+.admin-ui ::selection {
+  color: #fff;
+  background: #000;
+}
+
+/* Header actions hug their labels; full-size form actions remain 44px. */
+.admin-ui .admin-navigation button {
+  min-height: 1.5rem;
+  min-width: 0;
+  padding: 0.125rem 0.375rem;
+  cursor: pointer;
+}
+
+.admin-ui .admin-navigation button:disabled {
+  cursor: not-allowed;
+}
+
+@layer components {
+  .admin-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.25rem 1rem;
+    border-bottom: 1px solid #000;
+    padding: 0.5rem 1rem;
+    background: #fff;
+    color: #000;
+  }
+
+  .admin-brand,
+  .admin-nav-link,
+  .admin-navigation button {
+    display: inline-flex;
+    min-height: 1.5rem;
+    align-items: center;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .admin-brand {
+    width: fit-content;
+  }
+
+  .admin-location {
+    display: none;
+    font-size: 0.75rem;
+  }
+
+  .admin-navigation {
+    grid-column: 1 / -1;
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0;
+  }
+
+  .admin-nav-link {
+    padding: 0.125rem 0.375rem;
+    white-space: nowrap;
+  }
+
+  .admin-navigation button span {
+    white-space: nowrap;
+  }
+
+  .admin-nav-link[aria-current],
+  .admin-nav-link:hover:not([aria-disabled="true"]) {
+    background: #000;
+    color: #fff;
+  }
+
+  .admin-header [aria-disabled="true"] {
+    cursor: not-allowed;
+    text-decoration: line-through;
+  }
+
+  .admin-ui :is(a, summary):focus-visible {
+    outline: 2px solid #000;
+    outline-offset: 3px;
+  }
+
+  .admin-page {
+    min-width: 0;
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .admin-back-link {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .admin-photo-grid {
+    --admin-photo-row-height: 4.8rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: start;
+    gap: 0.75rem;
+  }
+
+  .admin-thumbnail {
+    position: relative;
+    display: block;
+    flex: var(--photograph-ratio) 1 calc(var(--photograph-ratio) * var(--admin-photo-row-height));
+    min-width: 0;
+    /* Cap incomplete rows without stretching a lone photograph across the page. */
+    max-width: min(100%, calc(var(--photograph-ratio) * var(--admin-photo-row-height) * 1.5));
+    scroll-margin-top: 8rem;
+    background: #fff;
+    outline-offset: 3px;
+  }
+
+  a.admin-thumbnail:hover {
+    outline: 1px solid #000;
+  }
+
+  @media (min-width: 40rem) {
+    .admin-page { padding: 2rem 2rem 3rem; }
+    .admin-header { padding-inline: 2rem; }
+    .admin-photo-grid { --admin-photo-row-height: 7.2rem; gap: 1rem; }
+  }
+
+  @media (min-width: 48rem) {
+    .admin-header { grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); }
+    .admin-location { display: block; text-align: center; }
+    .admin-navigation { grid-column: 3; justify-content: flex-end; gap: 0.5rem; }
+  }
+
+  @media (min-width: 64rem) {
+    .admin-page { padding-inline: 3rem; }
+    .admin-header { padding-inline: 3rem; }
+  }
 }

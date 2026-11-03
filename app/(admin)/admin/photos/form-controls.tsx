@@ -13,7 +13,7 @@ export function FormField({
 }) {
   return (
     <Label
-      className={`flex min-w-0 flex-col gap-2 wrap-anywhere text-xs font-medium text-neutral-700 ${className}`}
+      className={`flex min-w-0 flex-col gap-2 wrap-anywhere text-xs font-medium ${className}`}
     >
       {label}
       {children}

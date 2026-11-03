@@ -15,21 +15,25 @@ const primitives = {
   "../confirm-provider": { useAdminConfirm: () => async () => true },
   "./unsaved-changes": { useUnsavedChanges() {}, hasUnsavedAdminChanges: () => false },
   "./palette-indicator": { PaletteIndicator: "span" },
+  "../admin-workspace": { useAdminUploadNavigation: () => ({ setUploadBusy() {} }) },
+  "next/link": { __esModule: true, default: "a" },
+  "next/navigation": { unstable_rethrow() {} },
 };
 function load(file, mocks = {}, globals = {}) {
   const source = ts.transpileModule(readFileSync(new URL(file, import.meta.url), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const exports = {};
-  runInNewContext(source, { exports, FormData, window: { confirm: () => true },
+  runInNewContext(source, { exports, FormData, URL, URLSearchParams, window: { confirm: () => true },
     require: name => mocks[name] ?? primitives[name] ?? (name === "@/lib/photographs/text" ? text : require(name)), ...globals });
   return exports;
 }
 const { matchesPhotograph } = load("./archive-filter.ts");
+const archive = load("./archive-state.ts");
 const state = load("./photo-editor-state.ts");
 const photo = { id: "photo-a", filename: "2026-photo.jpg", title: "Yellow leaves", description: "A tree in autumn.", altText: "Branches with yellow leaves",
   customCaption: "Retained caption", captionMode: "description", capturedAt: "2026-10-31", textRevision: 1, textMetadataAvailable: true,
-  textSources: { title: "ai", description: "ai", alt_text: "ai" }, sortOrder: 2, palette: [], storagePath: "uploads/a.jpg" };
+  textSources: { title: "ai", description: "ai", alt_text: "ai" }, sortOrder: 2, palette: [], storagePath: "uploads/a.jpg", width: 1200, height: 800 };
 function nodes(tree, predicate) {
   if (!tree || typeof tree !== "object") return [];
   return [...(predicate(tree) ? [tree] : []), ...[tree.props?.children].flat(Infinity).flatMap(child => nodes(child, predicate))];
@@ -60,6 +64,32 @@ function hooks() {
   };
 }
 
+function archiveHarness(photographs, search = "", observerAvailable = true) {
+  const h = hooks(), writes = [];
+  const focused = [], observers = [];
+  let effects = [], tree;
+  let params = new URLSearchParams(search);
+  function write(_state, _unused, href) { writes.push(href); params = new URL(href, "https://example.test").searchParams; }
+  class IntersectionObserver {
+    constructor(callback, options) { this.callback = callback; this.options = options; this.targets = []; observers.push(this); }
+    observe(target) { this.targets.push(target); }
+    disconnect() { this.disconnected = true; }
+  }
+  const { PhotographArchive } = load("./photograph-archive.tsx", {
+    react: { ...h.react, useEffect: callback => effects.push(callback) }, "./archive-filter": { matchesPhotograph }, "./archive-state": archive,
+    "../page-heading": { AdminPageHeading: "page-heading" }, "./photograph-thumbnail": { PhotographThumbnail: "photo-thumbnail", PhotographPlaceholder: "photo-placeholder" },
+    "./gallery-position": {}, "next/navigation": { useSearchParams: () => params },
+  }, { window: { history: { replaceState: write } }, IntersectionObserver: observerAvailable ? IntersectionObserver : undefined,
+    requestAnimationFrame: callback => callback(), document: { getElementById: id => ({ focus: () => focused.push(id) }) } });
+  return { render: automaticAlt => {
+    effects = []; tree = h.render(PhotographArchive, { photographs, automaticAlt });
+    const gallery = find(tree, node => node.type === "div" && node.props.ref);
+    if (gallery) gallery.props.ref.current = { querySelectorAll: () => nodes(tree, node => node.type === "photo-placeholder")
+      .map(node => ({ dataset: { photographIndex: String(node.props.index) } })) };
+    return tree;
+  }, writes, focused, observers, observe: () => effects.at(-1)() };
+}
+
 test("archive search combines words across readable fields and clear filters", () => {
   assert.equal(matchesPhotograph(photo, "LEAVES autumn", "all"), true);
   assert.equal(matchesPhotograph(photo, "2026-photo", "all"), true);
@@ -78,23 +108,19 @@ test("automatic alt missing-text filter only asks for editable source text", () 
   assert.equal(matchesPhotograph({ ...waitingForAlt, description: null }, "", "missing", true), true);
 });
 
-test("automatic and unavailable settings hide caption filters without hiding retained rows", () => {
-  const h = hooks();
-  const { PhotographArchive } = load("./photograph-archive.tsx", {
-    react: h.react, "./archive-filter": { matchesPhotograph }, "./photograph-row": { PhotographRow: "photo-row" }, "./advanced-tools-link": {},
-  });
+test("automatic and unavailable settings hide caption filters without hiding retained photographs", () => {
   const photographs = [photo, { ...photo, id: "photo-b", captionMode: "hidden" }];
-  const render = automaticAlt => h.render(PhotographArchive, { photographs, automaticAlt });
+  const { render } = archiveHarness(photographs);
   let tree = render(false);
   assert.ok(find(tree, node => node.type === "option" && node.props.value === "hidden"));
   named(tree, "archiveFilter").props.onChange({ target: { value: "hidden" } });
   tree = render(false);
-  assert.equal(nodes(tree, node => node.props?.hidden === true).length, 1);
+  assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 1);
   for (const automaticAlt of [true, null]) {
     tree = render(automaticAlt);
     assert.equal(find(tree, node => node.type === "option" && node.props.value === "hidden"), undefined);
     assert.equal(named(tree, "archiveFilter").props.value, "all");
-    assert.equal(nodes(tree, node => node.props?.hidden === true).length, 0);
+    assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 2);
     assert.equal(find(tree, node => node.type === "option" && node.props.value === "missing").props.children, "Missing title or description");
   }
 });
@@ -155,17 +181,108 @@ test("caption mode switches retain custom text; save sends deliberately blank ma
   assert.equal(guarded, false);
 });
 
-test("filtering hides photo rows without unmounting their editors", () => {
-  const h = hooks();
-  const { PhotographArchive } = load("./photograph-archive.tsx", {
-    react: h.react, "./archive-filter": { matchesPhotograph }, "./form-controls": {}, "./photograph-row": { PhotographRow: "photo-row" }, "./advanced-tools-link": {},
-  });
-  const render = () => h.render(PhotographArchive, { photographs: [photo, { ...photo, id: "photo-b" }] });
+test("infinite gallery extends one chronological row layout by 48, caps at the catalogue and resets on search", () => {
+  const photographs = Array.from({ length: 105 }, (_, i) => ({ ...photo, id: `photo-${i}` }));
+  const { render, writes, focused } = archiveHarness(photographs, "page=2");
   let tree = render();
+  let thumbnails = nodes(tree, node => node.type === "photo-thumbnail");
+  assert.equal(thumbnails.length, 48); assert.equal(thumbnails[0].props.photograph.id, "photo-0");
+  assert.equal(nodes(tree, node => node.type === "photo-placeholder").length, 57);
+  assert.equal(thumbnails[0].props.returnHref, "/admin/photos");
+  assert.equal(nodes(tree, node => node.type === "form").length, 0);
+  assert.equal(find(tree, node => node.props?.["aria-label"] === "Gallery pages"), undefined);
+  assert.equal(nodes(tree, node => node.props?.className === "admin-photo-grid").length, 1);
+  find(tree, node => node.type === "button" && node.props.children === "Load more photographs").props.onClick(); tree = render();
+  thumbnails = nodes(tree, node => node.type === "photo-thumbnail");
+  assert.equal(thumbnails.length, 96); assert.equal(thumbnails[0].props.photograph.id, "photo-0");
+  assert.equal(thumbnails[95].props.photograph.id, "photo-95");
+  assert.equal(thumbnails[0].props.renderedCount, 96);
+  assert.equal(nodes(tree, node => node.type === "photo-placeholder").length, 9);
+  assert.equal(nodes(tree, node => node.props?.className === "admin-photo-grid").length, 1);
+  assert.equal(nodes(tree, node => node.props?.className === "admin-masonry").length, 0);
+  assert.equal(focused[0], "photograph-photo-48");
+  find(tree, node => node.type === "button" && node.props.children === "Load more photographs").props.onClick(); tree = render();
+  thumbnails = nodes(tree, node => node.type === "photo-thumbnail");
+  assert.equal(thumbnails.length, 105); assert.equal(new Set(thumbnails.map(node => node.props.photograph.id)).size, 105);
+  assert.equal(nodes(tree, node => node.type === "photo-placeholder").length, 0);
+  assert.equal(find(tree, node => node.type === "button" && node.props.children === "Load more photographs").props.disabled, true);
   find(tree, node => node.props?.type === "search").props.onChange({ target: { value: "no match" } });
   tree = render();
-  assert.equal(nodes(tree, node => node.type === "photo-row").length, 2);
-  assert.equal(nodes(tree, node => node.props?.hidden === true).length, 2);
+  assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 0);
+  assert.equal(writes.at(-1), "/admin/photos?q=no+match");
+  find(tree, node => node.type === "button" && node.props.children === "Clear filters").props.onClick(); tree = render();
+  assert.equal(writes.at(-1), "/admin/photos");
+  assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 48);
+});
+
+test("admin date order is newest first, stable for ties, unknown last and never mutates catalogue order", () => {
+  const dates = ["2024-01-01", null, "2026-11-02", "2026-11-02", "2025-06-10"];
+  const photographs = dates.map((capturedAt, i) => ({ ...photo, id: `dated-${i}`, capturedAt }));
+  const original = photographs.map(item => item.id);
+  const h = archiveHarness(photographs);
+  const tree = h.render();
+  assert.deepEqual(nodes(tree, node => node.type === "photo-thumbnail").map(node => node.props.photograph.id), ["dated-2", "dated-3", "dated-4", "dated-0", "dated-1"]);
+  assert.deepEqual(photographs.map(item => item.id), original);
+});
+
+test("infinite append reveals the next oldest capture dates rather than input order", () => {
+  const photographs = Array.from({ length: 70 }, (_, i) => ({ ...photo, id: `dated-${i}`, capturedAt: `${1950 + i}-01-01` }));
+  const h = archiveHarness(photographs);
+  let tree = h.render(), thumbnails = nodes(tree, node => node.type === "photo-thumbnail");
+  assert.equal(thumbnails[0].props.photograph.id, "dated-69");
+  assert.equal(thumbnails.at(-1).props.photograph.id, "dated-22");
+  find(tree, node => node.type === "button" && node.props.children === "Load more photographs").props.onClick(); tree = h.render();
+  thumbnails = nodes(tree, node => node.type === "photo-thumbnail");
+  assert.equal(thumbnails.length, 70); assert.equal(thumbnails[48].props.photograph.id, "dated-21");
+  assert.equal(thumbnails.at(-1).props.photograph.id, "dated-0");
+});
+
+test("reserved-slot intersection reveals previews early and stale observers cannot expand a different search", () => {
+  const photographs = Array.from({ length: 130 }, (_, i) => ({ ...photo, id: `photo-${i}` }));
+  const h = archiveHarness(photographs);
+  let tree = h.render(); const cleanup = h.observe(), observer = h.observers[0];
+  assert.equal(observer.options.rootMargin, "1000px 0px"); assert.equal(observer.targets.length, 82);
+  observer.callback([{ isIntersecting: false }]); tree = h.render();
+  assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 48);
+  observer.callback([{ isIntersecting: true, target: observer.targets[0] }]); tree = h.render();
+  assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 96);
+  assert.equal(h.focused.length, 0);
+  cleanup(); assert.equal(observer.disconnected, true);
+  named(tree, "archiveSearch").props.onChange({ target: { value: "Yellow" } }); tree = h.render();
+  observer.callback([{ isIntersecting: true, target: observer.targets[0] }]); tree = h.render();
+  assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 48);
+  assert.equal(h.writes.at(-1), "/admin/photos?q=Yellow");
+});
+
+test("jumping into reserved space reveals through the intersecting photo, not just one batch", () => {
+  const photographs = Array.from({ length: 200 }, (_, i) => ({ ...photo, id: `photo-${i}` }));
+  const h = archiveHarness(photographs);
+  let tree = h.render(); h.observe();
+  const observer = h.observers[0];
+  observer.callback([{ isIntersecting: true, target: observer.targets.find(target => target.dataset.photographIndex === "160") }]);
+  tree = h.render();
+  assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 192);
+  assert.equal(nodes(tree, node => node.type === "photo-placeholder").length, 8);
+  assert.equal(h.focused.length, 0);
+});
+
+test("keyboard approach reveals the next previews without stealing focus, even without an observer", () => {
+  const photographs = Array.from({ length: 130 }, (_, i) => ({ ...photo, id: `photo-${i}` }));
+  const h = archiveHarness(photographs, "", false);
+  let tree = h.render();
+  nodes(tree, node => node.type === "photo-thumbnail")[40].props.onFocus(); tree = h.render();
+  assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 96);
+  assert.equal(h.focused.length, 0);
+});
+
+test("manual loading remains usable when IntersectionObserver is unavailable", () => {
+  const photographs = Array.from({ length: 70 }, (_, i) => ({ ...photo, id: `photo-${i}` }));
+  const h = archiveHarness(photographs, "", false);
+  let tree = h.render();
+  assert.equal(h.observe(), undefined); assert.equal(h.observers.length, 0);
+  find(tree, node => node.type === "button" && node.props.children === "Load more photographs").props.onClick(); tree = h.render();
+  assert.equal(nodes(tree, node => node.type === "photo-thumbnail").length, 70);
+  assert.equal(h.focused[0], "photograph-photo-48");
 });
 
 test("saving one suggested draft refreshes only that draft, not dirty siblings", async () => {
@@ -188,7 +305,7 @@ test("saving one suggested draft refreshes only that draft, not dirty siblings",
   assert.equal(refreshed[1].props.draft, drafts[1]);
 });
 
-test("prepared uploads use the shared navigation guard even when panel is closed", async () => {
+test("upload is immediately available and a prepared photo uses the shared navigation guard", async () => {
   const h = hooks(); let guarded;
   const { UploadForm } = load("./upload-form.tsx", {
     react: h.react, "next/navigation": { useRouter: () => ({ refresh() {} }) },
@@ -196,12 +313,13 @@ test("prepared uploads use the shared navigation guard even when panel is closed
     "@/lib/photographs/upload": { createPhotographUpload: () => ({ isActive: () => false, reset: () => true }), isUploading: () => false, uploadStageLabels: {} },
     "./form-controls": {}, "./unsaved-changes": { useUnsavedChanges: value => { guarded = value; } },
   }, { URL: { createObjectURL: () => "blob:test" } });
-  const render = () => h.render(UploadForm, { onBusyChange() {} });
+  const render = () => h.render(UploadForm, {});
   let tree = render(); assert.equal(guarded, false);
   named(tree, "file").props.onChange({ currentTarget: { files: [{ name: "photo.jpg" }] } });
   await Promise.resolve(); tree = render();
   assert.equal(guarded, true);
-  assert.equal(find(tree, node => node.type === "section").props.hidden, true);
+  assert.notEqual(find(tree, node => node.type === "section").props.hidden, true);
+  assert.ok(find(tree, node => node.type === "form" && node.props["aria-label"] === "Upload photograph"));
 });
 
 test("automation exceptions stay visible; unknown charges and exhausted jobs have no retry", () => {
@@ -240,20 +358,74 @@ test("text settings start collapsed and reviewing issues opens and focuses their
   assert.equal(focused, true);
 });
 
-test("photo actions have filename-specific accessible names that retain their visible labels", () => {
-  const { PhotographRow } = load("./photograph-row.tsx", {
-    "next/image": { default: "img" }, "@/lib/photographs/storage": { photographUrl: () => "/local-photo.jpg" },
-    "@/lib/seo": { photographPath: () => "/local-photo" }, "./photograph-edit-form": { PhotographEditForm: "photo-editor" },
+test("thumbnail is an uncropped, lazy, filename-labelled edit link with a failed-preview fallback", () => {
+  const h = hooks();
+  let remembered;
+  const { PhotographThumbnail } = load("./photograph-thumbnail.tsx", {
+    react: h.react, "next/image": { __esModule: true, default: "img" }, "@/lib/photographs/storage": { photographUrl: () => "/local-photo.jpg" },
+    "./gallery-position": { rememberGalleryPosition: (...args) => { remembered = args; } },
   });
-  const row = PhotographRow({ photograph: photo });
-  assert.equal(find(row, node => node.type === "a").props["aria-label"], `View on site: ${photo.filename}`);
-  assert.equal(row.props["aria-labelledby"], find(row, node => node.type === "h2").props.id);
+  const render = () => h.render(PhotographThumbnail, { photograph: photo, returnHref: "/admin/photos?q=tree", renderedCount: 144 });
+  let tree = render();
+  assert.equal(tree.type, "a"); assert.equal(tree.props.prefetch, false);
+  assert.match(tree.props["aria-label"], new RegExp(photo.filename));
+  assert.equal(tree.props.href, "/admin/photos/photo-a/edit?returnTo=%2Fadmin%2Fphotos%3Fq%3Dtree");
+  assert.equal(tree.props.style.aspectRatio, "1200 / 800");
+  assert.equal(tree.props.style["--photograph-ratio"], 1.5);
+  assert.equal(find(tree, node => node.type === "img").props.sizes, "(min-width: 1024px) min(calc(100vw - 6rem), calc(10.8rem * 1.5)), (min-width: 640px) min(calc(100vw - 4rem), calc(10.8rem * 1.5)), min(calc(100vw - 2rem), calc(7.2rem * 1.5))");
+  assert.equal(find(tree, node => node.type === "img").props.loading, "lazy");
+  assert.equal(find(tree, node => node.type === "img").props.className, "absolute inset-0 h-full w-full object-contain");
+  assert.doesNotMatch(find(tree, node => node.type === "img").props.className, /object-cover/);
+  tree.props.onClick({}); assert.deepEqual(remembered, ["/admin/photos?q=tree", photo.id, 144]);
+  find(tree, node => node.type === "img").props.onError(); tree = render();
+  assert.match(find(tree, node => node.type === "span").props.children.join(""), /Preview unavailable/);
+  assert.match(find(tree, node => node.type === "span").props.className, /absolute inset-0 overflow-auto/);
+  assert.doesNotMatch(find(tree, node => node.type === "span").props.className, /min-h-/);
+});
+
+test("justified thumbnail sizing follows each original ratio without changing the photograph", () => {
+  for (const [width, height] of [[600, 1200], [1200, 1200], [1600, 900]]) {
+    const photograph = Object.freeze({ ...photo, width, height });
+    const h = hooks();
+    const { PhotographThumbnail } = load("./photograph-thumbnail.tsx", {
+      react: h.react, "next/image": { __esModule: true, default: "img" },
+      "@/lib/photographs/storage": { photographUrl: () => "/local-photo.jpg" },
+      "./gallery-position": { rememberGalleryPosition() {} },
+    });
+    const tree = h.render(PhotographThumbnail, { photograph, returnHref: "/admin/photos" });
+    assert.equal(tree.props.style["--photograph-ratio"], width / height);
+    assert.equal(tree.props.style.aspectRatio, `${width} / ${height}`);
+    const image = find(tree, node => node.type === "img");
+    assert.equal(image.props.width, width); assert.equal(image.props.height, height);
+    assert.ok(image.props.sizes.includes(`calc(10.8rem * ${width / height})`));
+  }
+});
+
+test("unloaded photo slots reserve the exact thumbnail footprint without images, links or focus targets", () => {
+  const h = hooks();
+  const { PhotographThumbnail, PhotographPlaceholder } = load("./photograph-thumbnail.tsx", {
+    react: h.react, "next/image": { __esModule: true, default: "img" },
+    "@/lib/photographs/storage": { photographUrl: () => "/local-photo.jpg" },
+    "./gallery-position": { rememberGalleryPosition() {} },
+  });
+  const thumbnail = h.render(PhotographThumbnail, { photograph: photo, returnHref: "/admin/photos" });
+  const placeholder = PhotographPlaceholder({ photograph: photo, index: 48 });
+  assert.deepEqual(placeholder.props.style, thumbnail.props.style);
+  assert.equal(placeholder.props.className, thumbnail.props.className);
+  assert.equal(placeholder.type, "div"); assert.equal(placeholder.props["aria-hidden"], "true");
+  assert.equal(placeholder.props["data-photograph-index"], 48);
+  assert.equal(placeholder.props.tabIndex, undefined); assert.equal(placeholder.props.children, undefined);
+});
+
+test("dedicated editing starts open, retaining labelled secondary details", () => {
   const h = hooks();
   const { PhotographEditForm } = load("./photograph-edit-form.tsx", {
     react: h.react, "./text-actions": {}, "./form-controls": {}, "./delete-button": {}, "./photo-editor-state": state,
   });
   const editor = h.render(PhotographEditForm, { photograph: photo });
-  assert.ok(find(editor, node => node.type === "summary" && node.props["aria-label"] === `Edit photo ${photo.filename}`));
+  assert.equal(editor.type, "section");
+  assert.equal(editor.props["aria-label"], `Edit photo ${photo.filename}`);
+  assert.ok(find(editor, node => node.type === "form" && node.props["aria-label"] === `Edit text for ${photo.filename}`));
   assert.ok(find(editor, node => node.type === "summary" && node.props["aria-label"] === `Alt text, date and file details for ${photo.filename}`));
 });
 
@@ -280,10 +452,10 @@ test("delete confirmation never calls the action on Cancel; confirmation dispatc
     let calls = 0, warning;
     const { DeleteButton } = load("./delete-button.tsx", {
       react: { startTransition: work => work(), useActionState: reducer => [{}, () => { void reducer(); }, false] },
-      "../actions": { deletePhotographAction: async id => { assert.equal(id, "photo-a"); calls++; return { message: "Removed" }; } },
+      "./photo-page-actions": { removePhotographAndReturnAction: async (id, href) => { assert.equal(id, "photo-a"); assert.equal(href, "/admin/photos?page=2"); calls++; } },
       "../confirm-provider": { useAdminConfirm: () => async options => { warning = options; return accepted; } },
     });
-    const tree = DeleteButton({ id: "photo-a", filename: "original.jpg" });
+    const tree = DeleteButton({ id: "photo-a", filename: "original.jpg", returnHref: "/admin/photos?page=2" });
     await find(tree, node => node.type === "button").props.onClick();
     assert.equal(calls, accepted ? 1 : 0);
     assert.match(warning.description, /original\.jpg.*cannot be undone/s);
@@ -332,16 +504,16 @@ test("uploads omit manual alt when the setting is automatic or unavailable", () 
       "@/lib/photographs/upload-date": {}, "./form-controls": {},
       "@/lib/photographs/upload": { createPhotographUpload: () => ({}), isUploading: () => false },
     });
-    const tree = h.render(UploadForm, { onBusyChange() {}, automaticAlt });
+    const tree = h.render(UploadForm, { automaticAlt });
     assert.equal(Boolean(named(tree, "altText")), automaticAlt === false);
     assert.ok(named(tree, "title"));
   }
 });
 
 test("setting action validates revisions and server configuration before its admin-only RPC", async () => {
-  let calls = 0, authenticated = 0, refreshed = 0;
+  let calls = 0, authenticated = 0; const refreshed = [];
   const { setDescriptionAltAction } = load("./automatic-text-actions.ts", {
-    "next/cache": { revalidatePath() { refreshed++; } }, "next/server": {},
+    "next/cache": { revalidatePath(...args) { refreshed.push(args); } }, "next/server": {},
     "@/lib/cache-invalidation": {}, "@/lib/photographs/automatic-text": {},
     "@/lib/supabase/admin": { requireAdmin: async () => { authenticated++; return { supabase: { rpc: async (name, args) => {
       calls++; assert.equal(name, "set_photograph_description_alt"); assert.equal(args.p_enabled, true); assert.equal(args.p_revision, 2); return {};
@@ -350,7 +522,8 @@ test("setting action validates revisions and server configuration before its adm
   assert.ok((await setDescriptionAltAction(true, -1)).error);
   assert.equal(calls, 0);
   assert.ok((await setDescriptionAltAction(true, 2)).message);
-  assert.equal(calls, 1); assert.equal(authenticated, 2); assert.equal(refreshed, 1);
+  assert.equal(calls, 1); assert.equal(authenticated, 2);
+  assert.deepEqual(refreshed, [["/admin/photos"], ["/admin/photos/[id]/edit", "page"], ["/admin/photos/upload"], ["/admin/photos/tools"]]);
 });
 
 test("saving source text schedules queued work after commit; scheduling failure does not undo the save", async () => {
@@ -412,4 +585,123 @@ test("photo discard Cancel retains local edits; confirmed discard restores only 
   accepted = true;
   await find(tree, node => node.type === "button" && node.props.children === "Discard changes").props.onClick();
   tree = render(); assert.equal(named(tree, "title").props.value, photo.title);
+});
+
+test("archive URL state retains search/filter, drops obsolete pages and restricts return destinations", () => {
+  const parsed = archive.archiveState(new URLSearchParams("q=yellow+leaves&filter=missing&page=3"));
+  assert.equal(parsed.query, "yellow leaves"); assert.equal(parsed.filter, "missing"); assert.equal(parsed.page, undefined);
+  assert.equal(archive.archiveHref(parsed), "/admin/photos?q=yellow+leaves&filter=missing");
+  for (const invalid of ["-1", "1.5", "NaN", "Infinity", "9007199254740992"]) {
+    assert.equal(archive.archiveState(new URLSearchParams(`page=${invalid}&filter=invalid`)).filter, "all");
+  }
+  assert.equal(archive.archiveState(new URLSearchParams(`q=${"a".repeat(300)}`)).query.length, 200);
+  for (const invalid of [null, "/admin/content", "//other.test/admin/photos", "https://other.test/admin/photos", "javascript:alert(1)", "/admin/photos/../content"]) {
+    assert.equal(archive.galleryReturnHref(invalid), "/admin/photos");
+  }
+  assert.equal(archive.galleryReturnHref("/admin/photos?q=tree&filter=missing&page=2&removed=pending#x"), "/admin/photos?q=tree&filter=missing");
+});
+
+test("gallery position restores scroll and thumbnail focus only for its matching URL", () => {
+  const storage = new Map(), frames = new Map(), scrolled = [], focused = [], revealed = [];
+  let nextFrame = 0;
+  const position = load("./gallery-position.ts", {}, {
+    window: { scrollY: 682, sessionStorage: { setItem: (key, value) => storage.set(key, value), getItem: key => storage.get(key), removeItem: key => storage.delete(key) }, scrollTo: (...args) => scrolled.push(args) },
+    document: { getElementById: id => ({ focus: options => focused.push([id, options.preventScroll]) }) },
+    requestAnimationFrame: callback => { const id = ++nextFrame; frames.set(id, callback); return id; }, cancelAnimationFrame: id => frames.delete(id),
+  });
+  function flush() { while (frames.size) { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback()); } }
+  position.rememberGalleryPosition("/admin/photos?q=tree", "photo-a", 144);
+  position.restoreGalleryPosition("/admin/photos"); flush(); assert.equal(scrolled.length, 0);
+  position.restoreGalleryPosition("/admin/photos?q=tree", count => revealed.push(count));
+  assert.deepEqual(revealed, [144]); assert.equal(scrolled.length, 0);
+  flush();
+  assert.deepEqual(scrolled, [[0, 682]]); assert.deepEqual(focused, [["photograph-photo-a", true]]);
+  assert.equal(storage.size, 0);
+  position.rememberGalleryPosition("/admin/photos", "photo-b");
+  position.restoreGalleryPosition("/admin/photos")(); flush(); assert.equal(scrolled.length, 1);
+});
+
+test("removal delegates to tracked cleanup, revalidates the editor and redirects with its result", async () => {
+  for (const pending of [false, true]) {
+    const calls = [], paths = [];
+    const { removePhotographAndReturnAction } = load("./photo-page-actions.ts", {
+      "../actions": { deletePhotographAction: async id => { calls.push(id); return { message: pending ? "File removal is pending in Advanced tools." : "Photograph removed." }; } },
+      "./archive-state": archive, "next/cache": { revalidatePath: (...args) => paths.push(args) },
+      "next/navigation": { redirect: href => { throw new Error(`redirect:${href}`); } },
+    });
+    await assert.rejects(removePhotographAndReturnAction("photo-a", "/admin/photos?q=tree&page=2"), new RegExp(`redirect:/admin/photos\\?q=tree&removed=${pending ? "pending" : "done"}`));
+    assert.deepEqual(calls, ["photo-a"]); assert.deepEqual(paths, [["/admin/photos/[id]/edit", "page"]]);
+  }
+  const { removePhotographAndReturnAction } = load("./photo-page-actions.ts", {
+    "../actions": { deletePhotographAction: async () => { throw new Error("Removal failed"); } }, "./archive-state": archive,
+    "next/cache": { revalidatePath() { assert.fail("No confirmed removal"); } },
+    "next/navigation": { redirect() { assert.fail("Do not leave on failure"); } },
+  });
+  await assert.rejects(removePhotographAndReturnAction("photo-a", "/admin/photos"), /Removal failed/);
+});
+
+test("shared header uses the same navigation and blocks active-upload links on every workspace route", () => {
+  const h = hooks(); let pathname = "/admin/photos";
+  const { AdminHeader } = load("../admin-header.tsx", {
+    react: h.react, "next/navigation": { usePathname: () => pathname }, "./sign-out-button": { SignOutButton: "sign-out" },
+  });
+  for (const path of ["/admin/photos", "/admin/content", "/admin/photos/upload", "/admin/photos/tools", "/admin/photos/photo-a/edit"]) {
+    pathname = path;
+    const tree = AdminHeader({ uploading: true, canLeave: () => false });
+    assert.equal(tree.type, "header");
+    assert.equal(find(tree, node => node.props?.className === "admin-brand").props.children, "Elliot Mairet");
+    for (const link of nodes(tree, node => node.type === "a")) {
+      assert.equal(link.props["aria-disabled"], true); assert.equal(link.props.tabIndex, -1); assert.equal(link.props.prefetch, false);
+      let prevented = false; link.props.onNavigate({ preventDefault() { prevented = true; } }); assert.equal(prevented, true);
+    }
+    assert.equal(find(tree, node => node.type === "sign-out").props.disabled, true);
+    const current = find(tree, node => node.props?.["aria-current"] === "page");
+    assert.equal(current.props.href, path.startsWith("/admin/content") ? "/admin/content" : "/admin/photos");
+  }
+});
+
+test("edit route authenticates first and loads only its photograph plus palette", async () => {
+  const id = "00000000-0000-4000-8000-000000000011", calls = [], palette = [{ hex: "#f00" }];
+  const sources = { title: "manual", description: "ai", alt_text: "ai" };
+  let missing = false;
+  const { default: EditPage, maxDuration } = load("../(workspace)/photos/[id]/edit/page.tsx", {
+    "next/image": { default: "img" }, "next/navigation": { notFound() { throw new Error("not-found"); } },
+    "@/lib/photographs/queries": { getPhotographById: async value => { calls.push(["photo", value]); return missing ? null : { ...photo, id }; }, getPhotographPalette: async value => { calls.push(["palette", value]); return palette; } },
+    "@/lib/supabase/admin": { requireAdmin: async () => { calls.push(["auth"]); return { supabase: { rpc: async name => { calls.push(["rpc", name]); return { data: { [id]: sources } }; } } }; } },
+    "@/lib/photographs/storage": { photographUrl: () => "/mock.jpg" }, "@/lib/seo": { photographPath: () => "/gallery/mock" },
+    "../../../../page-heading": { AdminPageHeading: "page-heading" }, "../../../../photos/archive-state": archive,
+    "../../../../photos/automatic-text-actions": { getAutomaticTextStatusAction: async () => ({ status: { descriptionAltEnabled: true, jobs: [] } }) },
+    "../../../../photos/photograph-edit-form": { PhotographEditForm: "photo-editor" }, "../../../../photos/photograph-progress": { PhotographProgress: "photo-progress" },
+  });
+  const render = value => EditPage({ params: Promise.resolve({ id: value }), searchParams: Promise.resolve({ returnTo: "/admin/photos?q=tree&page=2" }) });
+  const tree = await render(id), editor = find(tree, node => node.type === "photo-editor");
+  assert.equal(maxDuration, 300); assert.equal(calls[0][0], "auth");
+  assert.deepEqual(calls.filter(([kind]) => kind === "photo" || kind === "palette"), [["photo", id], ["palette", id]]);
+  assert.equal(editor.props.photograph.palette, palette); assert.equal(editor.props.photograph.textSources, sources);
+  assert.equal(editor.props.automaticAlt, true); assert.equal(editor.props.returnHref, "/admin/photos?q=tree");
+  calls.length = 0; await assert.rejects(render("bad-id"), /not-found/); assert.deepEqual(calls, [["auth"]]);
+  missing = true; await assert.rejects(render(id), /not-found/);
+});
+
+test("gallery route keeps palette and text-state payloads out of the thumbnail catalogue", async () => {
+  const calls = [];
+  const { default: PhotosPage } = load("../(workspace)/photos/page.tsx", {
+    "@/lib/photographs/queries": { getPhotographs: async () => { calls.push("catalogue"); return [photo]; } },
+    "@/lib/supabase/admin": { requireAdmin: async () => { calls.push("auth"); return { supabase: { rpc: async name => { assert.equal(name, "list_storage_cleanup_jobs"); return { data: [] }; } } }; } },
+    "../../photos/automatic-text-actions": { getAutomaticTextStatusAction: async () => ({ status: { descriptionAltEnabled: true, counts: {} } }) },
+    "../../photos/archive-state": archive, "../../photos/photograph-archive": { PhotographArchive: "gallery" },
+  });
+  const tree = await PhotosPage(), gallery = find(tree, node => node.type === "gallery");
+  assert.equal(calls[0], "auth"); assert.equal(gallery.props.photographs[0].id, photo.id);
+  assert.equal(gallery.props.photographs[0].palette, undefined); assert.equal(gallery.props.photographs[0].textSources, undefined);
+  assert.equal(gallery.props.photographs[0].textRevision, undefined);
+});
+
+test("photo progress uses client navigation to tools and keeps gallery return context", () => {
+  const h = hooks();
+  const { PhotographProgress } = load("./photograph-progress.tsx", { react: h.react, "./automatic-text-actions": {} });
+  const tree = h.render(PhotographProgress, { photographId: photo.id, initialStatus: null, returnHref: "/admin/photos?q=tree&page=2" });
+  const link = find(tree, node => node.type === "a");
+  assert.equal(link.props.prefetch, false);
+  assert.equal(link.props.href, "/admin/photos/tools?returnTo=%2Fadmin%2Fphotos%3Fq%3Dtree%26page%3D2#automatic-text");
 });

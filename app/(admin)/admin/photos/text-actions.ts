@@ -44,6 +44,8 @@ function databaseError(error: { code?: string } | null, fallback: string) {
 function refreshText() {
   invalidatePhotographs();
   revalidatePath("/admin/photos");
+  revalidatePath("/admin/photos/[id]/edit", "page");
+  revalidatePath("/admin/photos/tools");
 }
 
 export async function savePhotographTextAction(id: string, _previous: TextActionState, form: FormData): Promise<TextActionState> {

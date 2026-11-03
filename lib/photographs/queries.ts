@@ -11,6 +11,9 @@ import type {
   PhotographWithPalette,
 } from "./types";
 
+// Bypass pre-release data retained across deployments after the owner's deletions.
+const photographCacheVersion = "2026-11-03";
+
 const legacyPhotographColumns = `
   id,
   storage_path,
@@ -135,7 +138,7 @@ async function readPhotographs(): Promise<Photograph[]> {
   return (data as PhotographRow[]).map(photographFromRow);
 }
 
-export const getPhotographs = unstable_cache(readPhotographs, ["photographs", "catalogue"], {
+export const getPhotographs = unstable_cache(readPhotographs, [photographCacheVersion, "photographs", "catalogue"], {
   revalidate: 86400,
   tags: [cacheTags.photographCatalogue, cacheTags.colourSimilarity],
 });
@@ -163,7 +166,7 @@ async function readPhotographByFilename(
 
 export const getPhotographByFilename = unstable_cache(
   readPhotographByFilename,
-  ["photographs", "by-filename"],
+  [photographCacheVersion, "photographs", "by-filename"],
   { revalidate: 86400, tags: [cacheTags.photographDetails] },
 );
 
@@ -190,7 +193,7 @@ async function readPhotographById(
 
 export const getPhotographById = unstable_cache(
   readPhotographById,
-  ["photographs", "by-id"],
+  [photographCacheVersion, "photographs", "by-id"],
   { revalidate: 86400, tags: [cacheTags.photographDetails] },
 );
 
@@ -222,7 +225,7 @@ async function readPhotographPalette(
 
 export const getPhotographPalette = unstable_cache(
   readPhotographPalette,
-  ["photographs", "palette"],
+  [photographCacheVersion, "photographs", "palette"],
   { revalidate: 86400, tags: [cacheTags.palettes, cacheTags.colourSimilarity] },
 );
 
@@ -270,7 +273,7 @@ async function readAllPaletteColours(): Promise<PhotographPaletteColour[]> {
 
 const getAllPaletteColours = unstable_cache(
   readAllPaletteColours,
-  ["photographs", "all-palette-colours"],
+  [photographCacheVersion, "photographs", "all-palette-colours"],
   { revalidate: 86400, tags: [cacheTags.palettes, cacheTags.colourSimilarity] },
 );
 
@@ -289,6 +292,6 @@ async function readAllOklabFeatures(): Promise<PhotographPaletteColour[]> {
 
 const getAllOklabFeatures = unstable_cache(
   readAllOklabFeatures,
-  ["photographs", "all-oklab-features"],
+  [photographCacheVersion, "photographs", "all-oklab-features"],
   { revalidate: 86400, tags: [cacheTags.palettes, cacheTags.colourSimilarity] },
 );

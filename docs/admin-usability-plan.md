@@ -290,3 +290,362 @@ The previous production deployment
 `dpl_FSDjdwA4sehjL7jZKu6Hz1X1f5ub` remains the application rollback checkpoint;
 this UI release requires no database rollback. Rollout notes are recorded in a
 separate local documentation commit after deployment verification.
+
+## 2026-11-02 — masonry gallery and dedicated workspaces (local)
+
+The owner selected **natural-ratio masonry** and a **separate upload page**, then
+approved implementation of the complete plan. This replaces the compact-list
+interaction model above; earlier release evidence is historical, not verification
+of this pass. No push or deployment is authorised for the redesign.
+
+### Plan → implementation
+
+1. **Photographic archive:** thumbnail-only CSS-column masonry at 2–6 columns;
+   actual image dimensions preserve uncropped proportions. Lazy responsive images,
+   no route prefetch, no repeated editing controls and a 48-item client-side page
+   bound replace the old full-catalogue inline editor list. The existing cached
+   catalogue read is reused without palettes; this is not server-side pagination.
+2. **One-photo editing:** authenticated `/admin/photos/[id]/edit` validates its UUID,
+   loads one photo plus its palette, handles missing entries and reuses the existing
+   revision-aware save/discard form. Preview and primary title/description fields
+   lead; alt/date/file/palette details, progress and confirmed permanent removal
+   remain available. Successful removal returns safely with done/pending feedback.
+3. **Separate uploading:** `/admin/photos/upload` opens the existing upload workflow
+   immediately. Date detection, original paths, transport/publication replay and
+   recovery semantics are unchanged. Busy state belongs to the persistent
+   workspace; header links/sign-out and browser history cannot interrupt an upload.
+4. **Consistent navigation:** the authenticated `(workspace)` layout owns one
+   header for Photos, Site content, edit, upload and tools. Return URLs accept only
+   gallery query/filter/page state. Session storage restores gallery scroll/focus;
+   navigation still works if storage is disabled. Confirmation cancellation is
+   route-scoped without remounting workspace children.
+5. **Two-tone system:** all admin tokens and chrome use black/white only, including
+   focus, placeholders, disabled controls, errors, cleanup and private review.
+   Montserrat, compact density, thin rules, square controls and restrained header
+   proportions reflect the selected dextery.dev influence, without its homepage
+   spacing or tiny mobile labels. Existing photos/palettes are the colour exception.
+6. **Task hierarchy and safeguards:** automation, private review/import/batch
+   recovery and cleanup move to `/admin/photos/tools`; queue/error/cleanup summaries
+   stay findable from Photos. Revalidation covers dedicated routes. Existing auth,
+   RLS, upload API, AI providers/budgets, unknown-charge denial, original objects,
+   publication policy and public image-only pages are unchanged. Applied SQL is
+   untouched. Dirty-editor revisions, protected intentional clears, sibling draft
+   retention and native navigation warnings remain in force.
+
+### Verification
+
+- `test:admin` **64**, `test:text` **66**, `test:upload` **45**, `test:images` **28**,
+  `test:palette` **4** and `test:similarity` **13**
+  pass, along with lint and `npx tsc --noEmit --incremental false`. Coverage adds
+  bounded pagination, URL validation, thumbnail ratios/fallback, safe return URLs,
+  scroll/focus restoration, per-photo loading/authentication, pending-cleanup
+  redirect results, persistent confirmation scope and Back/Forward guards.
+- Production build passes and includes all three new photo routes; all **286**
+  prerendered outputs complete. It uses only the normal read-only catalogue path.
+- Local Next 16.4.3 compilation reports no issues. Anonymous GET requests to Photos,
+  Site content, edit, upload and tools return **307** to `/admin/login`; login is
+  **200**. These are access/compilation checks, not signed-in persistence acceptance.
+- History cancellation uses native history indices when exposed by Navigation API
+  to retain the Forward branch. The compatibility fallback restores the working
+  URL and Next router state via `pushState`; on older browsers that can replace
+  Forward history. Browser-native unload behavior remains the hard-navigation
+  fallback. Session-storage-disabled gallery restoration degrades to URL context.
+- Real Next testing exposed a listener-order race that delayed mocked routing did
+  not reveal: Next's existing `popstate` listener could unmount the form before a
+  later dirty-only guard ran. The global `instrumentation-client.ts` convention
+  now installs the idempotent listener synchronously before hydration. It remains
+  inert without registered unfinished admin work; no router internals, public
+  markup/styles/catalogue, privileges or database behavior are changed.
+
+### Browser evidence and independent finish review
+
+- The isolated browser fixture renders the actual components, React 19.3.1,
+  Radix, Tailwind and Montserrat with 83 synthetic records and mocked privileged
+  operations/transport. **14/14** regression groups pass at **320, 768 and 1440px**:
+  header consistency/no overflow, uncropped thumbnail-only masonry, bounded pages,
+  search/return/scroll/focus, editing and stale/discard states, conservative alt
+  locks, pending-cleanup feedback, upload recovery/navigation locks, content/login
+  feedback, keyboard focus and confirmation cancellation. The tablet header's
+  initial wrap/height variation was corrected and reverified across routes.
+- A separate **real Next 16.4.3 development App Router** fixture copies the exact
+  production guard and pre-hydration bootstrap (only the fixture import path is
+  adapted). All **8/8** scenarios pass on **three consecutive runs (24/24)**:
+  dirty Back/Forward cancellation retains URL/input/mount/router tree; repeated
+  cancellation then acceptance works; pending links/history stay blocked; clean
+  history and `useRouter().back()` work; and the no-Navigation-API fallback retains
+  the working form and allows subsequent clean navigation. Event traces confirm
+  guard registration precedes Next's listener. Guard SHA-256:
+  `1cf6dd413cbe06739370604942fed624efaa815d72871a84df0d938bf4d847a4`.
+- Main-thread verification matched **46 source hashes and 31 captures** against
+  the browser manifest. Full-page archive captures are **320×4248**, **768×4374**
+  and **1440×3251**; all start at document top with 48 decoded thumbnails. No page
+  errors, prohibited requests or real mutations were recorded. Six cached small
+  public transforms are reused for synthetic records; repetition and softness in
+  fixture images are not production catalogue changes or new shipping assets.
+- The actual local Next login also rendered at 320px with no horizontal overflow,
+  16px visible inputs, 44px fields/action and `noindex, nofollow`. Next's connected
+  runtime/config error report was empty. No login submission was attempted.
+- Independent source review found no material issues after the early-listener
+  correction. A fresh independent finish review returned **`disposition: ship`**
+  for the rendered visual scope, with all fidelity/contract rows matching and no
+  material fixes. This is not a claim of live backend acceptance or WCAG certification.
+  The source design detector returned `[]` for admin/shared controls.
+- Added `PRODUCT.md` and token-bearing admin-scoped `DESIGN.md`, plus a local
+  `.impeccable/design.json` sidecar. Main validation confirms YAML/JSON parsing,
+  canonical section order, all 31 token references and eight component references.
+  `.impeccable/` remains intentionally gitignored; it is not a deployment dependency.
+
+Artifacts and runnable isolated fixtures are retained outside the repository in
+`/private/var/folders/bx/htl3m38d3qq52n4zs8z6cyh00000gn/T/opencode/elliot-admin-masonry-browser-20261102/`:
+`verification.json`, `native-navigation-verification.json`, three run reports,
+`native-event-order.json`, `artifact-manifest.json`, screenshots and fixture README.
+The main review directory is the sibling `elliot-admin-masonry-20261102/`.
+
+No production write, real authenticated save/upload/delete, paid request, database
+migration, DNS/storage change, commit, push or deployment was performed for this
+pass. Actual signed-in production transport/persistence, physical devices and
+screen readers remain outside verification. Public/API/domain/storage/generation
+source, dependencies and SQL compare unchanged to the starting checkout; the
+applied description-alt migration retains its recorded SHA-256. The redesign is
+complete locally; production remains on the earlier compact-list release.
+
+## 2026-11-02 — infinite scroll and text-fitted navigation (local refinement)
+
+The owner replaced the paginated-gallery requirement with **infinite scrolling**,
+reported the missing sign-out pointer cursor and requested smaller header/nav
+surfaces that wrap their text. This refinement supersedes the pagination and
+header-size descriptions in the preceding local redesign record.
+
+- The gallery starts with 48 lazy thumbnails and appends 48 near the end through
+  IntersectionObserver. **Load more photographs** remains available for keyboard
+  users and browsers without that API, focusing the first appended photograph on
+  explicit activation. Loading stops at the matching catalogue size; search/filter
+  changes reset the loaded depth. Page controls are removed and obsolete page URL
+  parameters are ignored. No new server/database pagination API is introduced.
+- Each appended group owns its CSS-column masonry, so adding photographs does not
+  rebalance or move the earlier groups. Return-position state includes the number
+  already shown, which is restored before scrolling/focusing the original thumbnail.
+- Header height now follows its text/content instead of fixed 104px/64px minima.
+  Brand/navigation keep 12px type and 16px leading with compact 24px targets and
+  narrow padding. Normal fields and primary form actions retain 44px targets.
+  Sign out uses an enabled pointer cursor and disabled not-allowed cursor; hover
+  inversion, focus outlines, upload locks and dirty-navigation guards remain intact.
+- Admin regression tests cover automatic/manual append, stable batch keys, stopping
+  at the catalogue end, search reset, obsolete-page sanitisation and restoring
+  loaded depth before scroll/focus and manual loading without IntersectionObserver.
+  `test:admin` **66**, lint, TypeScript and the production build pass.
+- Focused browser verification passes **12/12** groups with 155 synthetic records:
+  automatic progression **48 → 96 → 144 → 155**, no duplicate IDs/refetches,
+  unchanged earlier masonry geometry/DOM, search/filter reset, deep return
+  scroll/focus, keyboard/manual loading with absent or undefined observer API,
+  enabled sign-out pointer/hover and disabled upload locks. Header height is
+  **69.5px at 320px**, **41.5px at 768/1440px**, consistently across workspace
+  routes. Nav targets remain 24px; normal inputs/actions remain 44px.
+- Main verification matches **46 current source hashes and 13 captures** to the
+  freshly rebuilt fixture, including the final observer feature-detection fix.
+  No browser errors, prohibited requests or real mutations occurred. Evidence is
+  in the sibling temporary directory `elliot-admin-infinite-browser-20261102/`
+  (`verification.json`, `screenshot-manifest.json`, `build-source-snapshot.json`,
+  screenshots and README). Native Next history tests were not repeated for the
+  unchanged guard; their earlier results remain separately recorded above.
+
+These are local UI changes only. No production write, authentication change,
+storage/schema mutation, paid generation, commit, push or deployment is included.
+
+The fresh independent visual finish review returned **`disposition: ship`** for
+this refinement: content-fitted header/navigation, sign-out hover treatment,
+infinite-archive presentation and focus/return affordances match the request.
+No material visual fixes were identified. The design document and sidecar were
+updated and independently validated; this verdict is not a deployment or a claim
+of live authenticated/backend acceptance.
+
+## 2026-11-02 — plain name and chronological rows (local refinement)
+
+The owner requested **Elliot Mairet** without the accented character and an
+infinite admin archive that reads **left-to-right, top-to-bottom by date**, allowing
+reflow. This supersedes the earlier column-first masonry and fixed-batch layout.
+
+- The common header now uses the plain name on every workspace route and login;
+  owning-repository identity documentation matches. Public UI/SEO already use the
+  plain spelling. No stored content or production settings were mutated.
+- The filtered admin catalogue sorts by **capture date descending before slicing**
+  the revealed set. Missing dates follow known dates; equal dates keep catalogue
+  order. Filtering creates a new array, so the shared cached catalogue and public
+  custom order are unchanged.
+- One responsive CSS grid lays photographs out across each row, then down, at
+  2/3/4/5/6 columns. Images keep natural proportions without cropping. Shorter
+  images may leave whitespace within a row; clear chronological order takes
+  priority over tight masonry packing. Fixed masonry batch wrappers are removed.
+- Infinite 48-item increments, manual/keyboard fallback, search/filter reset,
+  loaded-depth return state, compact navigation and upload/unsaved-work guards
+  remain. Regression coverage verifies newest-first order, stable date ties,
+  unknown dates last, unmodified input order and chronology across load boundaries.
+
+### Verification
+
+- `test:admin` **68**, lint, TypeScript and the production build (**286 outputs**)
+  pass. The admin/UI design detector reports no findings. Design YAML/JSON and
+  all 31 token references/eight component references validate.
+- Fresh offline browser verification passes **9/9** focused groups with 155
+  deliberately unsorted synthetic photographs. At **320/768/1440/1536px**, visual
+  bounding-rectangle order, DOM order and actual Tab traversal agree with the
+  newest-first sequence. Images remain uncropped; equal dates are stable and
+  unknown dates follow dated entries.
+- Automatic **48 → 96 → 144 → 155** loading preserves chronology across every
+  boundary without duplicates, missing entries, extra catalogue reads or input
+  mutation. Search/filter/reset, deep editor return through the link and browser
+  Back, and keyboard/manual loading without the observer API pass. Exact plain
+  branding is checked across Photos, Content, Edit, Upload, Tools and Login;
+  compact navigation, sign-out cursor/hover and upload locks remain intact.
+- Main verification matches **46 current source hashes and 15 canonical captures**
+  to the actual rebuilt fixture. Evidence is in the temporary sibling directory
+  `elliot-admin-date-rows-browser-20261102/` (`verification.json`,
+  `screenshot-manifest.json`, `build-source-snapshot.json`, screenshots and README).
+  No browser errors or prohibited requests occurred. Earlier fixture evidence is
+  preserved; no listener from an earlier pass was reused.
+- The fresh independent visual finish review returned **`disposition: ship`**,
+  with no material fixes. All nine required full-page/viewport/login captures
+  were valid; plain branding, chronological rows, uncropped imagery and compact
+  navigation match the request. This is a local visual verdict, not deployment
+  approval. The verified fixture's owned listener has been stopped.
+
+No commit, push, deployment, real authenticated mutation, schema/storage change
+or paid request is part of this refinement. Actual production authentication,
+transport and persistence remain outside this mocked fixture. Native Next history
+integration was not repeated for the unchanged guard.
+
+## 2026-11-02 — compact justified rows and even gaps (local refinement)
+
+The owner requested removal of the admin gallery's inconsistent vertical gaps,
+then requested row heights about **three-fifths** of the first justified layout.
+This supersedes the preceding equal-column grid and intentional row-whitespace
+tradeoff; the public gallery remains untouched.
+
+- A wrapping flex layout gives each row a common image height and each photograph
+  a proportional width. Original aspect ratios and newest-first reading/tab order
+  are preserved; no cropping, column-first rearrangement, layout dependency or
+  JavaScript measurement is introduced. Gutters remain **12px below 40rem** and
+  **16px from 40rem**, both horizontally and vertically.
+- Target heights are **4.8rem / 7.2rem**, exactly 60% of the first justified targets
+  of 8rem / 12rem. Actual heights respond to each row's proportions and available
+  width. A proportional **1.5×** ceiling prevents a lone final photograph from
+  stretching across the page; incomplete rows are left-aligned. The last row can
+  reflow when additional photos arrive.
+- Failed previews retain their aspect-ratio footprint with contained, scrollable
+  filename feedback rather than a minimum-height block that can recreate gaps.
+  Responsive image sizes now account for proportional row widths and the ceiling.
+- Infinite loading, search/filter state, return depth/scroll/focus, branding,
+  compact header and all existing unfinished-work/upload safeguards are unchanged.
+
+### Verification
+
+- `test:admin` **69**, lint, TypeScript and production build (**286 outputs**) pass
+  with the final reduced row targets. Regression coverage checks ratio-derived
+  sizing, uncropped original dimensions and the contained failed-preview fallback.
+- The layout detector reports no findings. Design YAML/JSON, 31 token references
+  and eight component references validate. Public/API/domain/storage/generation
+  source, dependencies and SQL remain unchanged from the starting checkout.
+
+These remain local admin-only changes; no commit, push or deployment is authorised.
+
+## 2026-11-02 — stable infinite-preview loading (local refinement)
+
+The owner reported that loading more previews jolted the page and pushed the
+gallery footer down. This refinement preserves the compact justified rows above
+while removing the changing page geometry rather than animating the jump.
+
+- The existing cached catalogue already includes dimensions. Every matching photo
+  now gets a lightweight aspect-ratio slot from the first render, sharing exactly
+  the thumbnail's sizing rules. Unrevealed slots are aria-hidden, non-focusable
+  divs with no image, edit link or request. Real thumbnails still start at 48 and
+  reveal in 48-item increments. Replacing slots should not resize earlier rows or
+  increase page height; resize/filter changes can still reflow the layout.
+- One observer watches unloaded slots with a **1000px** margin, revealing through
+  the highest approaching index. This also handles scrollbar jumps into the middle
+  or end of reserved space rather than observing only a now-distant batch boundary.
+- Manual **Load more photographs** stays in the top toolbar and remains mounted,
+  disabled, at completion. The bottom loading footer is removed. Loaded-count
+  feedback remains available to screen readers without changing toolbar copy or
+  height. Automatic reveal never changes focus or scroll position; keyboard focus
+  within the last eight real thumbnails prepares the next batch. Manual activation
+  deliberately focuses the first newly revealed photograph.
+- No height animation, forced smooth scroll, new dependency, transport change,
+  original-file mutation or privileged operation is introduced. Row targets remain
+  **4.8rem/7.2rem**, gutters **12px/16px**, with uncropped date-ordered photographs.
+
+Regression coverage passes **72** admin tests, including inert/identical reserved
+slots, direct-jump reveal, stale-observer guards and keyboard preparation without
+focus theft. Lint, TypeScript and the production build (**286 outputs**) pass.
+The admin/UI detector reports no findings; design YAML/JSON and all 31 token/eight
+component references validate.
+
+### Final browser and visual verification
+
+- **10/10** focused browser groups and supplemental checks pass against the final
+  source. At 320/639/640/768/1440/1536px, gutters have **0px error** and within-row
+  height variation is at most **0.03125px**. Natural proportions, chronology,
+  keyboard/manual preparation, search/filter reset, deep return state and mocked
+  navigation/upload locks remain intact.
+- Controlled **48 → 96 → 144 → 155** preview reveals at the loaded boundary and
+  page bottom produce **0px** change in document height, gallery/toolbar/slot
+  geometry and scroll position; existing anchor identities are retained. Delayed
+  and failed previews also cause **0px** change. Real-observer jumps into indices
+  250/399 of a 400-photo fixture reveal through those areas with no height/scroll
+  change. No preview-reveal layout-shift entries were observed.
+- The first browser pass exposed accumulated rounding from resized images whose
+  intrinsic proportions differed slightly from catalogue dimensions. Images now
+  use absolute containment inside the declared-ratio slot, removing that growth
+  without cropping. Pre-fix diagnostic evidence is preserved separately.
+- Main verification matches all **four critical consumed source hashes**, the
+  actual JS bundle and **17 unique canonical captures** to the final fixture in
+  `elliot-admin-smooth-browser-20261102/`. Its `verification.json`, supplemental
+  report, source/bundle snapshot, manifest, captures and README record the results.
+  Duplicate historical failed-preview metadata was removed from the canonical
+  manifest; current capture hashes all match. No browser errors, external/write
+  requests or real privileged mutations occurred. The owned listener is stopped.
+- The independent visual finish review returned **`disposition: ship`**, with no
+  material fixes. All eight required mobile/tablet/desktop/wide full-page and
+  viewport captures are valid and contain the complete synthetic catalogue.
+
+Verification uses mocked Next adapters, authentication/actions/transport and cached
+photographs. Native history/dirty-guard integration and actual browser zoom were
+not recertified; no live authentication, persistence or paid-generation claim is
+made. Changes remain local, uncommitted, unpushed and undeployed.
+
+## 2026-11-03 — owner-authorised commit/push and deletion preservation
+
+The owner explicitly authorised committing and pushing the completed redesign,
+with the requirement that Elliot's recent photo deletions remain preserved. This
+supersedes the preceding local-only commit/push gates; it does not authorise data
+restoration, database migrations, storage cleanup or paid generation.
+
+- A fresh `origin` fetch found no incoming commits; `main` already contained seven
+  earlier commits awaiting push. Independent source review found the deleted
+  files are replaced admin routes/components, not catalogue media. Build and CI
+  do not seed, import or restore photograph data.
+- Read-only production inspection found **262** catalogue entries. Compared with
+  the previous 271-route build, **ten photos were removed and one was added**.
+  The existing R2 delete-cleanup reservation remains retained and its photograph
+  remains absent. No cleanup or catalogue mutation was performed. The previously
+  owner-cancelled alt job remains `skipped / cancelled_by_owner` with zero attempts.
+- Pre-release verification caught stale cached data: an otherwise successful
+  build still generated 271 photo routes, and the old production sitemap included
+  deleted entries. Next's data cache persists across deployments. All six existing
+  photograph cache keys now share the **2026-11-03** namespace; live queries,
+  invalidation tags and 24-hour lifetimes are unchanged. No schema, permissions,
+  storage, publication or paid-generation change is involved.
+- The rebuilt gallery routes, sitemap and palette response each contain exactly
+  **262** current photographs: all ten removed names are excluded and the new
+  addition is included. Build output is **277** routes. Three offline regressions
+  cover namespace consistency, deleted direct lookups and orphaned palette rows.
+  A second read-only production snapshot after the build matches all 262 IDs,
+  filenames and storage paths plus the retained cleanup reservation exactly.
+- Offline checks pass: admin **72**, text **66**, upload **45**, palette **4**,
+  similarity **13**, images/cache **31**, plus lint and build/TypeScript. The
+  earlier final visual/interaction evidence remains applicable to unchanged UI.
+  The cache-refresh patch also passed independent source review.
+
+Detailed read-only snapshots and build comparison are retained outside Git in
+the temporary `elliot-release-20261103.NJK985/` directory. The authorised Git push
+must be non-forced; deployment state and the live post-release catalogue should
+be checked separately rather than inferred from a successful push.

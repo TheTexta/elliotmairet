@@ -29,7 +29,7 @@ export function CleanupRetryButton({ storagePath }: { storagePath: string }) {
         <Alert variant="destructive" className="mt-2 max-w-64"><AlertDescription>{state.error}</AlertDescription></Alert>
       ) : null}
       {state.message ? (
-        <p aria-live="polite" className="mt-2 max-w-64 wrap-anywhere text-sm leading-5 text-neutral-700">
+        <p aria-live="polite" className="mt-2 max-w-64 wrap-anywhere text-sm leading-5">
           {state.message}
         </p>
       ) : null}
