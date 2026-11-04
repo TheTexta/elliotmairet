@@ -104,6 +104,10 @@ Run `npm run test:images` for image URL, sizing, storage, and metadata checks.
 
 Public photograph pages do not display captions. Stored descriptions, alt text,
 and admin caption settings remain available; image alt text and SEO are unchanged.
+Photograph page and social-preview titles use `Elliot Mairet |` followed by the
+exact filename (including its extension), never the stored title, description,
+or alt text. Descriptions, image alt text, and structured-data names keep their
+existing text sources; filenames and gallery URLs are unchanged.
 
 ### Local photograph-labeling pilot
 

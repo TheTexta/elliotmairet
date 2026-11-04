@@ -11,7 +11,6 @@ import { photographUrl } from "@/lib/photographs/storage";
 import {
   absoluteUrl,
   photographDescription,
-  photographDisplayTitle,
   photographImageAlt,
   photographJsonLd,
   photographPath,
@@ -76,7 +75,7 @@ export async function generateMetadata({
   const canonicalPath = photographPath(photograph.filename);
   const description = photographDescription(photograph);
   const socialImage = [photographSocialImage(photograph)];
-  const title = photographDisplayTitle(photograph);
+  const title = `${siteName} | ${photograph.filename}`;
 
   return {
     alternates: {
@@ -87,16 +86,16 @@ export async function generateMetadata({
       description,
       images: socialImage,
       siteName,
-      title: `${title} | ${siteName}`,
+      title,
       type: "article",
       url: absoluteUrl(canonicalPath),
     },
-    title,
+    title: { absolute: title },
     twitter: {
       card: "summary_large_image",
       description,
       images: socialImage,
-      title: `${title} | ${siteName}`,
+      title,
     },
   };
 }
