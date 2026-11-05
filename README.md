@@ -79,7 +79,8 @@ coordinates remain separate. Nonempty palettes with fewer than five swatches
 remain usable for display and colour matching.
 
 The owner approved the palette change and catalogue backfill on **2026-11-05**.
-The palette application code is deployed; the catalogue backfill is still pending.
+The palette application code is deployed and all **271 catalogue photographs**
+have been backfilled from checksum-verified originals in both colour spaces.
 This is a **palette-only release**: the
 production gallery layout is preserved; the experimental blob layout is excluded.
 See [`docs/palette-extraction.md`](docs/palette-extraction.md) for model details,

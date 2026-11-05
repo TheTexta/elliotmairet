@@ -3,16 +3,17 @@
 ## Scope and rollout
 
 The owner approved the palette change and catalogue backfill on **2026-11-05**.
-The application code is **deployed**; the catalogue backfill is **pending**.
+The application code is **deployed** and the catalogue backfill is **complete**.
 This is a **palette-only release** for
 display and colour matching. The experimental blob/colour-neighbourhood layout
 is not releasing; the production gallery layout and catalogue ordering remain.
 
 On release, new uploads use the new analyser through the existing authenticated,
 transactional publication flow. Existing photograph palettes do not change merely
-because application code is deployed. The approved catalogue backfill still needs
-original-file analysis, backups/rollback, verification and invalidation of catalogue,
-palette and photograph-detail caches. No schema migration is required.
+because application code is deployed. The approved catalogue backfill used
+original-file analysis, backups/rollback, verification and fresh catalogue,
+palette and photograph-detail caches. These gates are recorded below;
+no schema migration was needed.
 
 `features:backfill:oklab` is a **legacy k-medoids** writer. It is not an MMCQ
 backfill tool and must not be used to upgrade this model: it would replace only
@@ -107,9 +108,68 @@ namespace changes and rollout execution remain separate from this transfer.
   and **1,354** OKLab features. Public palettes remain **270 × five + one × four**.
   R2 HEAD checks found all **271** originals with source SHA-256 metadata
   (2.86 GiB total, largest 46.42 MiB). No objects or palette rows were changed.
-- Backfill execution awaits authenticated database access over Tailscale SSH.
-  Both coordinate spaces must be snapshotted and replaced atomically; do not
-  substitute the legacy one-space backfill command.
+- That first application deployment preceded all database changes. The completed
+  backfill and subsequent cache-refresh release are recorded below.
+
+## Production catalogue backfill — 2026-11-05
+
+- Operator tooling/input-allowance commit: `e306d79`. Independent review resolved
+  two concurrency findings with explicit READ COMMITTED and independently connected
+  writer/timeout/racing-apply tests. Backfill safeguards **8/8**, PostgreSQL 15
+  transaction/concurrency checks **13/13**, palette **18/18**, upload **45/45**,
+  lint and the normal production build pass.
+- Live schema inspection confirmed the five ordinary physical tables, the final
+  `photo_palette_colours` name, **15** photograph columns / **47** total columns,
+  and no user triggers on palette tables. No persistent schema/function/grant
+  changes were made.
+- Consistent preflight custom-format backup of all five tables:
+  `.local/palette-backfill/2026-11-05-preflight/photographs-and-palettes-before.dump`.
+  SHA-256: `0492cfbc9f38b7e31bf88f8d8758f318fa395110c86c0106bf8a834cf258c387`.
+  The archive parsed successfully with all five table-data entries.
+- Frozen run: `.local/palette-backfill/2026-11-05-mmcq-v2/` (private directory,
+  mode-600 files). Snapshot SHA-256:
+  `ff310d5257aacbf8834d190fd714bc3d0ee71391d7e62241e03775802fb0cc40`.
+  Manifest SHA-256:
+  `efef91b393c453020247df4619f2a632472438b6ad615ad56b89a8add24c5d22`.
+- All **271 originals / 3,074,453,766 bytes** passed conditional GET, size and
+  recorded source-SHA verification. No derivative was used for backfill. One
+  legacy original required the explicit 150MP archive allowance; the first run
+  stopped safely after 15 preparations and is retained, with no database writes.
+  The fresh v2 run pins the changed code/allowance and completed all originals.
+- Independent private backup of the entire frozen run:
+  `~/.local/share/opencode/backups/elliot-mmcq-20261105/frozen-mmcq-run.tar.gz`.
+  SHA-256: `e21f7ce645928c296a36720bc6fe9590afc0040093b0c2b0650f75aee2ba4df0`.
+- The actual **271-row dataset** and live production constraints were rehearsed
+  in isolated, networkless PostgreSQL 15: apply, target verification and exact
+  rollback passed, with zero photograph writes. This was not a production rollback.
+- Production apply returned `applied`; immediate guarded verification returned
+  `after`. Both spaces now contain **271 analyses / 1,352 swatches**: 270 palettes
+  of five and `20260416-IMG_0080.jpg` with two genuine greys (`#8c8c8c`, `#a1a1a1`).
+  RGB, hex, weights and rank order agree between the separate coordinate spaces.
+- Post-apply snapshot: `.local/palette-backfill/2026-11-05-after/before.json`,
+  SHA-256 `0dfe7eff1044f5b63eccea22c0ce271bc9d37badca2eafa5f2910ca0ecd918e0`.
+  All **271 complete photograph rows** match the before snapshot exactly, including
+  filenames, paths, dates, text, ordering, timestamps and revisions. All 271 R2
+  originals retained their ETag, byte count and recorded source SHA after apply.
+- Before/after constraints, RLS, policies, grants and triggers have identical
+  SHA-256 `b4f85107600a2fcd3552cac64e5b32504660d3e2fd9b34c0f4e5379eb1eebc8d`.
+  No originals, reservations, cleanup jobs, text-generation state or other projects
+  were mutated. Detailed local evidence is in `rehearsal.json`,
+  `production-apply.json`, and the preflight schema-security snapshots.
+- Cache epoch `2026-11-05-mmcq-v1` replaces every photograph/palette query key
+  together; a fresh production build/deployment publishes the backfilled home,
+  palette JSON and photograph-detail routes. Refresh already-open browser tabs
+  to discard their in-memory palette JSON.
+
+### Guarded recovery
+
+Use the pinned manifest with the `verify` and `rollback` commands in
+[`mmcq-backfill.md`](mmcq-backfill.md). Restore **both** palette representations
+before an application rollback to the pre-compatibility deployment. Rollback
+refuses later catalogue/text/palette edits and never restores photograph rows.
+Do not bypass a stale-state refusal, edit the immutable run, or restore the raw
+custom dump over current production data. Any later recovery requires a separately
+reviewed plan if the frozen state no longer matches.
 
 ## Review and verification
 
