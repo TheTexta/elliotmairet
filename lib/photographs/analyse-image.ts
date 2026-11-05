@@ -54,8 +54,12 @@ export async function imageMetadata(buffer: Buffer) {
   };
 }
 
-export async function analyseImage(buffer: Buffer, photographId: string) {
-  const selectedPalette = await extractImagePalette(buffer);
+export async function analyseImage(
+  buffer: Buffer,
+  photographId: string,
+  options?: { maximumInputPixels?: number },
+) {
+  const selectedPalette = await extractImagePalette(buffer, options);
   const colours = selectedPalette.map(
     ({ rgb, weight }, index) => {
       const [labL, labA, labB] = rgbToLab(rgb);

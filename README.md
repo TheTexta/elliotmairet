@@ -84,6 +84,11 @@ This is a **palette-only release**: the
 production gallery layout is preserved; the experimental blob layout is excluded.
 See [`docs/palette-extraction.md`](docs/palette-extraction.md) for model details,
 the shared production analyser and rollout/rollback requirements.
+The guarded, original-file operator workflow is in
+[`docs/mmcq-backfill.md`](docs/mmcq-backfill.md). `npm run palette:backfill` defaults
+to help; it does not load credentials or write production data automatically.
+Use `test:palette:backfill` for offline safeguards and `test:palette:backfill:db`
+with the explicitly isolated Docker endpoint for transaction/concurrency tests.
 
 ## Image loading and SEO
 

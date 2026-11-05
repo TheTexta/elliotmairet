@@ -17,7 +17,8 @@ palette and photograph-detail caches. No schema migration is required.
 `features:backfill:oklab` is a **legacy k-medoids** writer. It is not an MMCQ
 backfill tool and must not be used to upgrade this model: it would replace only
 the OKLab side with the old algorithm. The old extraction modules remain for
-comparison/rollback. This transfer adds no backfill tooling or automatic reprocessing.
+comparison/rollback. The guarded operator workflow is documented in
+[`mmcq-backfill.md`](mmcq-backfill.md); no automatic reprocessing is enabled.
 
 ## Model
 
@@ -58,6 +59,12 @@ mappings. Its explicit relative `.ts`/`.js` imports allow future backfill toolin
 to import it directly with Node.js 22 `--experimental-strip-types`, without
 duplicating payload mapping or adding dependencies. Pass original bytes, not a
 compressed/resized derivative, for a catalogue backfill.
+
+Uploads retain the existing 120-megapixel input guard. A bounded, explicit
+operator option permits verified archive originals up to 150 megapixels, covering
+the one existing 146-megapixel photograph. This changes only input eligibility,
+not sampling or palette calculations; no upload route accepts that option from
+request data. The backfill pins this allowance and the analyser/runtime hashes.
 
 ## Matching and UI compatibility
 
