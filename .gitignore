@@ -49,3 +49,6 @@ next-env.d.ts
 
 # Local design-review artifacts
 /.impeccable/
+
+# Read-only, unapproved palette comparison artifacts
+/.local/palette-review/

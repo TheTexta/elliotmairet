@@ -1,0 +1,29 @@
+.canvas {
+  container-type: inline-size;
+}
+
+.gallery {
+  --mobile-width: calc(100cqw / var(--mobile-tracks));
+  --desktop-width: calc(100cqw / var(--desktop-tracks));
+  position: relative;
+  height: var(--mobile-height);
+}
+
+.photograph {
+  position: absolute;
+  width: var(--mobile-width);
+  left: var(--mobile-left);
+  top: var(--mobile-top);
+}
+
+@media (width >= 48rem) {
+  .gallery {
+    height: var(--desktop-height);
+  }
+
+  .photograph {
+    width: var(--desktop-width);
+    left: var(--desktop-left);
+    top: var(--desktop-top);
+  }
+}

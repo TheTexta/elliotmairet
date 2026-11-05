@@ -70,11 +70,85 @@ Photo pages compute colour matches in the browser from the cached
 `/api/gallery/palettes` JSON, so browsing by colour does not invoke a server
 function.
 
+## Palette extraction
+
+The feature checkout uses versioned **MMCQ64 + vibrancy/diversity scoring** for
+new upload analysis: up to five supported, distinct sampled colours, without
+synthetic vibrant/muted roles. The owner selected these swatches for display,
+matching and blob layout together. Population weights remain separate from
+selection scores, and CIELAB/OKLab coordinates remain separate.
+
+This is **local code only**, not a production deployment or catalogue backfill.
+Run `npm run palette:review` for a read-only comparison of 24 existing photographs.
+See [`docs/palette-extraction.md`](docs/palette-extraction.md) for the model,
+fewer-swatch compatibility, review safeguards and rollout/rollback gates.
+
 ## Image loading and SEO
 
+### Colour-neighbourhood archive
+
+The public homepage composes the catalogue into small, recurring colour patches
+while retaining uncropped two-column/mobile and three-column/desktop masonry.
+`lib/photographs/plan-colour-masonry.ts` is the pure, deterministic planner:
+
+- Existing palette weights describe each photograph's visual colour character.
+  Palette hex values are converted to one OKLab space, including legacy CIELAB
+  rows; no new analysis, original downloads, AI requests or schema changes occur.
+- Similar palettes form connected patches with a target area of **3.5 squared
+  column widths**, rather than a fixed photograph count. Portraits consume more
+  of a patch's budget than panoramas. A single unusually tall photograph can
+  exceed that target; photographs are never cropped to enforce a footprint.
+  Placement considers the entire patch's bounding box, not just its nearest member.
+- Near-monochrome photographs are distributed by occupied area, preferring muted
+  colour contacts and compatible lightness. Neutral runs and recent hue repetition
+  are discouraged; near-neutral hues have less influence than saturated hues.
+- `lib/photographs/masonry-geometry.ts` is shared by planning, scoring, rendering
+  and tests. **Gutters are exactly 7% of thumbnail width**, not a fixed 16px:
+  approximately 12px on a 390px screen and 22px on a 1440px screen. This deliberate
+  responsive spacing keeps the neighbour graph identical at every width within
+  a breakpoint, including the bottom of long galleries. Missing/invalid aspect
+  ratios consistently reserve a square in all stages (uploads still require dimensions).
+- Two repair sweeps try local swaps and relocations, scoring each against the
+  **whole** catalogue. Repairs cannot disconnect previously connected patches.
+  The score strongly penalises a single-column tail longer than the natural
+  height difference allowed for a portrait, rather than sacrificing the finish
+  for a better-looking middle.
+  At most 1,200 proposals per plan sample anchors throughout the full height, so
+  large archives do not spend their repair budget exclusively near the top.
+- Stable filename priorities, limited cluster lookahead and column preferences
+  reduce sensitivity to input order/new uploads. This is not a saved curatorial
+  layout: additions/deletions can still rearrange existing photographs. Exact
+  upload-to-upload placement preservation would require a separately persisted plan.
+
+Both breakpoint plans are rendered on the server, using one image/link tree and
+CSS container-relative positions. All lengths use the same column-width unit;
+both responsive plans share palette clustering and lazy pair-cost calculations.
+Plans do not change on hydration or image load. The homepage's existing
+daily/on-demand revalidation refreshes the composition after
+catalogue/palette updates. Empty, all-neutral and missing-palette catalogues stay
+complete. Palette-less entries can join the neutral-placement pool rather than
+being appended as one unorganised final section.
+
+The colour-layout feature is homepage-only: stored `sort_order`, admin capture-date
+ordering and photograph URLs remain unchanged. The separate palette-model change
+above intentionally affects colour matching; the palette JSON fields stay compatible.
+Replacing the homepage's `ColourPhotoGallery` with the original `PhotoGallery`
+restores catalogue-order rendering. Check with `npm run test:layout`, `test:similarity`,
+`test:images`, `lint` and `build`. This feature checkout is a local prototype;
+production rollout requires separate approval.
+
+Prototype limitation: the single link tree follows desktop spatial order. The
+independently composed mobile layout can therefore move keyboard focus between
+different visual rows. Review this tradeoff before a production rollout; colour
+placement remains an aesthetic preference: connectivity and area budgets are
+enforced, but every boundary cannot be perfectly complementary.
+
+### Image delivery
+
 Public photographs use responsive markup generated by Next.js `getImageProps`
-and the same pure loader as admin `next/image` components. The first two archive
-photographs load eagerly with high priority; other thumbnails remain lazy.
+and the same pure loader as admin `next/image` components. The archive's leading
+photographs for both breakpoint plans load eagerly with high priority; other
+thumbnails remain lazy.
 Photograph pages account for both the available width and the existing 80vh
 height limit when selecting an image resolution. Quality remains 74 for
 thumbnails and 82 for full photographs.
@@ -85,8 +159,8 @@ events, including cached images and client-side navigation, without waiting for
 React hydration. Reduced-motion visitors see images without the fade, and
 images remain visible when JavaScript is disabled. Gallery links prefetch on
 hover, keyboard focus, or touch rather than automatically fetching every
-visible photograph route. Layout, archive ordering, and palette interactions
-are unchanged.
+visible photograph route. Image proportions, spacing and palette interactions
+are unchanged; the homepage colour composition is described above.
 
 Social previews use a transformation capped at 1200 pixels wide rather than
 downloading an original. Existing photograph alt text and titles also supply

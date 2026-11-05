@@ -1,3 +1,6 @@
+import type { CSSProperties } from "react";
+import { photographAspectRatio } from "@/lib/photographs/masonry-geometry";
+
 import { FadingImage } from "./fading-image";
 import { galleryImageSizes } from "./image-sizes";
 import { distributeGalleryItems } from "./photo-gallery-columns";
@@ -15,27 +18,35 @@ export type PhotoGalleryItem = {
   difference?: number;
 };
 
-function GalleryItem({
+export function GalleryItem({
+  className = "",
+  eager: eagerOverride,
   index,
   layout,
   photograph,
+  style,
 }: {
+  className?: string;
+  eager?: boolean;
   index: number;
-  layout: "grid" | "masonry";
+  layout: "grid" | "masonry" | "positioned";
   photograph: PhotoGalleryItem;
+  style?: CSSProperties;
 }) {
   const archiveLabel = String(index + 1).padStart(3, "0");
   const imageAlt = photograph.alt?.trim() || (photograph.difference === undefined
     ? `Archive photograph ${archiveLabel}, ${photograph.year}`
     : `Photograph with a colour difference of ${photograph.difference.toFixed(1)}`);
-  const eager = photograph.difference === undefined && index < 2;
+  const eager = eagerOverride ?? (photograph.difference === undefined && index < 2);
+  const unknownDimensions = layout === "positioned"
+    && ![photograph.width, photograph.height].every(value => Number.isFinite(value) && value > 0);
 
   return (
     <article
-      className={`group break-inside-avoid text-[#e2e1e1] ${
+      className={`group break-inside-avoid text-[#e2e1e1] ${className} ${
         layout === "masonry" ? "mb-4 inline-block w-full align-top" : ""
       }`}
-      style={layout === "grid" ? { order: index } : undefined}
+      style={layout === "grid" ? { order: index } : style}
     >
       <TransitionLink
         className="block no-underline focus-visible:outline focus-visible:outline-white"
@@ -44,19 +55,22 @@ function GalleryItem({
         resetScroll
         transitionType={photograph.difference === undefined ? "gallery-to-photo" : "photo-to-photo"}
       >
-        <figure className="relative m-0 min-h-15 bg-white">
+        <figure
+          className={`relative m-0 bg-white ${layout === "positioned" ? "" : "min-h-15"}`}
+          style={layout === "positioned" ? { aspectRatio: 1 / photographAspectRatio(photograph) } : undefined}
+        >
           <FadingImage
             alt={imageAlt}
-            className="block h-auto w-full"
+            className={layout === "positioned" ? "absolute inset-0 h-full w-full object-contain" : "block h-auto w-full"}
             fetchPriority={eager ? "high" : "auto"}
-            height={photograph.height}
+            height={unknownDimensions ? 1024 : photograph.height}
             loading={eager ? "eager" : "lazy"}
             quality={74}
             sizes={galleryImageSizes}
             src={photograph.imageUrl}
-            width={photograph.width}
+            width={unknownDimensions ? 1024 : photograph.width}
           />
-          {photograph.palette?.length === 5 ? (
+          {photograph.palette?.length ? (
             <div className="pointer-events-none absolute top-2 right-2 z-10 hidden overflow-hidden opacity-0 shadow-[0_1px_6px_rgba(0,0,0,0.35)] transition-opacity duration-100 ease-out group-hover:opacity-100 sm:flex" aria-hidden="true">
               {photograph.palette.map((hex, paletteIndex) => (
                 <span className="h-3.5 w-3.5" key={`${hex}-${paletteIndex}`} style={{ backgroundColor: hex }} />

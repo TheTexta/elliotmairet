@@ -29,6 +29,7 @@ export type PhotographPaletteColour = {
   axisA: number;
   axisB: number;
   featureSpace: "cielab" | "oklab";
+  weight?: number;
 };
 
 export type PhotographWithPalette = Photograph & {

@@ -32,7 +32,9 @@ function load(path, mocks) {
 
 const { imageMetadata } = load("../../../../lib/photographs/analyse-image.ts", {
   "exif-reader": readExif, sharp,
-  "@/lib/palette/k-means.js": {}, "@/lib/palette/oklab-k-medoids.js": {},
+  "@/lib/palette/k-means.js": {},
+  "@/lib/palette/mmcq-vibrant.js": { MMCQ_SAMPLE_LONGEST_SIDE: 256 },
+  "@/lib/palette/analyse-buffer": { extractImagePalette() { assert.fail("Metadata-only fixture must not analyse palettes"); } },
   "@/lib/photographs/config": config,
 });
 const jpeg = await sharp({ create: { width: 8, height: 6, channels: 3, background: "red" } }).jpeg().toBuffer();

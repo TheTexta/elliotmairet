@@ -56,6 +56,7 @@ type PaletteColourRow = {
   lab_l: number;
   lab_a: number;
   lab_b: number;
+  weight?: number;
 };
 
 type OklabFeatureRow = {
@@ -65,6 +66,7 @@ type OklabFeatureRow = {
   oklab_l: number;
   oklab_a: number;
   oklab_b: number;
+  weight?: number;
 };
 
 function photographFromRow(row: PhotographRow): Photograph {
@@ -97,6 +99,7 @@ function paletteColourFromRow(row: PaletteColourRow): PhotographPaletteColour {
     axisA: row.lab_a,
     axisB: row.lab_b,
     featureSpace: "cielab",
+    weight: row.weight,
   };
 }
 
@@ -109,6 +112,7 @@ function oklabFeatureFromRow(row: OklabFeatureRow): PhotographPaletteColour {
     axisA: row.oklab_a,
     axisB: row.oklab_b,
     featureSpace: "oklab",
+    weight: row.weight,
   };
 }
 
@@ -204,12 +208,12 @@ async function readPhotographPalette(
   const [oklabResult, paletteResult] = await Promise.all([
     supabase
       .from("photo_oklab_features")
-      .select("photograph_id, rank, hex, oklab_l, oklab_a, oklab_b")
+      .select("photograph_id, rank, hex, oklab_l, oklab_a, oklab_b, weight")
       .eq("photograph_id", photographId)
       .order("rank", { ascending: true }),
     supabase
       .from("photo_palette_colours")
-      .select("photograph_id, rank, hex, lab_l, lab_a, lab_b")
+      .select("photograph_id, rank, hex, lab_l, lab_a, lab_b, weight")
       .eq("photograph_id", photographId)
       .order("rank", { ascending: true }),
   ]);
@@ -262,7 +266,7 @@ async function readAllPaletteColours(): Promise<PhotographPaletteColour[]> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("photo_palette_colours")
-    .select("photograph_id, rank, hex, lab_l, lab_a, lab_b")
+    .select("photograph_id, rank, hex, lab_l, lab_a, lab_b, weight")
     .order("photograph_id", { ascending: true })
     .order("rank", { ascending: true });
 
@@ -281,7 +285,7 @@ async function readAllOklabFeatures(): Promise<PhotographPaletteColour[]> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("photo_oklab_features")
-    .select("photograph_id, rank, hex, oklab_l, oklab_a, oklab_b")
+    .select("photograph_id, rank, hex, oklab_l, oklab_a, oklab_b, weight")
     .order("photograph_id", { ascending: true })
     .order("rank", { ascending: true });
 

@@ -1,13 +1,14 @@
 import { ViewTransition } from "react";
 
 import { getPhotographsWithPalettes } from "@/lib/photographs/queries";
+import { planColourMasonryLayouts } from "@/lib/photographs/plan-colour-masonry";
 import { photographUrl } from "@/lib/photographs/storage";
 import { getSiteContent } from "@/lib/site-content/queries";
 import { photographImageAlt, serializeJsonLd, websiteJsonLd } from "@/lib/seo";
 
 import { ContentFrame } from "./content-frame";
 import { IndexNavigation } from "./index-navigation";
-import { PhotoGallery } from "./photo-gallery";
+import { ColourPhotoGallery } from "./colour-photo-gallery";
 import { ScrollToTop } from "./scroll-to-top";
 
 export async function GalleryView() {
@@ -15,6 +16,12 @@ export async function GalleryView() {
     getPhotographsWithPalettes(),
     getSiteContent(),
   ]);
+  const indexes = new Map(photographs.map((photograph, index) => [photograph.id, index]));
+  const layouts = planColourMasonryLayouts(photographs);
+  const columnPlans = {
+    mobile: layouts.mobile.map((column) => column.map(({ id }) => indexes.get(id)!)),
+    desktop: layouts.desktop.map((column) => column.map(({ id }) => indexes.get(id)!)),
+  };
 
   return (
     <>
@@ -42,8 +49,8 @@ export async function GalleryView() {
 
         <ContentFrame>
           <div className="pt-8 sm:pt-4">
-            <PhotoGallery
-              ariaLabel="Complete photograph archive"
+            <ColourPhotoGallery
+              columnPlans={columnPlans}
               photographs={photographs.map((photograph) => ({
                 ...photograph,
                 imageUrl: photographUrl(photograph.storagePath),

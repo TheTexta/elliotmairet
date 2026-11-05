@@ -2,21 +2,18 @@ import readExif from "exif-reader";
 import sharp from "sharp";
 
 import {
-  extractKMeansPalette,
-  K_MEANS_ALGORITHM,
-  K_MEANS_ITERATIONS,
   rgbToHex,
   rgbToLab,
 } from "@/lib/palette/k-means.js";
 import {
-  extractOklabKMedoids,
-  OKLAB_K_MEDOIDS_ALGORITHM,
-  OKLAB_K_MEDOIDS_ITERATIONS,
-} from "@/lib/palette/oklab-k-medoids.js";
+  MMCQ_VIBRANT_ALGORITHM,
+  MMCQ_PASSES,
+  MMCQ_SAMPLE_LONGEST_SIDE,
+} from "@/lib/palette/mmcq-vibrant.js";
 import { MAXIMUM_INPUT_PIXELS } from "@/lib/photographs/config";
+import { extractImagePalette } from "@/lib/palette/analyse-buffer";
 
-const paletteSize = 5;
-const sampleLongestSide = 96;
+const sampleLongestSide = MMCQ_SAMPLE_LONGEST_SIDE;
 
 function capturedDate(exifBuffer: Buffer | undefined) {
   if (!exifBuffer) {
@@ -58,26 +55,8 @@ export async function imageMetadata(buffer: Buffer) {
 }
 
 export async function analyseImage(buffer: Buffer, photographId: string) {
-  const { data, info } = await sharp(buffer, { limitInputPixels: MAXIMUM_INPUT_PIXELS })
-    .rotate()
-    .resize({
-      width: sampleLongestSide,
-      height: sampleLongestSide,
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  const pixels: [number, number, number][] = [];
-
-  for (let offset = 0; offset < data.length; offset += info.channels) {
-    if (data[offset + 3] > 200) {
-      pixels.push([data[offset], data[offset + 1], data[offset + 2]]);
-    }
-  }
-
-  const colours = extractKMeansPalette(pixels, paletteSize).map(
+  const selectedPalette = await extractImagePalette(buffer);
+  const colours = selectedPalette.map(
     ({ rgb, weight }, index) => {
       const [labL, labA, labB] = rgbToLab(rgb);
 
@@ -94,7 +73,7 @@ export async function analyseImage(buffer: Buffer, photographId: string) {
       };
     },
   );
-  const oklabFeatures = extractOklabKMedoids(pixels, paletteSize).map(
+  const oklabFeatures = selectedPalette.map(
     ({ rgb, oklab, weight }, index) => ({
       rank: index + 1,
       red: rgb[0],
@@ -111,16 +90,16 @@ export async function analyseImage(buffer: Buffer, photographId: string) {
 
   return {
     photograph_id: photographId,
-    algorithm: K_MEANS_ALGORITHM,
-    algorithm_iterations: K_MEANS_ITERATIONS,
+    algorithm: MMCQ_VIBRANT_ALGORITHM,
+    algorithm_iterations: MMCQ_PASSES,
     sample_longest_side: sampleLongestSide,
-    palette_size: paletteSize,
+    palette_size: colours.length,
     analyzed_at: analyzedAt,
     colours,
     oklab_features: {
       photograph_id: photographId,
-      algorithm: OKLAB_K_MEDOIDS_ALGORITHM,
-      algorithm_iterations: OKLAB_K_MEDOIDS_ITERATIONS,
+      algorithm: MMCQ_VIBRANT_ALGORITHM,
+      algorithm_iterations: MMCQ_PASSES,
       sample_longest_side: sampleLongestSide,
       feature_count: oklabFeatures.length,
       analyzed_at: analyzedAt,
