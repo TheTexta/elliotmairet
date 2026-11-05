@@ -3,7 +3,8 @@
 ## Scope and rollout
 
 The owner approved the palette change and catalogue backfill on **2026-11-05**.
-Release and backfill are **pending**. This is a **palette-only release** for
+The application code is **deployed**; the catalogue backfill is **pending**.
+This is a **palette-only release** for
 display and colour matching. The experimental blob/colour-neighbourhood layout
 is not releasing; the production gallery layout and catalogue ordering remain.
 
@@ -70,6 +71,38 @@ subset. Single-swatch search behaviour is unchanged.
 Mixed old/new model catalogues remain readable, but rankings and monochrome
 classification should be verified during the whole-catalogue rollout. Cache
 namespace changes and rollout execution remain separate from this transfer.
+
+## Production application release — 2026-11-05
+
+- Project: `elliotmairet` (`prj_M8P1Nz13urCvN1V37yiPL3jLfTUW`), existing
+  team `team_2HILKt3irP09F0Knja9Vv9z1` and domain `https://elliotmairet.com`.
+- Palette-only application commit: `538e260` on local `release/mmcq-palette`.
+  Source was uploaded with the authenticated Vercel CLI, without a Git push.
+  Integrate this branch before a future main-branch deployment; the remote main
+  branch does not yet contain this release.
+- Deployment: `dpl_21CKXa1zKUvmx4b8vPEXtkR2UeLn`, `READY`, aliased to the
+  production domains; deployment URL:
+  `elliotmairet-iavyzyirz-thetextas-projects.vercel.app`.
+- Previous deployment retained as the application rollback:
+  `dpl_ExnZSNMQhPyvY4zfHMJStTS4tFuo` (base commit `6f0efc0`). After a palette
+  backfill, restore the previous palette data before reverting to that app,
+  which did not fully support shorter palettes.
+- Normal `npm run build` (Turbopack and TypeScript), lint, palette **17/17**,
+  similarity **15/15**, upload **45/45**, images **32/32**, and diff checks pass.
+  Independent review found no app regression or blob-layout leakage.
+- Public home, palette JSON and four-swatch photograph requests returned **200**.
+  The four-swatch photograph rendered four columns and completed full-palette
+  and single-colour browser matching. All **271** archive items remain; ordering,
+  column positions/widths and absence of overflow were verified at **1440px** and
+  **390px**. Subpixel image-height differences below 0.5px reflect decoded
+  derivative aspect-ratio rounding, not layout-code changes.
+- Fresh pre-backfill reads found **271** photographs, **1,355** CIELAB colours
+  and **1,354** OKLab features. Public palettes remain **270 × five + one × four**.
+  R2 HEAD checks found all **271** originals with source SHA-256 metadata
+  (2.86 GiB total, largest 46.42 MiB). No objects or palette rows were changed.
+- Backfill execution awaits authenticated database access over Tailscale SSH.
+  Both coordinate spaces must be snapshotted and replaced atomically; do not
+  substitute the legacy one-space backfill command.
 
 ## Review and verification
 

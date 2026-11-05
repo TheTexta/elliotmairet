@@ -78,8 +78,9 @@ Population weights remain separate from selection scores, and CIELAB/OKLab
 coordinates remain separate. Nonempty palettes with fewer than five swatches
 remain usable for display and colour matching.
 
-The owner approved the palette change and catalogue backfill on **2026-11-05**;
-release and backfill are pending. This is a **palette-only release**: the
+The owner approved the palette change and catalogue backfill on **2026-11-05**.
+The palette application code is deployed; the catalogue backfill is still pending.
+This is a **palette-only release**: the
 production gallery layout is preserved; the experimental blob layout is excluded.
 See [`docs/palette-extraction.md`](docs/palette-extraction.md) for model details,
 the shared production analyser and rollout/rollback requirements.

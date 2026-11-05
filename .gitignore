@@ -49,3 +49,6 @@ next-env.d.ts
 
 # Local design-review artifacts
 /.impeccable/
+
+# Private catalogue snapshots and palette-backfill journals
+/.local/palette-backfill/
