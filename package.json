@@ -19,6 +19,9 @@
     "test:palette": "node --experimental-strip-types --test lib/palette/oklab-k-medoids.test.mjs lib/palette/mmcq-vibrant.test.mjs lib/photographs/analyse-image.test.mjs scripts/review-palettes.test.mjs 'app/(public)/gallery/*/similar-colour-gallery.test.mjs'",
     "palette:review": "node --experimental-strip-types scripts/review-palettes.mjs",
     "test:layout": "node --experimental-strip-types --test lib/photographs/plan-colour-masonry.test.mjs 'app/(public)/gallery/photo-gallery-columns.test.mjs' 'app/(public)/gallery/colour-gallery-layout.test.mjs'",
+    "palette:backfill": "node --experimental-strip-types scripts/backfill-mmcq-palettes.mjs",
+    "test:palette:backfill": "node --test scripts/backfill-mmcq-palettes.test.mjs",
+    "test:palette:backfill:db": "node --test scripts/backfill-mmcq-palettes.sql.test.mjs",
     "test:similarity": "node --experimental-strip-types --test lib/photographs/select-similar-matches.test.mjs lib/photographs/find-colour-matches.test.mjs",
     "test:images": "node --experimental-strip-types --test lib/r2/*.test.mjs lib/photographs/storage.test.mjs lib/photographs/queries.test.mjs lib/seo.test.mjs app/supabase-image-loader.test.mjs 'app/(public)/gallery/image-sizes.test.mjs' 'app/(public)/gallery/photo-gallery-columns.test.mjs'",
     "storage:prepare:images": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/prepare-r2-image-sources.mjs"

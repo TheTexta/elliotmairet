@@ -4,14 +4,14 @@ import sharp from "sharp";
 import {
   rgbToHex,
   rgbToLab,
-} from "@/lib/palette/k-means.js";
+} from "../palette/k-means.js";
 import {
   MMCQ_VIBRANT_ALGORITHM,
   MMCQ_PASSES,
   MMCQ_SAMPLE_LONGEST_SIDE,
-} from "@/lib/palette/mmcq-vibrant.js";
-import { MAXIMUM_INPUT_PIXELS } from "@/lib/photographs/config";
-import { extractImagePalette } from "@/lib/palette/analyse-buffer";
+} from "../palette/mmcq-vibrant.js";
+import { MAXIMUM_INPUT_PIXELS } from "./config.ts";
+import { extractImagePalette } from "../palette/analyse-buffer.ts";
 
 const sampleLongestSide = MMCQ_SAMPLE_LONGEST_SIDE;
 
@@ -54,8 +54,12 @@ export async function imageMetadata(buffer: Buffer) {
   };
 }
 
-export async function analyseImage(buffer: Buffer, photographId: string) {
-  const selectedPalette = await extractImagePalette(buffer);
+export async function analyseImage(
+  buffer: Buffer,
+  photographId: string,
+  options?: { maximumInputPixels?: number },
+) {
+  const selectedPalette = await extractImagePalette(buffer, options);
   const colours = selectedPalette.map(
     ({ rgb, weight }, index) => {
       const [labL, labA, labB] = rgbToLab(rgb);

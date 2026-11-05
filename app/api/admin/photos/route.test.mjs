@@ -32,10 +32,10 @@ function load(path, mocks) {
 
 const { imageMetadata } = load("../../../../lib/photographs/analyse-image.ts", {
   "exif-reader": readExif, sharp,
-  "@/lib/palette/k-means.js": {},
-  "@/lib/palette/mmcq-vibrant.js": { MMCQ_SAMPLE_LONGEST_SIDE: 256 },
-  "@/lib/palette/analyse-buffer": { extractImagePalette() { assert.fail("Metadata-only fixture must not analyse palettes"); } },
-  "@/lib/photographs/config": config,
+  "../palette/k-means.js": {},
+  "../palette/mmcq-vibrant.js": { MMCQ_SAMPLE_LONGEST_SIDE: 256 },
+  "../palette/analyse-buffer.ts": { extractImagePalette() { assert.fail("Metadata-only fixture must not analyse palettes"); } },
+  "./config.ts": config,
 });
 const jpeg = await sharp({ create: { width: 8, height: 6, channels: 3, background: "red" } }).jpeg().toBuffer();
 const png = await sharp({ create: { width: 8, height: 6, channels: 3, background: "blue" } }).png().toBuffer();

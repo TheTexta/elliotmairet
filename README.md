@@ -72,16 +72,28 @@ function.
 
 ## Palette extraction
 
-The feature checkout uses versioned **MMCQ64 + vibrancy/diversity scoring** for
-new upload analysis: up to five supported, distinct sampled colours, without
-synthetic vibrant/muted roles. The owner selected these swatches for display,
-matching and blob layout together. Population weights remain separate from
-selection scores, and CIELAB/OKLab coordinates remain separate.
+Upload analysis uses versioned **MMCQ64 + vibrancy/diversity scoring**: up to
+five supported, distinct sampled colours, without synthetic vibrant/muted roles.
+Population weights remain separate from selection scores, and CIELAB/OKLab
+coordinates remain separate. Nonempty palettes with fewer than five swatches
+remain usable for display and colour matching.
 
-This is **local code only**, not a production deployment or catalogue backfill.
-Run `npm run palette:review` for a read-only comparison of 24 existing photographs.
-See [`docs/palette-extraction.md`](docs/palette-extraction.md) for the model,
-fewer-swatch compatibility, review safeguards and rollout/rollback gates.
+The owner approved the palette change and catalogue backfill on **2026-11-05**.
+The palette application code is deployed and all **271 catalogue photographs**
+have been backfilled from checksum-verified originals in both colour spaces.
+The first release was palette-only. The owner subsequently approved committing
+and pushing the colour-blob homepage feature to `main`; it uses those same
+backfilled swatches and population weights without another database backfill.
+See [`docs/palette-extraction.md`](docs/palette-extraction.md) for model details,
+the shared production analyser and rollout/rollback requirements.
+The guarded, original-file operator workflow is in
+[`docs/mmcq-backfill.md`](docs/mmcq-backfill.md). `npm run palette:backfill` defaults
+to help; it does not load credentials or write production data automatically.
+Use `test:palette:backfill` for offline safeguards and `test:palette:backfill:db`
+with the explicitly isolated Docker endpoint for transaction/concurrency tests.
+
+`npm run palette:review -- --count=24` remains a read-only comparison tool using
+bounded public derivatives; it never applies palettes or writes to storage.
 
 ## Image loading and SEO
 
@@ -134,14 +146,24 @@ ordering and photograph URLs remain unchanged. The separate palette-model change
 above intentionally affects colour matching; the palette JSON fields stay compatible.
 Replacing the homepage's `ColourPhotoGallery` with the original `PhotoGallery`
 restores catalogue-order rendering. Check with `npm run test:layout`, `test:similarity`,
-`test:images`, `lint` and `build`. This feature checkout is a local prototype;
-production rollout requires separate approval.
+`test:images`, `lint` and `build`. Commit and push to `main` were approved on
+2026-11-05; the push uses the existing Vercel production integration.
 
-Prototype limitation: the single link tree follows desktop spatial order. The
+Known limitation: the single link tree follows desktop spatial order. The
 independently composed mobile layout can therefore move keyboard focus between
-different visual rows. Review this tradeoff before a production rollout; colour
+different visual rows. This is not a saved curatorial order; colour
 placement remains an aesthetic preference: connectivity and area budgets are
 enforced, but every boundary cannot be perfectly complementary.
+
+Release validation on 2026-11-05 used the actual backfilled 271-photograph
+catalogue: both plans retained every photograph exactly once, with 37 colour
+patches and zero disconnected blobs. The integrated build, lint, layout **24/24**,
+palette **20/20**, similarity **15/15**, upload **45/45**, images **32/32**, and
+backfill safeguard **8/8** checks passed. Local production-browser checks at 390px
+and 1440px confirmed two/three columns, 7% gutters, one photograph tree, no overlaps
+or horizontal overflow, and reserved geometry through the bottom of the archive.
+The previously deployed analyser, upload limits and palette cache epoch are
+preserved; this layout release performs no database or media writes.
 
 ### Image delivery
 
@@ -159,8 +181,8 @@ events, including cached images and client-side navigation, without waiting for
 React hydration. Reduced-motion visitors see images without the fade, and
 images remain visible when JavaScript is disabled. Gallery links prefetch on
 hover, keyboard focus, or touch rather than automatically fetching every
-visible photograph route. Image proportions, spacing and palette interactions
-are unchanged; the homepage colour composition is described above.
+visible photograph route. Image proportions and palette interactions are
+unchanged; the homepage's proportional gutters and colour composition are described above.
 
 Social previews use a transformation capped at 1200 pixels wide rather than
 downloading an original. Existing photograph alt text and titles also supply

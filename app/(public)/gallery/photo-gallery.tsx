@@ -70,7 +70,7 @@ export function GalleryItem({
             src={photograph.imageUrl}
             width={unknownDimensions ? 1024 : photograph.width}
           />
-          {photograph.palette?.length ? (
+          {photograph.palette && photograph.palette.length > 0 ? (
             <div className="pointer-events-none absolute top-2 right-2 z-10 hidden overflow-hidden opacity-0 shadow-[0_1px_6px_rgba(0,0,0,0.35)] transition-opacity duration-100 ease-out group-hover:opacity-100 sm:flex" aria-hidden="true">
               {photograph.palette.map((hex, paletteIndex) => (
                 <span className="h-3.5 w-3.5" key={`${hex}-${paletteIndex}`} style={{ backgroundColor: hex }} />

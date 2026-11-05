@@ -52,3 +52,6 @@ next-env.d.ts
 
 # Read-only, unapproved palette comparison artifacts
 /.local/palette-review/
+
+# Private catalogue snapshots and palette-backfill journals
+/.local/palette-backfill/

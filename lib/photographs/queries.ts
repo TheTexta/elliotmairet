@@ -11,8 +11,8 @@ import type {
   PhotographWithPalette,
 } from "./types";
 
-// Bypass pre-release data retained across deployments after the owner's deletions.
-const photographCacheVersion = "2026-11-03";
+// Bypass cached old palettes after the approved whole-catalogue MMCQ backfill.
+const photographCacheVersion = "2026-11-05-mmcq-v1";
 
 const legacyPhotographColumns = `
   id,
