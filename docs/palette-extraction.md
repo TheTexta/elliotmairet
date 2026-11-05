@@ -76,9 +76,9 @@ be reused, but **every source and target swatch participates** in the RMS distan
 This avoids dropping valid one/two-colour photographs or matching only a convenient
 subset. Single-swatch search behaviour is unchanged.
 
-Mixed old/new model catalogues remain readable, but rankings and monochrome
-classification should be verified during the whole-catalogue rollout. Cache
-namespace changes and rollout execution remain separate from this transfer.
+Mixed old/new model catalogues remain readable. The whole-catalogue rollout
+verified the resulting palettes and matching queries, with a coordinated cache
+epoch and fresh build as recorded below.
 
 ## Production application release — 2026-11-05
 
@@ -160,6 +160,32 @@ namespace changes and rollout execution remain separate from this transfer.
   together; a fresh production build/deployment publishes the backfilled home,
   palette JSON and photograph-detail routes. Refresh already-open browser tabs
   to discard their in-memory palette JSON.
+
+## Completed cache-refresh release and live verification
+
+- Deployed application commit: `b836e1a`, incorporating the guarded backfill
+  support and cache epoch, on local `release/mmcq-palette` (not pushed).
+- Final production deployment: **`dpl_7iNYguNyPq4NVeYJQyRgaZFjxCxK`**, `READY`,
+  aliased to `https://elliotmairet.com` and the existing production domains.
+  Deployment URL: `elliotmairet-f6x7clkb8-thetextas-projects.vercel.app`.
+  This supersedes the compatibility-first deployment above.
+- Fresh local and Vercel production builds pass. The generated and live public
+  palette JSON each contain **271 photographs / 1,352 swatches**, exactly matching
+  every stored OKLab hex and coordinate. Full-palette searches for **all 271**
+  photographs succeed with nonempty valid results.
+- The two-swatch page returns HTTP 200 and renders two controls with the verified
+  greys; browser full-palette and clicked single-colour searches complete without
+  errors. Fresh homepage and detail browser contexts logged no console errors.
+- Post-backfill browser checks at **1440px** and **390px** preserve all 271 gallery
+  items, the original ordering and column positions/widths, without overflow.
+  No blob rendering, geometry, query-weight or type changes were released.
+- Evidence: `build-palette-validation.json`, `live-palette-validation.json` and
+  `live-layout-validation.json` in the frozen run directory; the original frozen
+  files and independently recorded manifest pin remain unchanged.
+- Isolated test containers were removed by their `--rm` lifecycle and the task's
+  `elliot-palette-tests` VM was stopped. The developer's active Docker context was
+  not changed. No push or merge into main was performed; integrate this release
+  branch before a future main-branch deployment.
 
 ### Guarded recovery
 
