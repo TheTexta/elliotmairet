@@ -1,4 +1,4 @@
-export const masonryGap = 0.07;
+export const masonryGap = 0.06;
 
 type Dimensions = { width: number; height: number };
 export type MasonryPosition = { column: number; row: number; top: number; bottom: number };

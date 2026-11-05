@@ -115,3 +115,69 @@ test("unknown dimensions reach the image loader as a valid square, not NaN/zero"
   assert.ok(html.includes("aspect-ratio:1"));
   assert.ok(calls[0].className.includes("object-contain"));
 });
+
+test("public navigation, content frame and mobile footer consume the shared gallery spacing", async () => {
+  const spacingCss = readFileSync(new URL("../layout.module.css", import.meta.url), "utf8");
+  assert.match(spacingCss, /^\.page\s*\{[^}]*--gallery-frame-inset:\s*var\(--gallery-gap\)/);
+  assert.match(spacingCss, /@media \(width >= 40rem\)\s*\{\s*\.page\s*\{\s*--gallery-frame-inset:\s*calc\(100vw \/ 6\)/);
+  const gallerySource = readFileSync(new URL("./gallery-view.tsx", import.meta.url), "utf8");
+  assert.ok(gallerySource.includes("pt-[calc(2*var(--gallery-gap)+1cap)] sm:pt-4"));
+  const { createElement, Fragment } = require("react");
+  const link = ({ children, className, href }) => createElement("a", { className, href }, children);
+  function loadComponent(path, mocks = {}) {
+    const source = ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+    }).outputText;
+    const exports = {};
+    runInNewContext(source, { exports, require(name) {
+      return Object.hasOwn(mocks, name) ? mocks[name] : require(name);
+    } });
+    return exports;
+  }
+  const { IndexNavigation } = loadComponent("./index-navigation.tsx", {
+    "next/link": { __esModule: true, default: link },
+    "./transition-link": { TransitionLink: link },
+  });
+  const { ContentFrame } = loadComponent("./content-frame.tsx");
+
+  // A changed planner ratio must reach CSS without a second spacing constant.
+  for (const gap of [masonryGap, 0.12]) {
+    const { default: PublicLayout } = loadComponent("../layout.tsx", {
+      "@/lib/photographs/masonry-geometry": { masonryGap: gap },
+      "@/lib/photographs/storage": { photographImageOrigin: () => "https://images.example.test" },
+      "@/lib/site-content/queries": { getFooterText: async () => "Archive description" },
+      "./image-preconnect": { ImagePreconnect: () => null },
+      "./preview-navigation-bridge": { PreviewNavigationBridge: () => null },
+      "./layout.module.css": { __esModule: true, default: { page: "public-page" } },
+    });
+    for (const fromPhoto of [false, true]) {
+      const page = await PublicLayout({ children: createElement(Fragment, null,
+        createElement(IndexNavigation, { fromPhoto }),
+        createElement(ContentFrame, null, "photographs"),
+      ) });
+      assert.equal(page.props.style["--gallery-gap-ratio"], gap);
+      const html = renderToStaticMarkup(page);
+      assert.ok(html.includes('class="public-page"'));
+      assert.ok(html.includes("top-[var(--gallery-gap)] left-[var(--gallery-gap)]"));
+      assert.ok(html.includes("[text-box:trim-both_cap_alphabetic]"));
+      assert.ok(html.includes("px-[var(--gallery-frame-inset)]"));
+      assert.ok(!html.includes("right-4"));
+      const footer = page.props.children.find(child => child.type === "footer");
+      const footerClasses = footer.props.className.split(" ");
+      for (const spacing of ["gap", "px", "py"]) {
+        assert.ok(footerClasses.includes(`${spacing}-[var(--gallery-gap)]`));
+      }
+      for (const desktopClass of ["sm:gap-4", "sm:px-[calc(100vw/6)]", "sm:py-8"]) {
+        assert.ok(footerClasses.includes(desktopClass));
+      }
+      const [contacts, description] = footer.props.children;
+      for (const block of [contacts, description]) {
+        assert.ok(block.props.className.includes("sm:py-4"));
+        assert.ok(!block.props.className.split(" ").some(name => name.startsWith("py-")));
+      }
+      assert.equal(description.props.children.props.children, "Archive description");
+      assert.ok(contacts.props.children[2].props.className.includes("mt-[var(--gallery-gap)]"));
+      assert.ok(contacts.props.children[2].props.className.includes("sm:mt-[1lh]"));
+    }
+  }
+});

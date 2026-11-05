@@ -48,7 +48,7 @@ export async function GalleryView() {
         <IndexNavigation />
 
         <ContentFrame>
-          <div className="pt-8 sm:pt-4">
+          <div className="pt-[calc(2*var(--gallery-gap)+1cap)] sm:pt-4">
             <ColourPhotoGallery
               columnPlans={columnPlans}
               photographs={photographs.map((photograph) => ({

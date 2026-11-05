@@ -1,0 +1,21 @@
+.page {
+  --gallery-frame-inset: var(--gallery-gap);
+  --gallery-columns: 2;
+  --gallery-width: calc(100vw - 2 * var(--gallery-frame-inset));
+  /* Below sm, include two outer gaps as well as the gaps between columns. */
+  --gallery-column-width: calc(100vw / (var(--gallery-columns) + (var(--gallery-columns) + 1) * var(--gallery-gap-ratio)));
+  --gallery-gap: calc(var(--gallery-column-width) * var(--gallery-gap-ratio));
+}
+
+@media (width >= 40rem) {
+  .page {
+    --gallery-frame-inset: calc(100vw / 6);
+    --gallery-column-width: calc(var(--gallery-width) / (var(--gallery-columns) + (var(--gallery-columns) - 1) * var(--gallery-gap-ratio)));
+  }
+}
+
+@media (width >= 48rem) {
+  .page {
+    --gallery-columns: 3;
+  }
+}

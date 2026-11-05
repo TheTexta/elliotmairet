@@ -115,11 +115,24 @@ while retaining uncropped two-column/mobile and three-column/desktop masonry.
   colour contacts and compatible lightness. Neutral runs and recent hue repetition
   are discouraged; near-neutral hues have less influence than saturated hues.
 - `lib/photographs/masonry-geometry.ts` is shared by planning, scoring, rendering
-  and tests. **Gutters are exactly 7% of thumbnail width**, not a fixed 16px:
-  approximately 12px on a 390px screen and 22px on a 1440px screen. This deliberate
-  responsive spacing keeps the neighbour graph identical at every width within
+  and tests. **Gutters are `masonryGap × thumbnail width`**, not a fixed 16px.
+  This deliberate responsive spacing keeps the neighbour graph identical at every width within
   a breakpoint, including the bottom of long galleries. Missing/invalid aspect
   ratios consistently reserve a square in all stages (uploads still require dimensions).
+- `masonryGap` in `lib/photographs/masonry-geometry.ts` remains the single spacing
+  control. The public layout exposes its responsive, length-valued `--gallery-gap`
+  for other UI: the fixed **Elliot Mairet** navigation uses it for both top and left
+  offsets on the archive and photograph pages. Its text box trims to cap height
+  where supported, so font leading does not add extra visible space above the name.
+  `--gallery-frame-inset` is shared with `ContentFrame`: below `sm` (40rem), left
+  and right padding also equal the photo gap. The calculation includes both outer
+  gaps without a circular CSS dependency. On mobile, the archive starts one gap
+  below the navigation's cap-height text box: its top offset is two gaps plus
+  `1cap` (one gap above the name, one below). Larger-screen padding and the
+  blob-composition algorithm remain unchanged.
+  Below `sm`, the footer also uses `--gallery-gap` for side/vertical padding,
+  contact-to-description spacing and the developer-credit margin, without stacked
+  inner padding. Its existing spacing at `sm` and above remains unchanged.
 - Two repair sweeps try local swaps and relocations, scoring each against the
   **whole** catalogue. Repairs cannot disconnect previously connected patches.
   The score strongly penalises a single-column tail longer than the natural
