@@ -150,7 +150,8 @@ export function SimilarColourGallery({
     <>
       <nav
         aria-label="Photograph colour palette"
-        className="grid w-full grid-cols-5 pb-4 h-[8vh]"
+        className="grid w-full pb-4 h-[8vh]"
+        style={{ gridTemplateColumns: `repeat(${palette.length}, minmax(0, 1fr))` }}
       >
         {palette.map((hex, index) => (
           <motion.button

@@ -16,7 +16,7 @@
     "test:text:db": "node scripts/test-photograph-text-db.mjs",
     "test:admin": "node --experimental-strip-types --test 'app/(admin)/admin/photos/admin-ux.test.mjs' 'app/(admin)/admin/photos/unsaved-changes.test.mjs' 'app/(admin)/admin/content/content-form.test.mjs' 'app/(admin)/admin/confirm-provider.test.mjs' components/ui/ui.test.mjs lib/site-content/queries.test.mjs",
     "test:upload": "node --experimental-strip-types --test lib/photographs/upload.test.mjs lib/photographs/upload-date.test.mjs app/api/admin/photos/route.test.mjs",
-    "test:palette": "node --test lib/palette/oklab-k-medoids.test.mjs",
+    "test:palette": "node --experimental-strip-types --test lib/palette/oklab-k-medoids.test.mjs lib/palette/mmcq-vibrant.test.mjs lib/photographs/analyse-image.test.mjs 'app/(public)/gallery/*/similar-colour-gallery.test.mjs'",
     "test:similarity": "node --experimental-strip-types --test lib/photographs/select-similar-matches.test.mjs lib/photographs/find-colour-matches.test.mjs",
     "test:images": "node --experimental-strip-types --test lib/r2/*.test.mjs lib/photographs/storage.test.mjs lib/photographs/queries.test.mjs lib/seo.test.mjs app/supabase-image-loader.test.mjs 'app/(public)/gallery/image-sizes.test.mjs' 'app/(public)/gallery/photo-gallery-columns.test.mjs'",
     "storage:prepare:images": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/prepare-r2-image-sources.mjs"

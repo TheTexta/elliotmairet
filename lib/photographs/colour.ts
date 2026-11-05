@@ -38,15 +38,20 @@ export function closestPaletteMatch(
   selectedColours: PaletteColour[],
   candidateColours: PaletteColour[],
 ) {
-  if (!selectedColours.length || candidateColours.length < selectedColours.length) return;
+  if (!selectedColours.length || !candidateColours.length) return;
 
   let closestMatch: { closestColour: PaletteColour; difference: number } | undefined;
   const differences: number[] = [];
   const matchedColours: PaletteColour[] = [];
-  const usedCandidateIndexes = new Set<number>();
+  const usedCandidates = candidateColours.map(() => 0);
+  const allowReuse = selectedColours.length > candidateColours.length;
+  const distances = selectedColours.map(selected => candidateColours.map(candidate => deltaE76(selected, candidate)));
 
   function matchColour(selectedIndex: number) {
     if (selectedIndex === selectedColours.length) {
+      // With fewer target swatches, reuse is necessary, but every selected AND
+      // candidate colour must participate. Do not silently match only a subset.
+      if (allowReuse && usedCandidates.some(count => count === 0)) return;
       const difference = Math.hypot(...differences) / Math.sqrt(differences.length);
 
       if (!closestMatch || difference < closestMatch.difference) {
@@ -61,14 +66,14 @@ export function closestPaletteMatch(
     }
 
     candidateColours.forEach((candidateColour, candidateIndex) => {
-      if (usedCandidateIndexes.has(candidateIndex)) return;
-      usedCandidateIndexes.add(candidateIndex);
-      differences.push(deltaE76(selectedColours[selectedIndex], candidateColour));
+      if (!allowReuse && usedCandidates[candidateIndex]) return;
+      usedCandidates[candidateIndex]++;
+      differences.push(distances[selectedIndex][candidateIndex]);
       matchedColours.push(candidateColour);
       matchColour(selectedIndex + 1);
       matchedColours.pop();
       differences.pop();
-      usedCandidateIndexes.delete(candidateIndex);
+      usedCandidates[candidateIndex]--;
     });
   }
 

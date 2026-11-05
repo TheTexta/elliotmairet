@@ -162,7 +162,7 @@ export default async function PhotographPage({
               </div>
             </figure>
             <div className="" />
-            {palette.length === 5 ? (
+            {palette.length > 0 ? (
               <SimilarColourGallery
                 currentFilename={photograph.filename}
                 palette={palette.map(({ hex }) => hex)}
