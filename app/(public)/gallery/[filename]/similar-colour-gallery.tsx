@@ -10,10 +10,6 @@ import {
 } from "@/lib/photographs/find-colour-matches";
 
 import { PhotoGallery } from "../photo-gallery";
-import {
-  announcePaletteSelectionState,
-  paletteResetEventName,
-} from "./palette-reset-event";
 
 const colourResultPageSize = 36;
 const galleryFadeOutDurationMs = 100;
@@ -53,11 +49,14 @@ function loadPalettes() {
 export function SimilarColourGallery({
   currentFilename,
   palette,
+  selectedHex,
+  onSelect,
 }: {
   currentFilename: string;
   palette: string[];
+  selectedHex?: string;
+  onSelect: (hex: string) => void;
 }) {
-  const [selectedHex, setSelectedHex] = useState<string>();
   const [matches, setMatches] = useState<ColourMatch[]>();
   const [visibleCount, setVisibleCount] = useState(colourResultPageSize);
   const matchesRef = useRef<ColourMatch[] | undefined>(undefined);
@@ -87,19 +86,6 @@ export function SimilarColourGallery({
     observer.observe(trigger);
     return () => observer.disconnect();
   }, [hasMore, status, visibleCount]);
-
-  useEffect(() => {
-    function handlePaletteReset() {
-      setSelectedHex(undefined);
-    }
-
-    window.addEventListener(paletteResetEventName, handlePaletteReset);
-    return () => window.removeEventListener(paletteResetEventName, handlePaletteReset);
-  }, []);
-
-  useEffect(() => {
-    announcePaletteSelectionState(Boolean(selectedHex));
-  }, [selectedHex]);
 
   useEffect(() => {
     const hexes = selectedHex ? [selectedHex] : palette;
@@ -164,7 +150,7 @@ export function SimilarColourGallery({
             className="block cursor-pointer border-0 p-0 transition-transform duration-300 ease-out motion-reduce:transition-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#050505]"
             initial={{ opacity: 0, scale: 0 }}
             key={`${hex}-${index}`}
-            onClick={() => setSelectedHex(hex)}
+            onClick={() => onSelect(hex)}
             style={{ backgroundColor: hex }}
             title={`Find similar colours to ${hex}`}
             transition={{

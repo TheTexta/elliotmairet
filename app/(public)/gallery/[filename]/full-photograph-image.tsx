@@ -1,33 +1,12 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import {
-  paletteSelectionStateEventName,
-  type PaletteSelectionStateEvent,
-  resetPaletteSelection,
-} from "./palette-reset-event";
-
-export function FullPhotographImage({ children }: { children: ReactNode }) {
-  const [isPaletteFiltered, setIsPaletteFiltered] = useState(false);
-
-  useEffect(() => {
-    function handlePaletteSelectionState(event: Event) {
-      setIsPaletteFiltered(
-        (event as PaletteSelectionStateEvent).detail.isFiltered,
-      );
-    }
-
-    window.addEventListener(
-      paletteSelectionStateEventName,
-      handlePaletteSelectionState,
-    );
-    return () => window.removeEventListener(
-      paletteSelectionStateEventName,
-      handlePaletteSelectionState,
-    );
-  }, []);
-
+export function FullPhotographImage({ children, isPaletteFiltered, onReset }: {
+  children: ReactNode;
+  isPaletteFiltered: boolean;
+  onReset: () => void;
+}) {
   return (
     <button
       aria-label="Show photographs matched across the full colour palette"
@@ -35,7 +14,7 @@ export function FullPhotographImage({ children }: { children: ReactNode }) {
       disabled={!isPaletteFiltered}
       onClick={() => {
         if (isPaletteFiltered) {
-          resetPaletteSelection();
+          onReset();
         }
       }}
       type="button"

@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState, useTransition } from "react";
 
 import { photographUrl } from "@/lib/photographs/storage";
 import { photographPath } from "@/lib/seo";
-import { previewTextFields, textFields, type PhotographTextDraft, type PhotographTextFields, type TextBatchPreview, type TextBatchResult, type TextField } from "@/lib/photographs/text";
+import { previewTextFields, textFields, type PhotographTextDraft, type PhotographTextFields, type TextField } from "@/lib/photographs/text";
+import { applyTextBatch, emptyTextBatch, recoverTextBatch, rollbackTextBatch, textBatchLocked, textBatchReducer } from "./text-batch";
 
 import { AdminInput, FormField } from "./form-controls";
 import { Button } from "@/components/ui/button";
@@ -46,16 +47,17 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
   const [pageVersion, setPageVersion] = useState(0);
   const [selection, setSelection] = useState<string[]>([]);
   const [fields, setFields] = useState<TextField[]>([...textFields]);
-  const [preview, setPreview] = useState<TextBatchPreview | null>(null);
-  const [results, setResults] = useState<TextBatchResult[]>([]);
-  const [started, setStarted] = useState(false);
-  const [done, setDone] = useState(false);
+  const [batch, dispatchBatch] = useReducer(textBatchReducer, emptyTextBatch);
+  const applying = useRef(false);
+  const { preview, results } = batch;
+  const started = batch.phase === "applying" || batch.phase === "interrupted" || batch.phase === "complete";
+  const done = batch.phase === "complete";
   const [recoveryToken, setRecoveryToken] = useState("");
   const [dirtyIds, setDirtyIds] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
-  const locked = started && !done;
+  const locked = textBatchLocked(batch);
   const altReadOnly = automaticAlt !== false;
   useUnsavedChanges(locked || pending);
   const markDirty = useCallback((id: string, dirty: boolean) => {
@@ -63,7 +65,7 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
   }, []);
 
   function invalidate() {
-    setPreview(null); setResults([]); setStarted(false); setDone(false);
+    dispatchBatch({ type: "release" });
   }
 
   function task(work: () => Promise<void>) {
@@ -122,22 +124,10 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
   }
 
   async function apply() {
-    if (!preview) return;
-    setStarted(true);
-    let complete = false;
-    while (!complete) {
-      const result = await applyPhotographTextBatchAction(preview.token);
-      if (result.error) throw new Error(`${result.error} The approval token is retained. Resume to reconcile remaining records.`);
-      if (typeof result.done !== "boolean") throw new Error("The batch returned no completion status. The approval is retained; resume to reconcile safely.");
-      if (result.results) setResults(current => {
-        const entries = new Map(current.map(row => [row.draftId, row]));
-        for (const row of result.results ?? []) entries.set(row.draftId, row);
-        return [...entries.values()];
-      });
-      complete = result.done === true;
-      setMessage(result.message ?? "Applying the next group of up to 20 records…");
-    }
-    setDone(true); setMessage("Batch complete. Review the recorded results below.");
+    if (!preview || applying.current) return;
+    applying.current = true;
+    try { await applyTextBatch(preview.token, applyPhotographTextBatchAction, dispatchBatch, setMessage); }
+    finally { applying.current = false; }
   }
 
   return (
@@ -208,7 +198,7 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
             <Button type="button" variant="outline" disabled={!runId.trim() || !fields.length || !!dirtyIds.length} onClick={() => task(async () => {
                const result = await previewPhotographTextBatchAction(runId.trim(), fields.filter(field => !altReadOnly || field !== "alt_text"), selection.length ? selection : undefined);
               if (result.error || !result.preview) throw new Error(result.error ?? "No preview was returned.");
-              setPreview(result.preview); setResults([]); setStarted(false); setDone(false);
+              dispatchBatch({ type: "preview", preview: result.preview });
               setRecoveryToken(result.preview.token);
               try { sessionStorage.setItem("elliot:photograph-text:approval", result.preview.token); } catch { /* Token is also displayed for manual recovery. */ }
             })}>Preview exact changes</Button>
@@ -221,10 +211,9 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
             </FormField>
             <Button type="button" variant="outline" disabled={!recoveryToken.trim() || !!dirtyIds.length} onClick={() => task(async () => {
               const result = await getPhotographTextBatchAction(recoveryToken.trim());
-              if (result.error || !result.preview) throw new Error(result.error ?? "The approval could not be recovered.");
-              setPreview(result.preview); setRunId(result.preview.runId); setResults(result.results ?? []);
-              setFields([...new Set(result.preview.rows.flatMap(previewTextFields))]);
-              setStarted(Boolean(result.results?.length)); setDone(result.done ?? false);
+              const recovered = recoverTextBatch(batch, recoveryToken.trim(), result, dispatchBatch);
+              setRunId(recovered.runId);
+              setFields([...new Set(recovered.rows.flatMap(previewTextFields))]);
               setMessage("Approval and recorded results recovered. Expired approvals need a fresh preview to apply; rollback remains available.");
             })}>Recover approval and results</Button>
             <Button type="button" variant="outline" disabled={!preview} onClick={async () => {
@@ -257,8 +246,8 @@ export function PhotographTextReview({ available, automaticAlt = false }: { avai
                 if (!await confirm({ title: "Roll back this batch?", description: "Only unchanged applied fields are restored. Newer manual edits remain protected.", confirmLabel: "Roll back unchanged fields", destructive: true })) return;
                 task(async () => {
                   const result = await rollbackPhotographTextBatchAction(preview.token);
-                  if (result.error) throw new Error(result.error);
-                  setResults(result.results ?? []); setDone(true); setMessage(result.message ?? "Rollback completed. Review restored and skipped fields below.");
+                  rollbackTextBatch(preview.token, result, dispatchBatch);
+                  setMessage(result.message ?? "Rollback completed. Review restored and skipped fields below.");
                 });
               }}>Roll back unchanged applied fields</Button>
             </div>

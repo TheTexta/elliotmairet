@@ -19,7 +19,7 @@ function load(path, mocks) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
   }).outputText;
   runInNewContext(source, {
-    exports, Buffer, URL,
+    exports, Buffer, URL, Error,
     process: { env: { NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL: "https://images.example.test/elliotmairet" } },
     console: { error() {} },
     require(name) {
@@ -39,11 +39,19 @@ const { imageMetadata } = load("../../../../lib/photographs/analyse-image.ts", {
 });
 const jpeg = await sharp({ create: { width: 8, height: 6, channels: 3, background: "red" } }).jpeg().toBuffer();
 const png = await sharp({ create: { width: 8, height: 6, channels: 3, background: "blue" } }).png().toBuffer();
+const deliverySource = { bytes: Buffer.from("derived-webp"), contentType: "image/webp" };
+const analysis = {
+  algorithm: "fixture-cielab", algorithm_iterations: 3, sample_longest_side: 256,
+  palette_size: 1, analyzed_at: "2026-11-01T00:00:00Z",
+  colours: [{ hex: "#ff0000", lab_l: 53, lab_a: 80, lab_b: 67 }],
+  oklab_features: { algorithm: "fixture-oklab", algorithm_iterations: 2, sample_longest_side: 256,
+    feature_count: 1, analyzed_at: "2026-11-01T00:00:00Z", features: [{ hex: "#ff0000", oklab_l: 0.63, oklab_a: 0.22, oklab_b: 0.13 }] },
+};
 
 function harness({ user = { id: "synthetic-admin" }, admin = true } = {}) {
   const staged = new Map(), published = new Map(), catalogue = new Map(), reservations = new Map();
   const events = [], scheduled = [];
-  const failures = { reservation: false, publish: false, signing: false };
+  const failures = { reservation: false, publish: false, signing: false, cleanup: false, scheduling: false };
   const supabase = {
     auth: { getUser: async () => ({ data: { user } }) },
     async rpc(name, args) {
@@ -84,18 +92,21 @@ function harness({ user = { id: "synthetic-admin" }, admin = true } = {}) {
     "./server": { createClient: async () => supabase },
     "next/navigation": { redirect() { assert.fail("Route must return HTTP denial"); } },
   });
-  const { POST } = load("./route.ts", {
+  const mocks = {
     "node:crypto": crypto,
-    "next/server": { NextResponse: Response, after: callback => scheduled.push(callback) },
+    "next/server": { NextResponse: Response, after: callback => {
+      if (failures.scheduling) throw new Error("Synthetic after failure");
+      scheduled.push(callback);
+    } },
     "@/lib/cache-invalidation": { invalidatePhotographsAndPalettes: () => events.push("invalidate") },
     "@/lib/photographs/analyse-image": {
       imageMetadata,
       // Palette algorithm correctness is covered separately; this fixture keeps
       // the route's publication payload deterministic without external services.
-      analyseImage: async () => ({ algorithm: "fixture", colours: [], oklab_features: { algorithm: "fixture", features: [] } }),
+      analyseImage: async () => analysis,
     },
     "@/lib/photographs/automatic-text": { processAutomaticPhotographText() { assert.fail("No AI work in offline route tests"); } },
-    "@/lib/r2/image-source": { createImageDeliverySource: async () => null },
+    "@/lib/r2/image-source": { createImageDeliverySource: async () => deliverySource },
     "@/lib/photographs/config": config,
     "@/lib/r2/objects": objects,
     "@/lib/supabase/admin": auth,
@@ -111,18 +122,25 @@ function harness({ user = { id: "synthetic-admin" }, admin = true } = {}) {
         assert.ok(staged.has(path));
         return staged.get(path);
       },
-      async copyStagedObjectToPublished(source, destination, contentType, etag, length, checksum) {
+      async copyStagedObjectToPublished(source, destination, contentType, etag, length, checksum, derived) {
         events.push("copy");
         assert.ok(reservations.has(destination), "Reserve public object before copying");
         const object = staged.get(source);
         assert.equal(etag, object.etag);
         assert.equal(length, object.bytes.length);
         assert.equal(checksum, createHash("sha256").update(object.bytes).digest("hex"));
+        assert.equal(derived, deliverySource, "Derived-source linkage must accompany original checksum and bytes");
         published.set(destination, { bytes: Buffer.from(object.bytes), contentType, checksum });
       },
-      async deleteStagedObject(path) { events.push("delete-staged"); staged.delete(path); },
+      async deleteStagedObject(path) {
+        events.push("delete-staged");
+        if (failures.cleanup) throw new Error("Synthetic cleanup failure");
+        staged.delete(path);
+      },
     },
-  });
+  };
+  const publication = load("../../../../lib/photographs/publication.ts", mocks);
+  const { POST } = load("./route.ts", { ...mocks, "@/lib/photographs/publication": publication });
   async function post(body) {
     return POST(new Request("https://site.example.test/api/admin/photos", { method: "POST", body: JSON.stringify(body) }));
   }
@@ -247,6 +265,60 @@ test("accepted replay after lost response does not download, copy, or insert aga
   assert.deepEqual([...h.reservations.keys()], [body.storagePath]);
   assert.deepEqual(h.events, ["is_admin", "catalogue-read", "delete-staged", "cancel_storage_upload_reservation", "invalidate"]);
 });
+
+test("publication carries distinct CIELAB and OKLab payloads plus normalized metadata", async () => {
+  const h = harness(), body = await h.prepare();
+  assert.equal((await h.post({ ...body, capturedAt: "2026-11-03", title: " Title ", altText: " Alt ", sortOrder: "42" })).status, 200);
+  const row = [...h.catalogue.values()][0];
+  assert.equal(row.p_algorithm, analysis.algorithm);
+  assert.deepEqual(row.p_colours, analysis.colours);
+  assert.equal(row.p_oklab_algorithm, analysis.oklab_features.algorithm);
+  assert.deepEqual(row.p_oklab_features, analysis.oklab_features.features);
+  assert.equal(row.p_captured_at, "2026-11-03");
+  assert.equal(row.p_title, "Title");
+  assert.equal(row.p_alt_text, "Alt");
+  assert.equal(row.p_sort_order, 42);
+});
+
+test("cleanup and background scheduling failures cannot undo publication or replay success", async () => {
+  const h = harness(), body = await h.prepare();
+  h.failures.cleanup = true;
+  h.failures.scheduling = true;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await h.post(body);
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).automaticText, "queued");
+    assert.equal(h.catalogue.size, 1);
+    assert.equal(h.staged.size, 1);
+    assert.equal(h.published.size, 1);
+    assert.deepEqual([...h.reservations.keys()].sort(), [body.stagingPath, body.storagePath].sort());
+  }
+});
+
+test("publish validates metadata only for a new publication, preserving replay identity semantics", async () => {
+  const h = harness(), body = await h.prepare();
+  const response = await h.post({ ...body, capturedAt: "2026-02-30" });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, "Captured date must be a valid date using YYYY-MM-DD.");
+  assert.equal(h.events.includes("copy"), false);
+  assert.equal((await h.post(body)).status, 200);
+  assert.equal((await h.post({ ...body, capturedAt: "2026-02-30", title: {} })).status, 200);
+});
+
+for (const [body, error] of [
+  [{ phase: "wrong" }, "Invalid upload phase."],
+  [{ phase: "prepare", size: jpeg.length, contentType: "image/gif", filename: "photo.gif" }, "Use a JPG, PNG, or WEBP image."],
+  [{ phase: "prepare", size: jpeg.length, contentType: "image/jpeg", filename: "../photo.jpg" }, "Invalid image filename."],
+  [{ phase: "prepare", size: jpeg.length, contentType: "image/jpeg", filename: "photo.jpg", sortOrder: "1.5" }, "Sort order must be a whole number."],
+]) {
+  test(`invalid command preserves exact HTTP error: ${error}`, async () => {
+    const h = harness();
+    const response = await h.post(body);
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error, error);
+    assert.deepEqual(h.events, ["is_admin"]);
+  });
+}
 
 for (const mismatch of ["filename", "stored path", "staging identity"]) {
   test(`replay denies ${mismatch} mismatch without altering existing publication`, async () => {

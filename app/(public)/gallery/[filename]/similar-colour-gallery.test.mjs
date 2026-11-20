@@ -21,7 +21,6 @@ runInNewContext(source, { exports, require(name) {
   };
   if (name === "@/lib/photographs/find-colour-matches") return {};
   if (name === "../photo-gallery") return { PhotoGallery: () => null };
-  if (name === "./palette-reset-event") return {};
   return require(name);
 } });
 

@@ -5,6 +5,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as text from "../../../../lib/photographs/text.ts";
+import * as textBatch from "./text-batch.ts";
 
 const require = createRequire(import.meta.url);
 const primitives = {
@@ -15,6 +16,7 @@ const primitives = {
   "../confirm-provider": { useAdminConfirm: () => async () => true },
   "./unsaved-changes": { useUnsavedChanges() {}, hasUnsavedAdminChanges: () => false },
   "./palette-indicator": { PaletteIndicator: "span" },
+  "./text-batch": textBatch,
   "../admin-workspace": { useAdminUploadNavigation: () => ({ setUploadBusy() {} }) },
   "next/link": { __esModule: true, default: "a" },
   "next/navigation": { unstable_rethrow() {} },
@@ -24,7 +26,7 @@ function load(file, mocks = {}, globals = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const exports = {};
-  runInNewContext(source, { exports, FormData, URL, URLSearchParams, window: { confirm: () => true },
+  runInNewContext(source, { exports, FormData, URL, URLSearchParams, Error, window: { confirm: () => true },
     require: name => mocks[name] ?? primitives[name] ?? (name === "@/lib/photographs/text" ? text : require(name)), ...globals });
   return exports;
 }
@@ -49,6 +51,11 @@ function hooks() {
         const slot = cursor++;
         if (!(slot in slots)) slots[slot] = typeof initial === "function" ? initial() : initial;
         return [slots[slot], update => { slots[slot] = typeof update === "function" ? update(slots[slot]) : update; changed = true; }];
+      },
+      useReducer(reduce, initial) {
+        const slot = cursor++;
+        if (!(slot in slots)) slots[slot] = initial;
+        return [slots[slot], event => { slots[slot] = reduce(slots[slot], event); changed = true; }];
       },
       useRef: initial => ({ current: initial }), useId: () => "test-id", useEffect() {}, useCallback: callback => callback,
       useActionState(action) { reducer = action; return [result, () => {}, pending]; },
@@ -317,6 +324,99 @@ test("saving one suggested draft refreshes only that draft, not dirty siblings",
   assert.equal(refreshed[1].key, siblingKey);
   assert.equal(refreshed[1].props.draft, drafts[1]);
 });
+
+function textReviewHarness({ automaticAlt = false, eligibleFields = ["title"] } = {}) {
+  const h = hooks();
+  let guarded, confirmed = true, fail = true;
+  const tokens = [];
+  const preview = { token: "approval", runId: "run", expiresAt: "2026-12-01", rows: [{
+    draftId: "a", filename: "a.jpg", status: "ready", eligibleFields, protectedFields: ["description"],
+    before: { title: "Before", description: "Manual", alt_text: "Retained alt" },
+    after: { title: "After", description: "Manual", alt_text: "Suggested alt" },
+  }] };
+  let recoveryResponse = { preview, results: [], done: false };
+  let rollbackResponse = { results: [] };
+  const { PhotographTextReview } = load("./text-review.tsx", {
+    react: h.react, "@/lib/photographs/storage": {}, "@/lib/seo": {}, "./form-controls": {},
+    "../confirm-provider": { useAdminConfirm: () => async () => confirmed },
+    "./unsaved-changes": { useUnsavedChanges: value => { guarded = value; } },
+    "./text-actions": {
+      listPhotographTextDraftsAction: async () => ({ drafts: [], total: 0 }),
+      getPhotographTextBatchAction: async () => recoveryResponse,
+      rollbackPhotographTextBatchAction: async () => rollbackResponse,
+      applyPhotographTextBatchAction: async token => {
+        tokens.push(token);
+        return fail ? { error: "Interrupted" } : { done: true, results: [{ draftId: "a", filename: "a.jpg", status: "applied", fields: ["title"] }] };
+      },
+    },
+  });
+  const render = () => h.render(PhotographTextReview, { available: true, automaticAlt });
+  const button = (tree, label) => find(tree, node => node.type === "button" && node.props.children === label);
+  return {
+    render, button, tokens, preview, get guarded() { return guarded; },
+    recoveryResponse(value) { recoveryResponse = value; }, rollbackResponse(value) { rollbackResponse = value; },
+    confirm(value) { confirmed = value; }, succeed() { fail = false; }, settle: h.settle,
+    async recover() {
+      let tree = render();
+      find(tree, node => node.props?.placeholder === "Approval UUID").props.onChange({ target: { value: "approval" } });
+      tree = render();
+      button(tree, "Recover approval and results").props.onClick(); await h.settle();
+      return render();
+    },
+  };
+}
+
+test("batch confirmation stays outside application; interrupted UI retains token, lock and resumable results", async () => {
+  const h = textReviewHarness();
+  let tree = await h.recover();
+  h.confirm(false);
+  await h.button(tree, "Confirm and apply eligible fields").props.onClick(); await h.settle();
+  assert.deepEqual(h.tokens, []);
+  assert.equal(h.guarded, false);
+  h.confirm(true);
+  await h.button(tree, "Confirm and apply eligible fields").props.onClick(); await h.settle(); tree = h.render();
+  assert.deepEqual(h.tokens, ["approval"]);
+  assert.equal(h.guarded, true);
+  assert.ok(h.button(tree, "Resume approved batch"));
+  assert.ok(find(tree, node => node.props?.role === "alert" && node.props.children.includes("approval token is retained")));
+  h.succeed();
+  await h.button(tree, "Resume approved batch").props.onClick(); await h.settle(); tree = h.render();
+  assert.deepEqual(h.tokens, ["approval", "approval"]);
+  assert.equal(h.guarded, false);
+  assert.equal(h.button(tree, "Resume approved batch").props.disabled, true);
+  assert.ok(find(tree, node => node.type === "li"));
+});
+
+for (const operation of ["recovery", "rollback"]) {
+  test(`uncertain ${operation} response leaves interrupted UI locked with recorded results and readable feedback`, async () => {
+    const h = textReviewHarness();
+    h.recoveryResponse({ preview: h.preview, results: [{ draftId: "a", filename: "a.jpg", status: "applied", fields: ["title"] }], done: false });
+    let tree = await h.recover();
+    assert.equal(h.guarded, true);
+    const before = find(tree, node => node.type === "li").props.children;
+    if (operation === "recovery") {
+      h.recoveryResponse({ preview: h.preview });
+      h.button(tree, "Recover approval and results").props.onClick();
+    } else {
+      h.rollbackResponse({});
+      await h.button(tree, "Roll back unchanged applied fields").props.onClick();
+    }
+    await h.settle(); tree = h.render();
+    assert.equal(h.guarded, true);
+    assert.deepEqual(find(tree, node => node.type === "li").props.children, before);
+    assert.equal(h.button(tree, "Resume approved batch").props.disabled, false);
+    assert.ok(find(tree, node => node.props?.role === "alert" && node.props.children.includes("approval and recorded results are retained")));
+  });
+}
+
+for (const automaticAlt of [true, null]) {
+  test(`recovered alt approval is blocked conservatively when automaticAlt=${automaticAlt}`, async () => {
+    const h = textReviewHarness({ automaticAlt, eligibleFields: ["alt_text"] });
+    const tree = await h.recover();
+    assert.equal(h.button(tree, "Confirm and apply eligible fields").props.disabled, true);
+    assert.deepEqual(h.tokens, []);
+  });
+}
 
 test("upload is immediately available and a prepared photo uses the shared navigation guard", async () => {
   const h = hooks(); let guarded;

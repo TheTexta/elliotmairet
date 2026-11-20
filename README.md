@@ -70,6 +70,15 @@ Photo pages compute colour matches in the browser from the cached
 `/api/gallery/palettes` JSON, so browsing by colour does not invoke a server
 function.
 
+`PhotographColourSelection` owns the selected hex for one photograph, keyed by
+photograph ID. The hero reset button and colour gallery receive that same state
+directly, without window events. The image remains a server-rendered child;
+palette requests remain deduplicated across navigation, with cancellable fades
+and 36-result batches. `node scripts/test-colour-selection-browser.mjs` serves an
+isolated loopback fixture using mounted React and synthetic catalogue/matching
+adapters. Open the printed URL for scheduling, reset and navigation assertions;
+no Next server, environment files or production requests are used.
+
 ## Palette extraction
 
 Upload analysis uses versioned **MMCQ64 + vibrancy/diversity scoring**: up to
@@ -298,6 +307,18 @@ deployment evidence and recovery procedures.
 Use `npm run test:text` for offline safeguards and `npm run test:text:db` for the
 isolated local Postgres checks (Docker required; never uses Supabase credentials).
 
+The review UI delegates approval lifetime and draft-ID result reconciliation to
+`app/(admin)/admin/photos/text-batch.ts`: empty, previewed, applying, interrupted
+and complete states. Interrupted work keeps its approval and editing lock until
+resume, rollback or explicit local release. Confirmation remains in the UI;
+`test:text` exercises the reducer and asynchronous retry loop without live actions.
+Recovery, rollback and apply responses must contain valid recorded results (and
+an explicit completion flag where the action supplies one). Uncertain responses
+retain the approval, progress and editing lock. Completed state takes precedence
+over late apply responses; recovery reads are tied to their starting state so a
+late read cannot undo rollback or local release. Explicit fresh recovery remains
+available, including after releasing a local preview.
+
 **Description-driven alt text (deployed and enabled):** a whole-archive
 setting under **Admin → Photos → Photo tools → Automatic text** generates concise AI alt text
 from the saved title and description after either changes. Alt text becomes
@@ -413,6 +434,15 @@ New uploads are sent by the browser to a presigned key in the private
 it to the published `elliotmairet` bucket, and then publishes the database row.
 Failed or abandoned work remains represented by the existing database cleanup
 jobs so an admin can retry object removal safely.
+
+`app/api/admin/photos/route.ts` retains authentication, HTTP responses, cache
+invalidation and non-blocking automatic-text scheduling. The phase-specific
+decoder and prepare/publish orchestration live in `lib/photographs/publication.ts`,
+using the authenticated Supabase client and existing concrete R2 adapters. New
+publication metadata is decoded after replay detection and image inspection so
+accepted retries retain their existing identity semantics and EXIF date fallback.
+Reservation/copy/commit/cleanup ordering and separate CIELAB/OKLab payloads are
+covered through the actual route by `test:upload`; no schema changes are needed.
 
 Before switching public delivery from Supabase Storage, inspect the catalogue
 without writing anything:

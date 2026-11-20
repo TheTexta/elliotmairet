@@ -24,8 +24,7 @@ import { FadingImage } from "../fading-image";
 import { heroImageSizes } from "../image-sizes";
 import { IndexNavigation } from "../index-navigation";
 import { ScrollToTop } from "../scroll-to-top";
-import { FullPhotographImage } from "./full-photograph-image";
-import { SimilarColourGallery } from "./similar-colour-gallery";
+import { PhotographColourSelection } from "./photograph-colour-selection";
 
 function decodeRouteFilename(filename: string) {
   let decodedFilename = filename;
@@ -143,32 +142,23 @@ export default async function PhotographPage({
         />
         <IndexNavigation fromPhoto />
         <ContentFrame>
-          <section>
-            <figure className="m-0 mt-[8vh] mb-[4vh]">
-              <div className="h-[80vh] bg-white flex content-center items-center justify-center">
-                <FullPhotographImage>
-                  <FadingImage
-                    alt={imageAlt}
-                    className="block h-auto max-h-full w-[calc(100vw-32px)] max-w-full object-contain sm:w-[66.667vw]"
-                    fetchPriority="high"
-                    height={photograph.height}
-                    loading="eager"
-                    quality={82}
-                    sizes={heroImageSizes(photograph.width, photograph.height)}
-                    src={imageUrl}
-                    width={photograph.width}
-                  />
-                </FullPhotographImage>
-              </div>
-            </figure>
-            <div className="" />
-            {palette.length > 0 ? (
-              <SimilarColourGallery
-                currentFilename={photograph.filename}
-                palette={palette.map(({ hex }) => hex)}
-              />
-            ) : null}
-          </section>
+          <PhotographColourSelection
+            key={photograph.id}
+            currentFilename={photograph.filename}
+            palette={palette.map(({ hex }) => hex)}
+          >
+            <FadingImage
+              alt={imageAlt}
+              className="block h-auto max-h-full w-[calc(100vw-32px)] max-w-full object-contain sm:w-[66.667vw]"
+              fetchPriority="high"
+              height={photograph.height}
+              loading="eager"
+              quality={82}
+              sizes={heroImageSizes(photograph.width, photograph.height)}
+              src={imageUrl}
+              width={photograph.width}
+            />
+          </PhotographColourSelection>
         </ContentFrame>
       </main>
     </ViewTransition>
