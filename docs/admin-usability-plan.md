@@ -1,5 +1,75 @@
 # Admin usability cleanup and shadcn/ui plan
 
+## Current workflow
+
+This section describes the implementation; the dated records below preserve
+earlier designs, superseded refinements and release evidence. They are not fresh
+verification of production state.
+
+- `/admin/photos` is a thumbnail-only, justified-row archive, sorted by capture
+  date newest-first across rows. Equal dates retain catalogue order; undated
+  photographs follow dated entries. This admin-only ordering does not change
+  stored/public catalogue order. Search/filter state is URL-backed.
+- Initially 48 lazy previews mount, then further 48-item batches reveal
+  automatically. Lightweight, non-interactive ratio slots reserve the whole
+  filtered layout. An observer prepares approaching slots within 1000px,
+  including direct scrollbar jumps; keyboard focus near the edge also prepares
+  more previews without moving focus. Without IntersectionObserver all remaining
+  previews become available with native lazy loading. There is no loading button
+  or moving bottom footer. Resize/filter changes can still reflow rows.
+- Rows have a common height, proportional uncropped widths and 12px/16px gutters.
+  Target heights are 4.8rem/7.2rem; actual heights adjust to fit, with incomplete
+  rows left-aligned and height-capped. Only revealed slots mount images/edit links.
+  This uses the cached catalogue, not a new pagination API; palettes/editor
+  prefetch remain out of the archive. The native filter has an explicit label and
+  full-width clickable field, including its arrow area.
+- `/admin/photos/[id]/edit` loads one photograph and its palette. Title and
+  description lead; alt/date/file/palette details remain available below. Returning
+  restores search/filter, revealed depth, scroll and originating keyboard focus
+  when session storage is available. Obsolete `page` parameters are ignored.
+- `/admin/photos/upload` opens the dedicated workspace. Active requests lock
+  shared navigation/sign-out; prepared files warn before leaving. See
+  [capture-date and publication recovery](photograph-storage.md#capture-dates-and-recovery).
+- `/admin/photos/tools` contains automatic text, budget/history, private review/
+  import/batch recovery and file maintenance. Photos retains actionable queue/
+  cleanup summaries; deletion returns there with pending-cleanup feedback.
+  Unknown charges cannot be retried.
+- Photos, editing, upload, tools and Site content share an authenticated layout
+  and persistent header. Login shares the visual language, not privileged nav.
+  Montserrat, plain **Elliot Mairet** branding, black/white chrome, thin rules and
+  square controls remain consistent; photographs/swatches retain colour.
+  Header targets are compact 24px; fields/primary actions remain 44px. Sign out
+  uses enabled pointer and busy not-allowed cursors.
+
+With automatic alt enabled or its setting unavailable, **Missing title or
+description** tests editable source text only; manual alt/caption controls stay
+locked/hidden conservatively. Explicit manual mode retains missing-text and
+hidden-caption filters without deleting custom wording. Public pages remain
+image-only. Site content edits the footer biography/homepage description together
+and title separately; see [public metadata](public-gallery.md#text-and-metadata).
+Local edits can queue generation without immediately processing it; **Check
+progress** does not run the queue. See
+[local automatic-text configuration](photograph-text-generation.md#local-editing-and-apparently-stuck-jobs)
+before retrying/provisioning generation.
+
+Unsaved photo text, private drafts, prepared uploads and site content warn on
+links, sign-out, unload and same-document history. Pending saves/removals/uploads
+block route changes. `instrumentation-client.ts` installs the history listener
+before hydration, ahead of Next's router; it is inert without registered admin
+work. Do not move registration into a dirty-only effect: the router could unmount
+the form first. Navigation API indices preserve the history entry after declined
+traversal; older-browser restoration can replace the Forward branch.
+
+New revisions refresh clean editors only; dirty editors keep their optimistic
+revision and offer per-photo reload/discard. Saved suggestions refresh only that
+record. Route changes cancel stale confirmations without remounting the header.
+Shared components preserve native forms, cancellation, focus and persistent
+inline feedback; navigation/unload warnings remain browser-native.
+See [component maintenance](admin-components.md), [`PRODUCT.md`](../PRODUCT.md)
+and [`DESIGN.md`](../DESIGN.md). `test:admin` covers offline interaction/state,
+routes, components and homepage metadata; it is not signed-in live acceptance.
+Save/discard unfinished work before refreshing an admin tab.
+
 ## Goal and constraints
 
 Make uploading and editing photographs understandable to a photographer rather

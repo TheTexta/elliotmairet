@@ -7,7 +7,8 @@ The application code is **deployed** and the catalogue backfill is **complete**.
 The initial release was **palette-only**, preserving the gallery layout.
 The owner subsequently approved integrating and pushing the colour-blob homepage
 to `main`. It uses these same swatches and weights; no further database backfill
-or original-file changes are needed. See the README's colour-neighbourhood section.
+or original-file changes are needed. See the
+[colour-neighbourhood archive guide](public-gallery.md#colour-neighbourhood-archive).
 
 On release, new uploads use the new analyser through the existing authenticated,
 transactional publication flow. Existing photograph palettes do not change merely
@@ -21,6 +22,35 @@ backfill tool and must not be used to upgrade this model: it would replace only
 the OKLab side with the old algorithm. The old extraction modules remain for
 comparison/rollback. The guarded operator workflow is documented in
 [`mmcq-backfill.md`](mmcq-backfill.md); no automatic reprocessing is enabled.
+
+### Legacy OKLab backfill
+
+The old `features:backfill:oklab` command is retained for explicitly reviewed
+legacy recovery/comparison, **not current palette maintenance**. It immediately
+reads originals from R2 and writes five weighted k-medoids to
+`photo_oklab_analyses`/`photo_oklab_features`, leaving CIELAB untouched. It has no
+dry-run mode. Running it against an MMCQ catalogue would make the representations
+inconsistent; use the guarded MMCQ tool above instead.
+
+For a separately authorized legacy operation only, the script loads `.env.local`
+and needs complete R2 server configuration plus the Supabase URL/public key and an
+allowlisted admin session. Pass the password through the shell, never an env file
+or Git:
+
+```bash
+read -s SUPABASE_ADMIN_PASSWORD
+export SUPABASE_ADMIN_PASSWORD
+SUPABASE_ADMIN_EMAIL=admin@example.com npm run features:backfill:oklab
+unset SUPABASE_ADMIN_PASSWORD
+```
+
+The script also supports an already-provisioned server-only
+`SUPABASE_SERVICE_ROLE_KEY`; normal application/admin setup does not need one.
+Do not create or expose a privileged key merely to run this legacy writer.
+The application prefers a photograph's OKLab features and falls back to CIELAB;
+matching compares photographs only within the same feature space. Current upload
+publication writes both representations transactionally from the shared MMCQ
+selection, not this legacy algorithm.
 
 ## Model
 

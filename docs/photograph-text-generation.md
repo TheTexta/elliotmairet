@@ -9,9 +9,15 @@ enabled; the rollout evidence and remaining acceptance limit are recorded below.
 See [the design plan](photograph-text-generation-plan.md) for
 the agreed scope and approval gates.
 
+The dated deployment/rollout records in this guide are historical evidence, not
+a fresh production check. Current editing lives at `/admin/photos/[id]/edit`,
+upload at `/admin/photos/upload`, and automation/private review/file maintenance
+at `/admin/photos/tools`; see the
+[current admin workflow](admin-usability-plan.md#current-workflow).
+
 ## What is editable
 
-On `/admin/photos`, each photograph's editor supports title, description,
+Each photograph's dedicated editor supports title, description,
 accessibility alt text, captured date and caption settings. Text saves check the
 current revision and preserve input on errors. Actual filenames and storage
 paths are not editable here.
@@ -151,7 +157,53 @@ overflow. This is fixture evidence, not a signed-in production acceptance test.
 
 ## Local generation (explicit paid authorization required)
 
-The original GPT-4.1 pilot remains reproducible. **Catalogue mode is separate**:
+### Original local photograph-labeling pilot
+
+`scripts/seo/label-photographs.mjs` prepares a fixed 20-photo public sample and,
+only with `--generate`, sends resized JPEG previews to OpenAI for **unapproved**
+title, description, alt-text and filename suggestions. It never writes Supabase/
+R2, renames files, changes source metadata or deploys. Filenames/routes stay stable.
+
+```bash
+# Public GETs and local previews; no OpenAI calls:
+node scripts/seo/label-photographs.mjs
+
+# Paid/external image processing: requires separate explicit permission.
+# OPENAI_API_KEY belongs only in ignored .env.local, never NEXT_PUBLIC_*.
+node --env-file=.env.local scripts/seo/label-photographs.mjs --generate --max-usd=5
+
+# Offline safeguards:
+node --test scripts/seo/label-photographs.test.mjs
+```
+
+Ignored output under `.local/photograph-labeling/2026-10-30-pilot-gpt-4.1/`
+includes source/preview manifests, `drafts.json`, spreadsheet-safe `drafts.csv`,
+`REVIEW.html`, per-response records and a usage ledger. Sharp makes previews no
+larger than 1024px with no retained EXIF; originals are not sent.
+
+The pilot pins `gpt-4.1` and records resolved response snapshots. Its original
+model listing/pricing check was on **2026-10-30**, not a continuing availability
+guarantee. An initial Mini request failed with HTTP 403/model_not_found; its
+separate ledger/run and US$0.06 reservation were retained in the pilot ceiling.
+There is no silent model fallback. The original review noted GPT-4.1 deprecation;
+reassess current availability/pricing before any further integration.
+
+At most two requests per photograph are allowed. Each attempt reserves US$0.05
+before sending and retains that reserve on errors: US$1 for first attempts, up
+to US$2 with retries, plus prior holds, within US$5. Token-based costs are estimates;
+provider billing is authoritative. There are no tools, background jobs or
+automatic publication in this local pilot.
+
+Successful drafts resume, but network/timeout ambiguity or a received response
+without an exported draft stops rather than repeating potentially billed work.
+Inspect saved response/usage before recovery. Confirm no process is active before
+removing a leftover `.lock`. Review invented context carefully: formal titles,
+people, places and dates remain owner-controlled. Expanding the pilot or applying
+drafts to production requires separate approval.
+
+### Whole-catalogue generation
+
+**Catalogue mode is separate from the original GPT-4.1 pilot**:
 
 ```bash
 # Public reads/local files only. Downloads or verifies <=1024px JPEG previews;
@@ -256,7 +308,8 @@ tests cover locking, publication queueing, manual/cleared text, caption modes,
 budget concurrency, lease recovery and completion idempotence.
 
 After publication, missing title, description and alt text are generated
-automatically. Description supplies the default visible caption. User-entered
+automatically. Description supplies default caption metadata; current public
+pages are [image-only](public-gallery.md#text-and-metadata). User-entered
 upload text stays manual; caption Custom/Hidden and deliberately cleared fields
 are never replaced. If a description is generated while the owner has selected
 Custom or Hidden, that selection remains in force.
@@ -422,7 +475,7 @@ then obtain approval for any accounting adjustment; no UI release shortcut exist
 
 After the migration and application deployment have been separately approved:
 
-1. Open **Photograph text · private AI draft review** on `/admin/photos`.
+1. Open **Photograph text · private AI draft review** on `/admin/photos/tools`.
 2. Optionally download the current catalogue snapshot for local generation.
 3. Import the generated `drafts.json`. Only metadata is sent, in idempotent chunks
    of up to 20 records. Re-importing an identical export is safe; changed original
@@ -454,6 +507,21 @@ review controls without undoing committed changes or deleting server history.
 ownership and revisions. Newer manual edits are skipped. It also cancels any
 unprocessed tail of an interrupted batch, so resuming its old token cannot apply
 the rest after rollback. Review all restored/skipped/cancelled results.
+
+### Interrupted batch state
+
+`app/(admin)/admin/photos/text-batch.ts` owns approval lifetime and draft-ID
+result reconciliation across empty, previewed, applying, interrupted and complete
+states. Interrupted work retains its approval and editing lock until resume,
+rollback or explicit local release. The UI still owns confirmation; `test:text`
+exercises the reducer and asynchronous retry loop without live actions.
+
+Recovery, rollback and apply responses must include valid recorded results and
+an explicit completion flag where supplied by that action. Uncertain responses
+retain approval/progress/locks. Completion takes precedence over late apply
+responses; recovery reads stay tied to their starting state so a late read cannot
+undo rollback/release. Explicit fresh recovery remains available after releasing
+a local preview.
 
 ## Migration, compatibility and rollout
 
