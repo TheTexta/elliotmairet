@@ -77,8 +77,11 @@ it to `/admin`; do not restyle the public portfolio or import a stock dashboard.
   provider-aware cleanup and unknown-charge denial unchanged.
 - Exact bulk preview, manual-field exclusions, interrupted-batch recovery and
   rollback remain available and correctly scoped.
-- Site title/search description/footer remain separate; search metadata and
-  public gallery routes/image-only rendering unchanged by the component migration.
+- The component migration retained separate site title/search description/footer
+  fields. Updated on 2026-11-22 at the owner's request: footer text now supplies the
+  homepage search/link-preview description automatically, with no separate
+  description field. The title remains editable; public photograph routes and
+  image-only rendering are unchanged.
 - Run `test:admin`, `test:text`, `test:upload`, `test:images`, lint, TypeScript and
   production build. No real paid/upload/delete acceptance without owner approval.
 

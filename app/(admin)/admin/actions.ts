@@ -116,14 +116,11 @@ export async function updateSiteContentAction(
   }
 
   let seoTitle: string | null;
-  let seoDescription: string | null | undefined;
 
   try {
     seoTitle = optionalText(formData, "seoTitle", 120);
-    // Older open forms must not clear a description they did not submit.
-    seoDescription = formData.has("seoDescription") ? optionalText(formData, "seoDescription", 320) : undefined;
   } catch {
-    return { error: "The SEO fields are too long." };
+    return { error: "The site title is too long." };
   }
 
   const { supabase } = await requireAdmin();
@@ -132,7 +129,6 @@ export async function updateSiteContentAction(
     .update({
       footer_text: footerText,
       seo_title: seoTitle,
-      ...(seoDescription !== undefined ? { seo_description: seoDescription } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("singleton", true)

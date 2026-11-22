@@ -209,26 +209,34 @@ unchanged; the homepage's proportional gutters and colour composition are descri
 Social previews use a transformation capped at 1200 pixels wide rather than
 downloading an original. Existing photograph alt text and titles also supply
 gallery and colour-match image descriptions; the palette JSON includes an
-optional `alt` field. Metadata prefers the existing `site_content.seo_description`
-when populated and otherwise uses a dedicated photographic-archive summary,
-not an automatic fallback to footer text. The homepage title and description are
-editable separately under **Admin → Site content**. The homepage photo-grid wrapper
+optional `alt` field. The footer biography in `site_content.footer_text` is the
+single source for the homepage meta description, Open Graph/Twitter descriptions
+and WebSite structured data. Metadata collapses whitespace to a single line
+without changing or truncating the wording; the visible footer preserves line
+breaks. A blank footer produces a blank description. If site content cannot be
+loaded, the default footer supplies both the visible biography and its matching
+description. The site title remains editable separately under **Admin → Site
+content**; there is no separate search-description field.
+
+The legacy `site_content.seo_description` column and its values remain untouched
+for rollback compatibility, but this app neither reads nor writes them, including
+submissions from older open forms. No database migration or manual content copy is
+needed. The footer-derived cache uses a new namespace to avoid retaining old
+descriptions across deployment; footer saves invalidate the shared site-content
+tag, refreshing both the visible footer and homepage metadata on the next request.
+
+The homepage photo-grid wrapper
 uses server-rendered `data-nosnippet` so its image descriptions are excluded from
 Google's homepage snippets; descriptive alt text, photo links and individual
 photograph pages remain unchanged. Contact links and the developer credit also use
 `data-nosnippet`, while the footer biography remains eligible for snippets.
 
-To make the homepage description match the footer, copy only the biography from
-**Footer text** into **Search description**, replacing paragraph breaks with spaces,
-then save through the authenticated admin form. Do not include contact links or
-the developer credit. These fields remain independent: deploying the snippet
-exclusion does not change the saved description or automatically sync future
-footer edits. The same saved description supplies homepage search metadata,
-Open Graph/Twitter descriptions and WebSite structured data. After deployment and
-the content save, verify the live HTML and use Search Console's URL Inspection to
-request indexing of `https://elliotmairet.com/`. Google may still rewrite the
-description, and changes require recrawling; exact wording and timing are not
-guaranteed.
+Edit **Footer text** to update both the biography and the homepage description.
+Contact links and the developer credit are separate markup, not part of that text.
+After deployment or a footer edit, verify the live HTML and use Search Console's
+URL Inspection to request indexing of `https://elliotmairet.com/`. Google may still
+rewrite the description, and changes require recrawling; exact wording and timing
+are not guaranteed.
 
 Public pages allow large search-result image previews, sitemap homepage timestamps reflect the most
 recent catalogue update, and structured data escapes embedded HTML delimiters.
@@ -399,7 +407,8 @@ With automatic alt enabled or its setting unavailable, **Missing title or
 description** checks editable source text only; manual alt and caption controls
 remain locked/hidden conservatively. Explicit manual mode retains missing-text
 and hidden-caption-metadata filters. Custom wording is not deleted; public photo
-pages remain image-only. Site content retains separate search-preview/footer fields.
+pages remain image-only. Site content uses the footer biography for homepage
+search/link-preview descriptions, with a separately editable title.
 Local text edits can queue generation without processing it immediately if the
 local server lacks the worker capability; Check progress does not run the queue.
 See the [automatic-text configuration guide](docs/photograph-text-generation.md#local-editing-and-apparently-stuck-jobs)

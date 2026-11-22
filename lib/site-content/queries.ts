@@ -3,11 +3,14 @@ import { unstable_cache } from "next/cache";
 import { cacheTags } from "@/lib/cache-tags";
 import { createPublicClient } from "@/lib/supabase/public";
 
+function footerDescription(footerText: string) {
+  return footerText.replace(/\s+/g, " ").trim();
+}
+
 export const defaultFooterText =
   "Elliot Mairet is a Montreal based photographer from Victoria BC.\n\nAbove all else he is grateful for you";
 export const defaultSeoTitle = "Elliot Mairet";
-export const defaultSeoDescription =
-  "Photographs by Elliot Mairet, a Montreal-based photographer from Victoria, BC. Explore his portfolio and photographic archive.";
+export const defaultSeoDescription = footerDescription(defaultFooterText);
 
 export type SiteContent = {
   footerText: string;
@@ -18,7 +21,6 @@ export type SiteContent = {
 type SiteContentRow = {
   footer_text: string;
   seo_title: string | null;
-  seo_description: string | null;
 };
 
 const defaultSiteContent: SiteContent = {
@@ -31,7 +33,7 @@ export const getSiteContent = unstable_cache(async (): Promise<SiteContent> => {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("site_content")
-    .select("footer_text, seo_title, seo_description")
+    .select("footer_text, seo_title")
     .eq("singleton", true)
     .maybeSingle();
 
@@ -46,10 +48,10 @@ export const getSiteContent = unstable_cache(async (): Promise<SiteContent> => {
 
   return {
     footerText: row.footer_text,
-    seoDescription: row.seo_description?.trim() || defaultSeoDescription,
+    seoDescription: footerDescription(row.footer_text),
     seoTitle: row.seo_title?.trim() || defaultSeoTitle,
   };
-}, ["site-content", "footer", "seo-description-v2"], {
+}, ["site-content", "footer", "footer-description-v3"], {
   revalidate: 86400,
   tags: [cacheTags.siteContent],
 });

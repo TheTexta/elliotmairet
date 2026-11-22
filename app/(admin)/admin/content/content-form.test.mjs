@@ -68,8 +68,7 @@ function formHarness(action = async () => ({ message: "Site content updated." })
     async submit() {
       const data = new FormData();
       data.set("footerText", byId(tree, "footerText").props.value);
-       data.set("seoTitle", byId(tree, "seoTitle").props.value);
-      data.set("seoDescription", byId(tree, "seoDescription").props.value);
+      data.set("seoTitle", byId(tree, "seoTitle").props.value);
       pending = true;
       const promise = reducer(result, data);
       render();
@@ -105,10 +104,10 @@ test("saving disables both fields and submit; successful save adopts only submit
   const pending = form.render();
   assert.equal(byId(pending, "seoTitle").props.disabled, true);
   assert.equal(byId(pending, "footerText").props.disabled, true);
-  assert.equal(byId(pending, "seoDescription").props.disabled, true);
+  assert.equal(byId(pending, "seoDescription"), undefined);
   assert.equal(button(pending).props.disabled, true);
   assert.equal(form.guarded(), true);
-  assert.deepEqual(submitted, { footerText: "New\r\nfooter", seoTitle: " New title ", seoDescription: "Untouched" });
+  assert.deepEqual(submitted, { footerText: "New\r\nfooter", seoTitle: " New title " });
   finish({ message: "Site content updated." });
   const saved = await saving;
   assert.equal(button(saved).props.disabled, true);
@@ -132,16 +131,18 @@ test("failed saves preserve inputs and dirty guard, including thrown failures", 
   }
 });
 
-test("search description is editable independently of the visible footer and title", async () => {
+test("footer is the only description field and explains its search/link-preview use", async () => {
   let submitted;
   const form = formHarness(async (_previous, data) => { submitted = Object.fromEntries(data); return { message: "Saved" }; });
-  form.render();
-  form.change("seoDescription", " Clean search summary ");
+  const tree = form.render();
+  assert.equal(byId(tree, "seoDescription"), undefined);
+  assert.match(byId(tree, "footer-text-help").props.children, /automatically.*search results.*shared links/);
+  form.change("footerText", "Updated biography");
   assert.equal(form.guarded(), true);
   await form.submit();
-  assert.equal(submitted.footerText, "Original footer");
+  assert.equal(submitted.footerText, "Updated biography");
   assert.equal(submitted.seoTitle, "Original title");
-  assert.equal(submitted.seoDescription, " Clean search summary ");
+  assert.equal(Object.hasOwn(submitted, "seoDescription"), false);
   assert.equal(form.guarded(), false);
 });
 

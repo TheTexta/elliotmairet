@@ -17,17 +17,16 @@ import { useUnsavedChanges } from "../photos/unsaved-changes";
 
 const initialState: AdminActionState = {};
 
-function normalizeContent(footerText: string, seoTitle: string, seoDescription: string) {
-  return { footerText: footerText.replace(/\r\n?/g, "\n"), seoTitle: seoTitle.trim(), seoDescription: seoDescription.trim() };
+function normalizeContent(footerText: string, seoTitle: string) {
+  return { footerText: footerText.replace(/\r\n?/g, "\n"), seoTitle: seoTitle.trim() };
 }
 
-export function ContentForm({ initialContent }: { initialContent: SiteContent }) {
+export function ContentForm({ initialContent }: { initialContent: Pick<SiteContent, "footerText" | "seoTitle"> }) {
   const [footerText, setFooterText] = useState(initialContent.footerText);
   const [seoTitle, setSeoTitle] = useState(initialContent.seoTitle);
-  const [seoDescription, setSeoDescription] = useState(initialContent.seoDescription);
-  const [saved, setSaved] = useState(() => normalizeContent(initialContent.footerText, initialContent.seoTitle, initialContent.seoDescription));
+  const [saved, setSaved] = useState(() => normalizeContent(initialContent.footerText, initialContent.seoTitle));
   const [state, formAction, pending] = useActionState(async (previousState: AdminActionState, formData: FormData) => {
-    const submitted = normalizeContent(String(formData.get("footerText") ?? ""), String(formData.get("seoTitle") ?? ""), String(formData.get("seoDescription") ?? ""));
+    const submitted = normalizeContent(String(formData.get("footerText") ?? ""), String(formData.get("seoTitle") ?? ""));
     try {
       const result = await updateSiteContentAction(previousState, formData);
       if (result.message && !result.error) setSaved(submitted);
@@ -37,8 +36,8 @@ export function ContentForm({ initialContent }: { initialContent: SiteContent })
       return { error: "Site content could not be saved. Your changes are still here. Try again." };
     }
   }, initialState);
-  const current = normalizeContent(footerText, seoTitle, seoDescription);
-  const dirty = current.footerText !== saved.footerText || current.seoTitle !== saved.seoTitle || current.seoDescription !== saved.seoDescription;
+  const current = normalizeContent(footerText, seoTitle);
+  const dirty = current.footerText !== saved.footerText || current.seoTitle !== saved.seoTitle;
   useUnsavedChanges(dirty || pending);
 
   return (
@@ -61,23 +60,12 @@ export function ContentForm({ initialContent }: { initialContent: SiteContent })
         {seoTitle.length}/120 characters
       </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="seoDescription">Search description</Label>
-        <p className="max-w-prose text-sm leading-6" id="seo-description-help">A short summary for search results and shared links. Search engines may change the wording and take time to update.</p>
-      <Textarea
-        aria-describedby="seo-description-help seo-description-count"
-        className="min-h-28 p-4"
-        disabled={pending} id="seoDescription" maxLength={320} name="seoDescription" rows={3}
-        onChange={event => setSeoDescription(event.target.value)} value={seoDescription}
-      />
-      <div className="text-right text-xs tabular-nums" id="seo-description-count">{seoDescription.length}/320 characters</div>
-      </div>
       </fieldset>
       <Separator />
       <fieldset disabled={pending} className="min-w-0 space-y-2">
         <legend className="mb-4 text-base font-medium">Public footer</legend>
         <Label htmlFor="footerText">Footer text</Label>
-        <p className="text-sm leading-relaxed" id="footer-text-help">Shown at the bottom of the public site. Line breaks are preserved.</p>
+        <p className="text-sm leading-relaxed" id="footer-text-help">Shown at the bottom of the site and used automatically for search results and shared links. Line breaks are preserved here; previews use a single line. Search engines may change the wording and take time to update.</p>
       <Textarea
         aria-describedby="footer-text-help footer-text-count"
         className="min-h-40 p-4"
