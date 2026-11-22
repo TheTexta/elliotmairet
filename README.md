@@ -211,11 +211,26 @@ downloading an original. Existing photograph alt text and titles also supply
 gallery and colour-match image descriptions; the palette JSON includes an
 optional `alt` field. Metadata prefers the existing `site_content.seo_description`
 when populated and otherwise uses a dedicated photographic-archive summary,
-never the footer text. The homepage title and description are editable separately
-under **Admin → Site content**. Contact links and the developer credit remain
-visible but use `data-nosnippet` to exclude them from Google snippets. Google may
-rewrite titles/descriptions and updates require recrawling. Public pages allow large
-search-result image previews, sitemap homepage timestamps reflect the most
+not an automatic fallback to footer text. The homepage title and description are
+editable separately under **Admin → Site content**. The homepage photo-grid wrapper
+uses server-rendered `data-nosnippet` so its image descriptions are excluded from
+Google's homepage snippets; descriptive alt text, photo links and individual
+photograph pages remain unchanged. Contact links and the developer credit also use
+`data-nosnippet`, while the footer biography remains eligible for snippets.
+
+To make the homepage description match the footer, copy only the biography from
+**Footer text** into **Search description**, replacing paragraph breaks with spaces,
+then save through the authenticated admin form. Do not include contact links or
+the developer credit. These fields remain independent: deploying the snippet
+exclusion does not change the saved description or automatically sync future
+footer edits. The same saved description supplies homepage search metadata,
+Open Graph/Twitter descriptions and WebSite structured data. After deployment and
+the content save, verify the live HTML and use Search Console's URL Inspection to
+request indexing of `https://elliotmairet.com/`. Google may still rewrite the
+description, and changes require recrawling; exact wording and timing are not
+guaranteed.
+
+Public pages allow large search-result image previews, sitemap homepage timestamps reflect the most
 recent catalogue update, and structured data escapes embedded HTML delimiters.
 The one-hour R2 cache policy and source checksum/version checks remain in place.
 Run `npm run test:images` for image URL, sizing, storage, and metadata checks.
