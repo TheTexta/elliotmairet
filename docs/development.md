@@ -114,8 +114,31 @@ There is no `typecheck` package script. CI runs `npx --no-install next typegen`
 then `npx --no-install tsc --noEmit --incremental false`.
 [`checks.yml`](../.github/workflows/checks.yml) runs on pushes and pull requests
 with Node 22, `npm ci`, lint, those type checks and the upload, palette, similarity,
-images, admin and text suites. Layout and palette-backfill checks are additional
-local commands, not currently listed in that workflow.
+images, admin and text suites. It also installs Chromium/OS dependencies and runs
+the finite `test:colour-browser` fixture. Layout and palette-backfill checks are
+additional local commands, not currently listed in that workflow.
+
+For the isolated colour-recovery browser checks:
+
+```bash
+npx --no-install playwright install chromium # Once, after npm ci
+npm run test:colour-browser
+```
+
+The repository pins Playwright as a dev-only dependency. The finite runner starts
+an ephemeral loopback fixture, waits at most 30 seconds for its mounted assertions,
+fails on browser errors/unexpected runtime requests and closes browser/server in
+`finally`. Only the fixture's HTML/JS/CSS paths are permitted; all other browser
+network traffic is blocked. No Next server, environment files or production
+requests are used. Actual selection/hero/gallery effects, palette decoder/cache
+and matching code run against fictional data. Motion and thumbnails are adapters;
+the fixture compiles public Tailwind utilities, with a system-font substitute for
+the production Montserrat download. It checks normal/reduced motion, native
+keyboard Retry/focus, 320px/desktop layout and 200% text sizing, not real photograph
+delivery, font metrics or screen-reader speech. For optional fixture screenshots,
+set `COLOUR_TEST_SCREENSHOTS` to a local output directory.
+`node scripts/test-colour-selection-browser.mjs` still serves the same fixture for
+interactive inspection; stop it after use.
 
 `test:upload` exercises the actual POST route/session gate with synthetic DB/R2
 adapters and real Sharp metadata: access denial, MIME/content mismatches,

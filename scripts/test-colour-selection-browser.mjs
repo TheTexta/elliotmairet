@@ -1,42 +1,64 @@
-// Isolated mounted-React fixture: no Next server, credentials or external calls.
-// Run this script, then open its loopback URL. Results appear on the page and in
-// window.testResults. Motion/thumbnail rendering and palette matching are stubs;
-// the real selection owner, hero and asynchronous gallery effects are mounted.
+// Isolated mounted-React fixture: no Next server, env files or production calls.
+// Import createColourSelectionFixture for the finite runner, or run this file
+// directly for an interactive loopback fixture.
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import postcss from "postcss";
+import tailwindcss from "@tailwindcss/postcss";
 import ts from "typescript";
 
+import { runColourSelectionTests } from "./fixtures/colour-selection-browser.mjs";
+
 const require = createRequire(import.meta.url);
-const modules = {};
-for (const [name, file] of Object.entries({
-  react: "react/cjs/react.development.js",
-  "react/jsx-runtime": "react/cjs/react-jsx-runtime.development.js",
-  "react-dom": "react-dom/cjs/react-dom.development.js",
-  "react-dom/client": "react-dom/cjs/react-dom-client.development.js",
-  scheduler: "scheduler/cjs/scheduler.development.js",
-})) {
-  const [packageName, ...path] = file.split("/");
-  modules[name] = readFileSync(new URL(path.join("/"), `file://${require.resolve(`${packageName}/package.json`)}`), "utf8");
-}
-for (const name of ["photograph-colour-selection", "full-photograph-image", "similar-colour-gallery"]) {
-  modules[`./${name}`] = ts.transpileModule(readFileSync(new URL(`../app/(public)/gallery/[filename]/${name}.tsx`, import.meta.url), "utf8"), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-  }).outputText;
-}
-modules["motion/react"] = `
+const projectRoot = fileURLToPath(new URL("../", import.meta.url));
+
+export async function createColourSelectionFixture() {
+  const modules = {};
+  for (const [name, file] of Object.entries({
+    react: "react/cjs/react.development.js",
+    "react/jsx-runtime": "react/cjs/react-jsx-runtime.development.js",
+    "react-dom": "react-dom/cjs/react-dom.development.js",
+    "react-dom/client": "react-dom/cjs/react-dom-client.development.js",
+    scheduler: "scheduler/cjs/scheduler.development.js",
+  })) {
+    const [packageName, ...path] = file.split("/");
+    modules[name] = readFileSync(new URL(path.join("/"), pathToFileURL(require.resolve(`${packageName}/package.json`))), "utf8");
+  }
+  const sources = {
+    ...Object.fromEntries(["photograph-colour-selection", "full-photograph-image", "similar-colour-gallery"].map(name =>
+      [`./${name}`, `../app/(public)/gallery/[filename]/${name}.tsx`])),
+    "@/lib/photographs/colour-palettes": "../lib/photographs/colour-palettes.ts",
+    "@/lib/photographs/find-colour-matches": "../lib/photographs/find-colour-matches.ts",
+    "./colour.ts": "../lib/photographs/colour.ts",
+    "./select-similar-matches.ts": "../lib/photographs/select-similar-matches.ts",
+  };
+  for (const [name, path] of Object.entries(sources)) {
+    modules[name] = ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+    }).outputText;
+  }
+  // Motion and thumbnails remain adapters; owner, hero, gallery effects, decoder,
+  // shared request cache and colour matcher are the actual application modules.
+  modules["motion/react"] = `
 const React = require("react");
-exports.useReducedMotion = () => true;
-exports.motion = { button: ({ animate, initial, transition, ...props }) => React.createElement("button", props) };
+exports.useReducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+exports.motion = { button: ({ animate, initial, transition, style, ...props }) => React.createElement("button", {
+  ...props, "data-motion-duration": transition.duration, style: { ...style, transform: "scale(" + animate.scale + ")" }
+}) };
 `;
-modules["../photo-gallery"] = `
-exports.PhotoGallery = ({ photographs }) => require("react").createElement("output", { "data-matches": true }, photographs.map(photo => photo.filename).join(","));
+  modules["../photo-gallery"] = `
+const React = require("react");
+exports.PhotoGallery = ({ photographs, ariaLabel }) => React.createElement("div", {
+  "aria-label": ariaLabel, "data-matches": JSON.stringify(photographs.map(photo => photo.filename)),
+  className: "grid grid-cols-2 gap-4 sm:grid-cols-3"
+}, photographs.map(photo => React.createElement("div", {
+  key: photo.filename, style: { aspectRatio: "3 / 2", background: photo.filename.includes("light") ? "#ddd" : "#222" }
+})));
 `;
-modules["@/lib/photographs/find-colour-matches"] = `
-exports.findColourMatches = (_photos, hexes, filename) => ({ matches: Array.from({length: 80}, (_, index) => ({ filename: filename + ":" + hexes.join("+") + ":" + index })) });
-`;
-const bundle = Object.entries(modules).map(([name, source]) => `${JSON.stringify(name)}: function(module, exports, require) {\n${source}\n}`).join(",\n");
-const script = `
+  const bundle = Object.entries(modules).map(([name, source]) => `${JSON.stringify(name)}: function(module, exports, require) {\n${source}\n}`).join(",\n");
+  const script = `
 const process = { env: { NODE_ENV: "development" } };
 const modules = { ${bundle} }, cache = {};
 function require(name) {
@@ -44,65 +66,44 @@ function require(name) {
   if (!cache[name]) { const module = cache[name] = { exports: {} }; modules[name](module, module.exports, require); }
   return cache[name].exports;
 }
-const React = require("react"), { createRoot } = require("react-dom/client"), { flushSync } = require("react-dom");
-const { PhotographColourSelection } = require("./photograph-colour-selection");
-const root = createRoot(document.getElementById("root"));
-const other = createRoot(document.getElementById("other"));
-const palette = ["#111111", "#ffffff"];
-let requests = 0, resolveRequest;
-window.fetch = url => { if (url !== "/api/gallery/palettes") throw Error("Unexpected fetch"); requests++; return new Promise(resolve => { resolveRequest = () => resolve({ ok: true, json: async () => [] }); }); };
-const observers = [];
-window.IntersectionObserver = class {
-  constructor(callback, options) { this.callback = callback; this.options = options; observers.push(this); }
-  observe() {} disconnect() { this.disconnected = true; }
+require.freshSelection = () => {
+  for (const name of ["./photograph-colour-selection", "./similar-colour-gallery", "@/lib/photographs/colour-palettes"]) delete cache[name];
+  return require("./photograph-colour-selection").PhotographColourSelection;
 };
-const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-const mount = (filename, target = root) => flushSync(() => target.render(React.createElement(PhotographColourSelection, {
-  key: filename, currentFilename: filename, palette,
-}, React.createElement("img", { alt: "server photograph child" }))));
-const hero = (id = "root") => document.querySelector("#" + id + " figure button");
-const swatch = index => document.querySelectorAll("#root nav button")[index];
-const matches = () => document.querySelector("#root output")?.textContent;
-const click = element => flushSync(() => element.click());
-const checks = [];
-function check(value, message) { if (!value) throw Error(message); checks.push(message); }
-(async () => {
-  mount("first.jpg");
-  check(hero().disabled, "Hero starts disabled");
-  check(document.querySelector("#root img").alt === "server photograph child", "Server child survives composition");
-  click(swatch(0));
-  check(!hero().disabled, "Selection enables hero while request is suspended");
-  check(swatch(0).getAttribute("aria-pressed") === "true", "Swatch reflects sole selected hex");
-  mount("independent.jpg", other);
-  check(hero("other").disabled, "Independent owner is not filtered");
-  check(requests === 1, "Pending palette request deduplicated across owners");
-  resolveRequest(); await wait(30);
-  check(matches().includes("first.jpg:#111111:0"), "Selected hex drives matching");
-  check(matches().split(",").length === 36, "Initial results retain 36-item pagination");
-  const observer = observers.find(value => !value.disconnected);
-  check(observer.options.rootMargin === "1000px 0px", "Pagination retains loading threshold");
-  flushSync(() => observer.callback([{ isIntersecting: true }]));
-  check(matches().split(",").length === 72, "Observer reveals next 36 results");
-  click(hero()); await wait(130);
-  check(hero().disabled && swatch(0).getAttribute("aria-pressed") === "false", "Hero resets selection and pressed state together");
-  check(matches().includes("first.jpg:#111111+#ffffff:0"), "Reset restores full-palette matching");
-  click(swatch(0)); await wait(10); click(swatch(1)); await wait(130);
-  check(matches().includes("first.jpg:#ffffff:0") && !matches().includes("first.jpg:#111111:0"), "Cancelled fade cannot overwrite latest selection");
-  click(swatch(0)); await wait(10); mount("next.jpg"); await wait(130);
-  check(hero().disabled, "Keyed navigation resets hero before stale fade completes");
-  check(matches().includes("next.jpg:#111111+#ffffff:0") && !matches().includes("first.jpg"), "Unmount cancels previous photograph matching");
-  check(requests === 1, "Navigation reuses resolved palette request");
-  window.testResults = { passed: checks.length, checks };
-})().catch(error => { window.testResults = { failed: error.message, checks }; }).finally(() => {
-  document.getElementById("results").textContent = JSON.stringify(window.testResults, null, 2);
-});
+(${runColourSelectionTests.toString()})(require);
 `;
-const server = createServer((request, response) => {
-  if (request.url === "/fixture.js") {
-    response.setHeader("Content-Type", "text/javascript"); response.end(script);
-  } else {
-    response.setHeader("Content-Type", "text/html");
-    response.end('<!doctype html><meta charset="utf-8"><title>Offline palette selection tests</title><div id="root"></div><div id="other"></div><pre id="results">Running…</pre><script src="/fixture.js"></script>');
-  }
-});
-server.listen(0, "127.0.0.1", () => console.log(`Offline palette fixture: http://127.0.0.1:${server.address().port}`));
+  // Compile the real public utilities without Next/font, app config, or env.
+  const cssPath = new URL("../app/globals.css", import.meta.url);
+  const css = (await postcss([tailwindcss({ base: projectRoot })]).process(readFileSync(cssPath, "utf8"), {
+    from: fileURLToPath(cssPath),
+  })).css;
+  const server = createServer((request, response) => {
+    if (request.url === "/fixture.js") {
+      response.setHeader("Content-Type", "text/javascript"); response.end(script);
+    } else if (request.url === "/fixture.css") {
+      response.setHeader("Content-Type", "text/css"); response.end(css);
+    } else if (request.url === "/") {
+      response.setHeader("Content-Type", "text/html");
+      response.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src data:; connect-src 'none'");
+      response.end('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline palette selection tests</title><link rel="stylesheet" href="/fixture.css"><body class="min-w-[320px] m-0 bg-white text-black text-sm uppercase"><main class="px-4" style="font-family: sans-serif"><div id="root"></div><div id="other"></div></main><pre id="results" hidden>Running…</pre><script src="/fixture.js"></script></body></html>');
+    } else {
+      response.writeHead(404); response.end();
+    }
+  });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  return {
+    url: `http://127.0.0.1:${server.address().port}`,
+    close: () => new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve())),
+  };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const fixture = await createColourSelectionFixture();
+  console.log(`Offline palette fixture: ${fixture.url}`);
+  const close = () => { void fixture.close(); };
+  process.once("SIGTERM", close);
+  process.once("SIGINT", close);
+}

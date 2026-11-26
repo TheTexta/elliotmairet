@@ -3,10 +3,10 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
+import { loadColourPalettes } from "@/lib/photographs/colour-palettes";
 import {
   findColourMatches,
   type ColourMatch,
-  type ColourSearchPhotograph,
 } from "@/lib/photographs/find-colour-matches";
 
 import { PhotoGallery } from "../photo-gallery";
@@ -28,24 +28,6 @@ function waitForGalleryFadeOut(signal: AbortSignal) {
   });
 }
 
-let palettesRequest: Promise<ColourSearchPhotograph[]> | undefined;
-
-// Shared across photo navigations so the catalogue palette JSON is fetched once.
-function loadPalettes() {
-  palettesRequest ??= fetch("/api/gallery/palettes").then((result) => {
-    if (!result.ok) {
-      throw new Error(`Palette request failed with ${result.status}.`);
-    }
-
-    return result.json() as Promise<ColourSearchPhotograph[]>;
-  });
-  palettesRequest.catch(() => {
-    palettesRequest = undefined;
-  });
-
-  return palettesRequest;
-}
-
 export function SimilarColourGallery({
   currentFilename,
   palette,
@@ -61,11 +43,35 @@ export function SimilarColourGallery({
   const [visibleCount, setVisibleCount] = useState(colourResultPageSize);
   const matchesRef = useRef<ColourMatch[] | undefined>(undefined);
   const loadTriggerRef = useRef<HTMLDivElement>(null);
+  const requestRef = useRef<ReturnType<typeof loadColourPalettes>>(undefined);
+  const retryAfterRef = useRef<ReturnType<typeof loadColourPalettes>>(undefined);
+  const retryPendingRef = useRef(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
   const reduceMotion = useReducedMotion();
   const [status, setStatus] = useState<
     "idle" | "loading" | "fading-out" | "error"
-  >("idle");
+  >("loading");
   const hasMore = Boolean(matches && visibleCount < matches.length);
+  const isPending = status === "loading" || status === "fading-out";
+  const hasPreviousResults = Boolean(matches?.length);
+  const feedback = status === "error"
+    ? hasPreviousResults
+      ? "Similar photographs could not be updated. Previous results are still shown."
+      : "Similar photographs could not be loaded."
+    : isPending
+      ? `${isRetrying ? "Trying again…" : "Finding similar photographs…"}${hasPreviousResults ? " Previous results are still shown." : ""}`
+      : matches?.length === 0
+        ? "No similar photographs found."
+        : "";
+
+  function retry() {
+    if (status !== "error" || retryPendingRef.current) return;
+    retryPendingRef.current = true;
+    retryAfterRef.current = requestRef.current;
+    setIsRetrying(true);
+    setRetryAttempt((attempt) => attempt + 1);
+  }
 
   useEffect(() => {
     const trigger = loadTriggerRef.current;
@@ -95,7 +101,10 @@ export function SimilarColourGallery({
       setStatus("loading");
 
       try {
-        const photographs = await loadPalettes();
+        const request = loadColourPalettes(retryAfterRef.current);
+        retryAfterRef.current = undefined;
+        requestRef.current = request;
+        const photographs = await request;
 
         if (controller.signal.aborted) {
           return;
@@ -124,13 +133,18 @@ export function SimilarColourGallery({
         if (!controller.signal.aborted) {
           setStatus("error");
         }
+      } finally {
+        if (!controller.signal.aborted) {
+          retryPendingRef.current = false;
+          setIsRetrying(false);
+        }
       }
     }
 
     void loadMatches();
 
     return () => controller.abort();
-  }, [currentFilename, palette, selectedHex]);
+  }, [currentFilename, palette, selectedHex, retryAttempt]);
 
   return (
     <>
@@ -163,9 +177,22 @@ export function SimilarColourGallery({
         ))}
       </nav>
 
+      <div className={feedback ? "mb-4" : undefined}>
+        <p aria-atomic="true" role="status">{feedback}</p>
+        {status === "error" || isRetrying ? (
+          <button
+            aria-disabled={isRetrying}
+            className="min-h-11 cursor-pointer border-0 bg-transparent px-2 py-2 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#050505] aria-disabled:cursor-wait"
+            onClick={retry}
+            type="button"
+          >
+            {isRetrying ? "Trying again…" : "Try again"}
+          </button>
+        ) : null}
+      </div>
+
       <section
-        aria-busy={status === "loading" || status === "fading-out"}
-        aria-live="polite"
+        aria-busy={isPending}
         className={`transition-opacity ease-out motion-reduce:transition-none ${
           status === "fading-out" ? "opacity-0" : "opacity-100"
         }`}

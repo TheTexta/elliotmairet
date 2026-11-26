@@ -60,6 +60,7 @@ Supabase to prerender routes and can fail if the database/schema is unavailable.
 
 Start with `npm run lint`; the [development guide](docs/development.md#checks-and-rollout-boundary)
 lists offline suites, type checks, isolated database tests and the CI/build boundary.
+This includes the isolated `test:colour-browser` recovery fixture.
 Builds, operational scripts and live acceptance are not offline checks.
 
 - [Gallery, colour layout, image delivery and metadata](docs/public-gallery.md)

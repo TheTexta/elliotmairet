@@ -25,6 +25,8 @@ jobs:
       - run: npx --no-install tsc --noEmit --incremental false
       - run: npm run test:upload
       - run: npm run test:palette
+      - run: npx --no-install playwright install --with-deps chromium
+      - run: npm run test:colour-browser
       - run: npm run test:similarity
       - run: npm run test:images
       - run: npm run test:admin

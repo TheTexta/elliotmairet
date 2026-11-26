@@ -16,7 +16,8 @@
     "test:text:db": "node scripts/test-photograph-text-db.mjs",
     "test:admin": "node --experimental-strip-types --test 'app/(admin)/admin/photos/admin-ux.test.mjs' 'app/(admin)/admin/photos/unsaved-changes.test.mjs' 'app/(admin)/admin/content/content-form.test.mjs' 'app/(admin)/admin/confirm-provider.test.mjs' components/ui/ui.test.mjs lib/site-content/queries.test.mjs",
     "test:upload": "node --experimental-strip-types --test lib/photographs/upload.test.mjs lib/photographs/upload-date.test.mjs app/api/admin/photos/route.test.mjs",
-    "test:palette": "node --experimental-strip-types --test lib/palette/oklab-k-medoids.test.mjs lib/palette/mmcq-vibrant.test.mjs lib/photographs/analyse-image.test.mjs scripts/review-palettes.test.mjs 'app/(public)/gallery/*/similar-colour-gallery.test.mjs'",
+    "test:palette": "node --experimental-strip-types --test lib/palette/oklab-k-medoids.test.mjs lib/palette/mmcq-vibrant.test.mjs lib/photographs/analyse-image.test.mjs lib/photographs/colour-palettes.test.mjs scripts/review-palettes.test.mjs 'app/(public)/gallery/*/similar-colour-gallery.test.mjs'",
+    "test:colour-browser": "node scripts/run-colour-selection-browser.mjs",
     "palette:review": "node --experimental-strip-types scripts/review-palettes.mjs",
     "test:layout": "node --experimental-strip-types --test lib/photographs/plan-colour-masonry.test.mjs 'app/(public)/gallery/photo-gallery-columns.test.mjs' 'app/(public)/gallery/colour-gallery-layout.test.mjs'",
     "palette:backfill": "node --experimental-strip-types scripts/backfill-mmcq-palettes.mjs",
@@ -53,6 +54,7 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.4.6",
+    "playwright": "1.65.1",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3"
   }

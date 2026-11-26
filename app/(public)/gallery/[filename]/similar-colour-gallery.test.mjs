@@ -20,6 +20,7 @@ runInNewContext(source, { exports, require(name) {
     }, children) },
   };
   if (name === "@/lib/photographs/find-colour-matches") return {};
+  if (name === "@/lib/photographs/colour-palettes") return {};
   if (name === "../photo-gallery") return { PhotoGallery: () => null };
   return require(name);
 } });

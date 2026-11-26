@@ -18,7 +18,19 @@ JSON, rather than invoking a server function per selection.
 photograph ID. The hero reset button and colour gallery share that state directly,
 without window events. The image remains a server-rendered child; palette
 requests are deduplicated across navigation, fades are cancellable and colour
-results reveal in 36-item batches.
+results reveal in 36-item batches with a 1000px observer threshold.
+
+The public result region has restrained loading, failure and empty feedback.
+**Try again** preserves the selected swatch and any usable previous grid; retained
+results are explicitly identified as previous results until matching succeeds.
+Pending Retry remains focused and `aria-disabled`, with repeated activation
+suppressed; photographs and swatches stay usable. The single polite status region
+is separate from the busy result grid.
+
+Palette JSON is shape-checked before caching. Explicit Retry can revalidate a
+settled catalogue after HTTP/JSON/shape failure or a valid-but-stale catalogue
+that cannot match the selected colour. Consumers share pending requests and newer
+successful recovery generations; one unmount never aborts another's fetch.
 
 The current analyser uses MMCQ64 with vibrancy/diversity scoring: up to five
 supported, distinct sampled colours, separate population weights and selection
