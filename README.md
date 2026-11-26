@@ -45,7 +45,7 @@ Supabase to prerender routes and can fail if the database/schema is unavailable.
 
 ## Architecture
 
-- Next.js App Router, React, TypeScript, Tailwind CSS v4 and Motion; Sharp image
+- Next.js 16.4.6 App Router, React, TypeScript, Tailwind CSS v4 and Motion; Sharp image
   analysis stays server-side. Public/admin route groups separate their layouts.
 - Supabase owns metadata and per-user admin authorization. A catalogue row means
   public availability; filename-based URLs and storage paths remain stable.

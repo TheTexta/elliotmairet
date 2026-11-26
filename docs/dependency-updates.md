@@ -141,3 +141,50 @@ Rollback is the previous application/lockfile commit, without schema changes or
 data restoration. That rollback reinstates the old security advisories, so prefer
 a bounded forward fix when practical; production rollback still needs owner
 authorization.
+
+## Security follow-up — 2026-11-26
+
+The owner requested fixing the current security advisories and committing/pushing
+the security update with the public header underline fix. This follow-up supersedes
+the earlier audit result and minimatch compatibility limitation above.
+
+- Next.js and `eslint-config-next`: **16.4.3 → 16.4.6**, including matching
+  `@next/env`, SWC binaries and the Next ESLint plugin.
+- The compatible `typescript-eslint` family: **8.72.1 → 8.74.0**. Its upstream
+  dependency update supports **minimatch 11.0.9**, resolving the globparts
+  denial-of-service advisory without overrides or forced peer resolution.
+- Supporting lint transitives changed within their upstream ranges:
+  `brace-expansion` 5.1.0, `ignore` 7.0.17 and nested `semver` 7.8.6; minimatch
+  adds `@isaacs/nonrecursive-glob-match` 1.1.0.
+
+No major framework/compiler/linter upgrade, application authorization change,
+schema migration or storage operation is included. ESLint 9 remains on the
+documented compatibility hold; its upstream deprecation warning is separate from
+the security audit.
+
+| Audit | Before follow-up | After |
+| --- | --- | --- |
+| Full tree | 8 moderate vulnerable package nodes | **0 findings** |
+| Production (`npm audit --omit=dev`) | Next.js, with seven moderate advisories | **0 findings** |
+
+Verification on a clean worktree based on the current remote documentation commit:
+
+- `npm ci --ignore-scripts`, lint, standalone TypeScript checking and the production
+  build passed. The build used only the existing public catalogue/delivery
+  configuration; no privileged credentials were passed to the build process.
+- Existing CI suites passed: upload **52**, palette **20**, similarity **15**,
+  images **32**, admin **81**, text **97**. Additional palette-backfill tests:
+  **8 passed**. Native Sharp paths are covered by these tests despite the
+  script-disabled install.
+- The optional layout suite remains **23/25 passed**. The mixed-panorama balance
+  and monochrome-contact assertions in `plan-colour-masonry.test.mjs` fail
+  identically with the original dependencies. No layout algorithm, assertion or
+  threshold was changed to conceal those pre-existing failures.
+- A local production server passed real-image loading, photo navigation,
+  keyboard return navigation and anonymous admin-to-login redirects at **320px**
+  and **1440px**. Header underline spacing matches the footer at both widths,
+  retaining its shared animation and unchanged label position.
+
+These are local verification and package-audit results, not proof of production
+deployment or live authenticated upload/RLS acceptance. No uploads, deletions,
+paid requests or database changes were part of these checks.
